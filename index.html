@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>高校入試 AI学習システム</title>
   
-  <!-- KaTeX 数式レンダリング -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
@@ -250,7 +249,6 @@
 </head>
 <body>
 
-  <!-- ログインモーダル -->
   <div class="modal-overlay" id="userSelectModal" style="display: flex;">
     <div class="modal-content" style="text-align: center;">
       <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">学習者を選択してください</h2>
@@ -337,7 +335,7 @@
   </div>
 
   <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbyTy8beFQVUloz4x4RTeTCUMEKc38QahlLsOOeAcNTI55JgHcGU1pEpMz6nCJWvuHWH/exec";
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbztxqsi0_QJak1WXbI2y6DHWJ1xIzCXNQI4_6zqdnTFPQ_3fqjccn484MtgsbWv0-z_/exec";
 
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
@@ -357,7 +355,7 @@
 
     async function fetchNextTargetQuestion() {
       const loading = document.getElementById('loadingOverlay');
-      document.getElementById('loadingMessage').textContent = '既習（対象）単元から問題を取得中...';
+      document.getElementById('loadingMessage').textContent = 'AIが学習状況に合わせて問題を生成・取得しています...';
       loading.style.display = 'flex';
       document.getElementById('resultModal').style.display = 'none';
       clearCanvas();
@@ -372,19 +370,19 @@
           currentQuestionData = result.data;
           renderQuestionUI(currentQuestionData);
         } else {
-          document.getElementById('problemTitle').textContent = '出題可能な対象単元がありません';
-          document.getElementById('problemDialogue').textContent = 'スプレッドシートの status 列で「対象」となっている単元の問題を追加してください。';
+          document.getElementById('problemTitle').textContent = '問題の取得に失敗しました';
+          document.getElementById('problemDialogue').textContent = result.message || 'スプレッドシートやGASの設定を確認してください。';
           document.getElementById('svgContainer').innerHTML = '';
           document.getElementById('questionsList').innerHTML = '';
         }
       } catch (err) {
         loading.style.display = 'none';
-        alert('問題の取得に失敗しました: ' + err.toString());
+        alert('通信に失敗しました: ' + err.toString());
       }
     }
 
     function renderQuestionUI(q) {
-      document.getElementById('problemTitle').textContent = "【" + q.unit + "】" + q.title;
+      document.getElementById('problemTitle').textContent = "【" + (q.unit || "数学") + "】" + q.title;
       document.getElementById('problemDialogue').innerHTML = String(q.context_text).replace(/\n/g, '<br>');
 
       const subListEl = document.getElementById('questionsList');
@@ -392,14 +390,16 @@
       const subQuestions = typeof q.sub_questions_json === 'string' ? JSON.parse(q.sub_questions_json) : q.sub_questions_json;
       
       let totalPts = 0;
-      subQuestions.forEach(function(sub) {
-        totalPts += sub.points;
-        const li = document.createElement('li');
-        li.className = 'question-item';
-        li.innerHTML = '<strong>(' + sub.q + ')</strong> ' + sub.text + ' <span style="color:#64748b; font-size:0.8rem;">（' + sub.points + '点）</span>';
-        subListEl.appendChild(li);
-      });
-      document.getElementById('totalPointsText').textContent = "配点：計" + totalPts + "点";
+      if (Array.isArray(subQuestions)) {
+        subQuestions.forEach(function(sub) {
+          totalPts += sub.points;
+          const li = document.createElement('li');
+          li.className = 'question-item';
+          li.innerHTML = '<strong>(' + sub.q + ')</strong> ' + sub.text + ' <span style="color:#64748b; font-size:0.8rem;">（' + sub.points + '点）</span>';
+          subListEl.appendChild(li);
+        });
+      }
+      document.getElementById('totalPointsText').textContent = "配点：計" + (totalPts || 15) + "点";
 
       if (q.svg_config_json) {
         const configObj = typeof q.svg_config_json === 'string' ? JSON.parse(q.svg_config_json) : q.svg_config_json;
@@ -414,20 +414,21 @@
       const width = container.clientWidth || 360;
       const height = 230;
 
-      if (cfg.type === "linear_and_triangle") {
+      if (cfg && cfg.type === "linear_and_triangle" && cfg.pointA && cfg.pointB) {
         const minX = -4, maxX = 6, minY = -1, maxY = 9;
         const toSvgX = function(x) { return ((x - minX) / (maxX - minX)) * width; };
         const toSvgY = function(y) { return height - ((y - minY) / (maxY - minY)) * height; };
 
         const ax = toSvgX(cfg.pointA.x), ay = toSvgY(cfg.pointA.y);
         const bx = toSvgX(cfg.pointB.x), by = toSvgY(cfg.pointB.y);
-        const cx = toSvgX(cfg.pointC.x), cy = toSvgY(cfg.pointC.y);
+        const cx = cfg.pointC ? toSvgX(cfg.pointC.x) : toSvgX(0);
+        const cy = cfg.pointC ? toSvgY(cfg.pointC.y) : toSvgY(3);
         const ox = toSvgX(0), oy = toSvgY(0);
 
         container.innerHTML = 
           '<svg viewBox="0 0 ' + width + ' ' + height + '" xmlns="http://www.w3.org/2000/svg">' +
             '<line x1="' + toSvgX(minX) + '" y1="' + oy + '" x2="' + toSvgX(maxX) + '" y2="' + oy + '" stroke="#94a3b8" stroke-width="1.5"/>' +
-            '<line x1="' + ox + '" y1="' + toSvgY(minY) + '" x2="' + ox + '" y2="' + toSvgY(maxY) + '" stroke="#94a3b8" stroke-width="1.5"/>' +
+            '<line x1="' + ox + '" y1="' + toSvgY(minY)}" x2="' + ox + '" y2="' + toSvgY(maxY) + '" stroke="#94a3b8" stroke-width="1.5"/>' +
             '<text x="' + (toSvgX(maxX)-14) + '" y="' + (oy+14) + '" font-size="11" fill="#64748b">x</text>' +
             '<text x="' + (ox+6) + '" y="' + (toSvgY(maxY)+12) + '" font-size="11" fill="#64748b">y</text>' +
             '<text x="' + (ox-10) + '" y="' + (oy+12) + '" font-size="10" fill="#64748b">O</text>' +
@@ -439,10 +440,10 @@
             '<circle cx="' + bx + '" cy="' + by + '" r="4" fill="#0f172a"/>' +
             '<text x="' + (bx+6) + '" y="' + (by+4) + '" font-size="11" font-weight="bold" fill="#0f172a">' + cfg.pointB.label + '</text>' +
             '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="#2563eb"/>' +
-            '<text x="' + (cx+6) + '" y="' + (cy-4) + '" font-size="10" font-weight="bold" fill="#2563eb">' + cfg.pointC.label + '</text>' +
+            '<text x="' + (cx+6) + '" y="' + (cy-4) + '" font-size="10" font-weight="bold" fill="#2563eb">' + (cfg.pointC ? cfg.pointC.label : "C") + '</text>' +
           '</svg>';
       } else {
-        container.innerHTML = '<div style="color:#64748b; font-size:0.85rem;">（図表データ）</div>';
+        container.innerHTML = '<div style="color:#64748b; font-size:0.85rem; padding: 20px; text-align:center;">（図形・グラフ表示領域）</div>';
       }
     }
 
@@ -537,7 +538,6 @@
     document.getElementById('currentUserPill').addEventListener('click', openUserModal);
     document.getElementById('nextActionBtn').addEventListener('click', fetchNextTargetQuestion);
 
-    // ユーザー選択ボタンのイベントリスナー
     document.getElementById('btn-user-nozomi').addEventListener('click', function() { selectUser('user_nozomi', 'のぞみ'); });
     document.getElementById('btn-user-yui').addEventListener('click', function() { selectUser('user_yui', 'ゆい'); });
     document.getElementById('btn-user-chiemi').addEventListener('click', function() { selectUser('user_chiemi', 'ちえみ'); });
@@ -616,12 +616,14 @@
 
       const subList = document.getElementById('subScoresList');
       subList.innerHTML = '';
-      data.scores.forEach(function(s) {
-        const item = document.createElement('div');
-        item.style.padding = '4px 0';
-        item.innerHTML = '<strong>(' + s.q + ')</strong> ' + (s.is_correct ? '⭕' : '❌') + ' 得点: ' + s.score + '/' + s.max + '点 - <span style="color:#64748b;">' + (s.comment || '') + '</span>';
-        subList.appendChild(item);
-      });
+      if (Array.isArray(data.scores)) {
+        data.scores.forEach(function(s) {
+          const item = document.createElement('div');
+          item.style.padding = '4px 0';
+          item.innerHTML = '<strong>(' + s.q + ')</strong> ' + (s.is_correct ? '⭕' : '❌') + ' 得点: ' + s.score + '/' + s.max + '点 - <span style="color:#64748b;">' + (s.comment || '') + '</span>';
+          subList.appendChild(item);
+        });
+      }
 
       document.getElementById('aiFeedbackText').textContent = data.ai_feedback;
       document.getElementById('resultModal').style.display = 'flex';
