@@ -335,7 +335,8 @@
   </div>
 
   <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbztxqsi0_QJak1WXbI2y6DHWJ1xIzCXNQI4_6zqdnTFPQ_3fqjccn484MtgsbWv0-z_/exec";
+    // デプロイ先エンドポイントURL
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwCOOt-tYq0J1t8O7QQyioeEkA6f1XDsgpaCT_We5J1ICVXWY46plRO0XqcQo2sYudB/exec";
 
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
@@ -428,7 +429,7 @@
         container.innerHTML = 
           '<svg viewBox="0 0 ' + width + ' ' + height + '" xmlns="http://www.w3.org/2000/svg">' +
             '<line x1="' + toSvgX(minX) + '" y1="' + oy + '" x2="' + toSvgX(maxX) + '" y2="' + oy + '" stroke="#94a3b8" stroke-width="1.5"/>' +
-            '<line x1="' + ox + '" y1="' + toSvgY(minY)}" x2="' + ox + '" y2="' + toSvgY(maxY) + '" stroke="#94a3b8" stroke-width="1.5"/>' +
+            '<line x1="' + ox + '" y1="' + toSvgY(minY) + '" x2="' + ox + '" y2="' + toSvgY(maxY) + '" stroke="#94a3b8" stroke-width="1.5"/>' +
             '<text x="' + (toSvgX(maxX)-14) + '" y="' + (oy+14) + '" font-size="11" fill="#64748b">x</text>' +
             '<text x="' + (ox+6) + '" y="' + (toSvgY(maxY)+12) + '" font-size="11" fill="#64748b">y</text>' +
             '<text x="' + (ox-10) + '" y="' + (oy+12) + '" font-size="10" fill="#64748b">O</text>' +
