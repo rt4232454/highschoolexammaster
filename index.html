@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>高校入試 AI学習システム</title>
   
-  <!-- KaTeX 数式レンダリング -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
@@ -235,7 +234,6 @@
   </header>
 
   <div class="main-container">
-    <!-- 左側：問題領域（GASから動的生成） -->
     <div class="card">
       <div class="card-header">
         <span id="problemTitle">問題を読み込み中...</span>
@@ -248,7 +246,6 @@
       </div>
     </div>
 
-    <!-- 右側：手書きキャンバス -->
     <div class="card">
       <div class="card-header">
         <span>手書き解答エリア（途中式・答えを記入）</span>
@@ -263,13 +260,11 @@
     </div>
   </div>
 
-  <!-- ローディング -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
     <p id="loadingMessage">問題を読み込んでいます...</p>
   </div>
 
-  <!-- 採点結果モーダル -->
   <div class="modal-overlay" id="resultModal">
     <div class="modal-content">
       <div id="scoreBanner" class="score-banner">
@@ -301,12 +296,11 @@
   </div>
 
   <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxj5g9dOB3BLfi6I-GQBTaAcFy1hzeEPZ7ulz3CaUKjmFMEiBkDEifcYoNsECyWWeTY/exec";
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwPyvG0j8BLSDqa9S4lE3nWTjgJ2ABsWQR2HgRxNFKMbspdGahaUbnFUFiotHvVckvG/exec";
 
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
 
-    /* ユーザー選択 */
     function selectUser(userId, userName) {
       currentUser = { id: userId, name: userName };
       localStorage.setItem("hs_study_user", JSON.stringify(currentUser));
@@ -319,16 +313,15 @@
       document.getElementById("userSelectModal").style.display = "flex";
     }
 
-    /* GASから「対象」単元の問題を取得 */
     async function fetchNextTargetQuestion() {
       const loading = document.getElementById('loadingOverlay');
-      document.getElementById('loadingMessage').textContent = '「対象」単元から問題を取得中...';
+      document.getElementById('loadingMessage').textContent = '既習（対象）単元から問題を取得中...';
       loading.style.display = 'flex';
       document.getElementById('resultModal').style.display = 'none';
       clearCanvas();
 
       try {
-        const res = await fetch(`${GAS_ENDPOINT_URL}?user_id=${currentUser.id}`);
+        const res = await fetch(`${GAS_ENDPOINT_URL}?user_id=${currentUser.id}&t=${Date.now()}`);
         const result = await res.json();
         loading.style.display = 'none';
 
@@ -337,7 +330,7 @@
           renderQuestionUI(currentQuestionData);
         } else {
           document.getElementById('problemTitle').textContent = '出題可能な対象単元がありません';
-          document.getElementById('problemDialogue').textContent = 'スプレッドシートで「対象」となっている単元の問題を追加してください。';
+          document.getElementById('problemDialogue').textContent = 'スプレッドシートの status 列で「対象」となっている単元の問題を追加してください。';
           document.getElementById('svgContainer').innerHTML = '';
           document.getElementById('questionsList').innerHTML = '';
         }
@@ -347,12 +340,10 @@
       }
     }
 
-    /* 取得した問題データを画面に描画 */
     function renderQuestionUI(q) {
       document.getElementById('problemTitle').textContent = `【${q.unit}】${q.title}`;
       document.getElementById('problemDialogue').innerHTML = q.context_text.replace(/\n/g, '<br>');
 
-      // 小問リスト生成
       const subListEl = document.getElementById('questionsList');
       subListEl.innerHTML = '';
       const subQuestions = typeof q.sub_questions_json === 'string' ? JSON.parse(q.sub_questions_json) : q.sub_questions_json;
@@ -367,33 +358,56 @@
       });
       document.getElementById('totalPointsText').textContent = `配点：計${totalPts}点`;
 
-      // SVGグラフの描画
       if (q.svg_config_json) {
         renderDynamicSvg(typeof q.svg_config_json === 'string' ? JSON.parse(q.svg_config_json) : q.svg_config_json);
       }
 
-      // 数式変換
       renderMath();
     }
 
-    /* SVG動的描画（反比例・一次関数・二次関数等に対応） */
+    /* 一次関数・二次関数対応の正確なSVG描画エンジン */
     function renderDynamicSvg(cfg) {
       const container = document.getElementById('svgContainer');
-      const w = container.clientWidth || 360, h = 230;
-      
-      // 反比例の場合のサンプル描画
-      if (cfg.type === "inverse_and_line") {
+      const width = container.clientWidth || 360;
+      const height = 230;
+
+      if (cfg.type === "linear_and_triangle") {
+        const minX = -4, maxX = 6, minY = -1, maxY = 9;
+        const toSvgX = (x) => ((x - minX) / (maxX - minX)) * width;
+        const toSvgY = (y) => height - ((y - minY) / (maxY - minY)) * height;
+
+        const ax = toSvgX(cfg.pointA.x), ay = toSvgY(cfg.pointA.y);
+        const bx = toSvgX(cfg.pointB.x), by = toSvgY(cfg.pointB.y);
+        const cx = toSvgX(cfg.pointC.x), cy = toSvgY(cfg.pointC.y);
+        const ox = toSvgX(0), oy = toSvgY(0);
+
         container.innerHTML = `
-          <svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
-            <line x1="20" y1="200" x2="340" y2="200" stroke="#94a3b8" stroke-width="1.5"/>
-            <line x1="40" y1="220" x2="40" y2="10" stroke="#94a3b8" stroke-width="1.5"/>
-            <text x="330" y="215" font-size="11" fill="#64748b">x</text>
-            <text x="45" y="20" font-size="11" fill="#64748b">y</text>
-            <path d="M 60,30 Q 80,140 280,180" fill="none" stroke="#2563eb" stroke-width="2"/>
-            <line x1="60" y1="40" x2="260" y2="180" stroke="#dc2626" stroke-width="1.5"/>
-            <circle cx="80" cy="55" r="4" fill="#0f172a"/><text x="85" y="50" font-size="10">A(2, 6)</text>
-            <circle cx="240" cy="165" r="4" fill="#0f172a"/><text x="245" y="160" font-size="10">B(6, 2)</text>
-          </svg>`;
+          <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+            <!-- 座標軸 -->
+            <line x1="${toSvgX(minX)}" y1="${oy}" x2="${toSvgX(maxX)}" y2="${oy}" stroke="#94a3b8" stroke-width="1.5"/>
+            <line x1="${ox}" y1="${toSvgY(minY)}" x2="${ox}" y2="${toSvgY(maxY)}" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="${toSvgX(maxX)-14}" y="${oy+14}" font-size="11" fill="#64748b">x</text>
+            <text x="${ox+6}" y="${toSvgY(maxY)+12}" font-size="11" fill="#64748b">y</text>
+            <text x="${ox-10}" y="${oy+12}" font-size="10" fill="#64748b">O</text>
+
+            <!-- △OABの塗りつぶし領域 -->
+            <polygon points="${ox},${oy} ${ax},${ay} ${bx},${by}" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+
+            <!-- 直線ℓ (y = x + 3) -->
+            <line x1="${toSvgX(-3.5)}" y1="${toSvgY(-0.5)}" x2="${toSvgX(5)}" y2="${toSvgY(8)}" stroke="#dc2626" stroke-width="2"/>
+            <text x="${toSvgX(5)-10}" y="${toSvgY(8)-6}" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>
+
+            <!-- 点A, B, C -->
+            <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
+            <text x="${ax-46}" y="${ay-4}" font-size="11" font-weight="bold" fill="#0f172a">${cfg.pointA.label}</text>
+
+            <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
+            <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold" fill="#0f172a">${cfg.pointB.label}</text>
+
+            <circle cx="${cx}" cy="${cy}" r="3.5" fill="#2563eb"/>
+            <text x="${cx+6}" y="${cy-4}" font-size="10" font-weight="bold" fill="#2563eb">${cfg.pointC.label}</text>
+          </svg>
+        `;
       } else {
         container.innerHTML = `<div style="color:#64748b; font-size:0.85rem;">（図表データ）</div>`;
       }
@@ -459,7 +473,7 @@
     document.getElementById('submitBtn').addEventListener('click', async () => {
       if (!currentQuestionData) return;
       const loading = document.getElementById('loadingOverlay');
-      document.getElementById('loadingMessage').textContent = 'Gemini AI が解答を採点しています...';
+      document.getElementById('loadingMessage').textContent = 'Gemini AI が手書き文字と途中式を解析・採点しています...';
       loading.style.display = 'flex';
 
       try {
