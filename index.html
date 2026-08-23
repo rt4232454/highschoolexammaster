@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>高校入試 AI学習システム</title>
+  
+  <!-- 数式を美しく描画する KaTeX ライブラリ -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+
   <style>
     :root {
       --primary: #2563eb;
@@ -73,7 +79,7 @@
       padding: 12px;
       border-radius: 4px;
       font-size: 0.9rem;
-      line-height: 1.6;
+      line-height: 1.8;
       margin-bottom: 16px;
     }
     .dialogue-speaker { font-weight: 700; color: var(--primary); }
@@ -94,9 +100,10 @@
       background: #fff;
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 10px 12px;
+      padding: 12px;
       margin-bottom: 8px;
       font-size: 0.9rem;
+      line-height: 1.6;
     }
     .canvas-wrapper {
       position: relative;
@@ -221,7 +228,7 @@
         <span>【大問】二次関数と動点P・Qの図形融合問題</span>
         <span style="font-size: 0.8rem; color: #64748b;">配点：計15点</span>
       </div>
-      <div class="card-body">
+      <div class="card-body" id="problemContent">
         <div class="dialogue-box">
           <p><span class="dialogue-speaker">太郎：</span>「関数 $y = \frac{1}{2}x^2$ 上に $x$ 座標が $-2, 4$ である2点 $\text{A}, \text{B}$ をとり、直線 $\ell$ を引いたよ。」</p>
           <p><span class="dialogue-speaker">花子：</span>「放物線上を動く点 $\text{P}$ と直線上の点 $\text{Q}$ は常に $x$ 座標が等しく動くのね。」</p>
@@ -298,23 +305,35 @@
   </div>
 
   <script>
-    // ★ GASのWebアプリURL（設定済み）
     const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxj5g9dOB3BLfi6I-GQBTaAcFy1hzeEPZ7ulz3CaUKjmFMEiBkDEifcYoNsECyWWeTY/exec";
 
     /* ==========================================================
-       1. 正確な数式連動SVGグラフの描画
+       数式の自動レンダリング (KaTeX)
+       ========================================================== */
+    function renderMath() {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+          ],
+          throwOnError: false
+        });
+      }
+    }
+
+    /* ==========================================================
+       正確な数式連動SVGグラフの描画
        ========================================================== */
     function renderAccurateMathGraph() {
       const container = document.getElementById('svgContainer');
       const width = container.clientWidth || 360;
       const height = 230;
 
-      // 数学座標系: X[-4.5, 6.5], Y[-1.5, 10.5]
       const minX = -4.5, maxX = 6.5, minY = -1.5, maxY = 10.5;
       const toSvgX = (x) => ((x - minX) / (maxX - minX)) * width;
       const toSvgY = (y) => height - ((y - minY) / (maxY - minY)) * height;
 
-      // 放物線 y = 0.5 * x^2 のパス生成
       let parabolaD = "";
       for (let x = -4.2; x <= 4.5; x += 0.1) {
         const y = 0.5 * x * x;
@@ -323,15 +342,12 @@
         parabolaD += (x === -4.2) ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`;
       }
 
-      // 直線 y = x + 4 の始点・終点
       const lineX1 = -3.5, lineY1 = lineX1 + 4;
       const lineX2 = 5.2,  lineY2 = lineX2 + 4;
 
-      // 点A(-2, 2) と 点B(4, 8)
       const ax = toSvgX(-2), ay = toSvgY(2);
       const bx = toSvgX(4),  by = toSvgY(8);
 
-      // 動点P(t=2), Q(t=2) の例示プロット
       const t = 2;
       const px = toSvgX(t), py = toSvgY(0.5 * t * t);
       const qx = toSvgX(t), qy = toSvgY(t + 4);
@@ -357,10 +373,10 @@
 
           <!-- 点A, B, P, Q の描画 -->
           <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
-          <text x="${ax-40}" y="${ay-4}" font-size="10" font-weight="bold" fill="#0f172a">A(-2, 2)</text>
+          <text x="${ax-44}" y="${ay-4}" font-size="11" font-weight="bold" fill="#0f172a">A(-2, 2)</text>
 
           <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
-          <text x="${bx+6}" y="${by+4}" font-size="10" font-weight="bold" fill="#0f172a">B(4, 8)</text>
+          <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold" fill="#0f172a">B(4, 8)</text>
 
           <circle cx="${px}" cy="${py}" r="3.5" fill="#059669"/>
           <text x="${px+6}" y="${py+4}" font-size="10" font-weight="bold" fill="#059669">P</text>
@@ -373,7 +389,7 @@
     }
 
     /* ==========================================================
-       2. 手書きキャンバス（タブレット・タッチペン対応）
+       手書きキャンバス制御
        ========================================================== */
     const canvas = document.getElementById('paintCanvas');
     const ctx = canvas.getContext('2d');
@@ -395,7 +411,6 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, rect.width, rect.height);
       
-      // 方眼グリッドを描画
       ctx.strokeStyle = '#f1f5f9';
       ctx.lineWidth = 1;
       for (let x = 0; x < rect.width; x += 24) {
@@ -450,26 +465,23 @@
     document.getElementById('clearBtn').addEventListener('click', clearCanvas);
 
     /* ==========================================================
-       3. 提出・GAS API通信・AI採点表示
+       提出・GAS API通信・AI採点表示
        ========================================================== */
     document.getElementById('submitBtn').addEventListener('click', async () => {
       const loading = document.getElementById('loadingOverlay');
       loading.style.display = 'flex';
 
       try {
-        // キャンバスの画像（Base64）を取得
         const base64Image = canvas.toDataURL('image/png');
-
         const payload = {
           user_id: "student_01",
           question_id: "MATH_FUNC_001",
           image_base64: base64Image
         };
 
-        // GASへPOSTリクエスト
         const response = await fetch(GAS_ENDPOINT_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS CORS回避
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         });
 
@@ -502,7 +514,6 @@
         document.getElementById('nextActionBtn').textContent = '基礎類題を解く';
       }
 
-      // タグ表示
       const tagContainer = document.getElementById('weaknessTagsContainer');
       tagContainer.innerHTML = '';
       if (data.detected_weakness_tags && data.detected_weakness_tags.length > 0) {
@@ -516,7 +527,6 @@
         tagContainer.innerHTML = '<span style="font-size:0.8rem; color:#64748b;">弱点タグは検出されませんでした（完璧です！）</span>';
       }
 
-      // 小問ごとの内訳
       const subList = document.getElementById('subScoresList');
       subList.innerHTML = '';
       data.scores.forEach(s => {
@@ -526,10 +536,11 @@
         subList.appendChild(item);
       });
 
-      // AIフィードバック
       document.getElementById('aiFeedbackText').textContent = data.ai_feedback;
-
       document.getElementById('resultModal').style.display = 'flex';
+      
+      // モーダル内の数式もレンダリング
+      renderMath();
     }
 
     document.getElementById('modalCloseBtn').addEventListener('click', () => {
@@ -541,10 +552,10 @@
       resizeCanvas();
     });
 
-    // 初期化実行
     window.addEventListener('DOMContentLoaded', () => {
       renderAccurateMathGraph();
       resizeCanvas();
+      renderMath();
     });
   </script>
 </body>
