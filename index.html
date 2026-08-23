@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>高校入試 AI学習システム</title>
   
-  <!-- 数式を美しく描画する KaTeX ライブラリ -->
+  <!-- KaTeX 数式レンダリング -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 
   <style>
     :root {
@@ -32,14 +32,26 @@
     header {
       background-color: var(--card-bg);
       border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
+      padding: 10px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
     header h1 { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
-    .badge {
-      background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600;
+    .header-user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .user-pill {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: var(--primary);
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
     }
     .main-container {
       display: grid;
@@ -68,11 +80,7 @@
       justify-content: space-between;
       align-items: center;
     }
-    .card-body {
-      padding: 16px;
-      overflow-y: auto;
-      flex: 1;
-    }
+    .card-body { padding: 16px; overflow-y: auto; flex: 1; }
     .dialogue-box {
       background: #f8fafc;
       border-left: 4px solid var(--primary);
@@ -105,22 +113,9 @@
       font-size: 0.9rem;
       line-height: 1.6;
     }
-    .canvas-wrapper {
-      position: relative;
-      flex: 1;
-      background: #ffffff;
-      touch-action: none;
-    }
-    canvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      cursor: crosshair;
-    }
-    .canvas-tools {
-      display: flex;
-      gap: 8px;
-    }
+    .canvas-wrapper { position: relative; flex: 1; background: #ffffff; touch-action: none; }
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
+    .canvas-tools { display: flex; gap: 8px; }
     .btn {
       padding: 6px 14px;
       border-radius: 6px;
@@ -135,16 +130,12 @@
       transition: all 0.2s;
     }
     .btn:hover { background: #f8fafc; }
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
+    .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
     .btn-primary:hover { background: var(--primary-hover); }
     .btn-danger { color: #dc2626; }
     .btn-danger:hover { background: #fee2e2; }
 
-    /* モーダル */
+    /* モーダル共通 */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -157,18 +148,36 @@
     .modal-content {
       background: white;
       width: 90%;
-      max-width: 600px;
+      max-width: 520px;
       border-radius: 12px;
       padding: 24px;
       max-height: 85vh;
       overflow-y: auto;
     }
-    .score-banner {
-      padding: 16px;
-      border-radius: 8px;
-      text-align: center;
-      margin-bottom: 16px;
+    .user-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 16px;
     }
+    .user-btn {
+      padding: 16px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .user-btn:hover {
+      border-color: var(--primary);
+      background: #eff6ff;
+      color: var(--primary);
+    }
+    .score-banner { padding: 16px; border-radius: 8px; text-align: center; margin-bottom: 16px; }
     .score-banner.cleared { background: #dcfce7; color: #166534; }
     .score-banner.stepdown { background: #ffedd5; color: #9a3412; }
     .score-num { font-size: 2rem; font-weight: 800; }
@@ -216,29 +225,45 @@
 </head>
 <body>
 
+  <!-- ログイン（ユーザー選択）モーダル -->
+  <div class="modal-overlay" id="userSelectModal" style="display: flex;">
+    <div class="modal-content" style="text-align: center;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">学習者を選択してください</h2>
+      <p style="font-size: 0.85rem; color: #64748b; margin-top: 6px;">あなたの名前をクリックして学習を開始します</p>
+      
+      <div class="user-grid">
+        <button class="user-btn" onclick="selectUser('user_nozomi', 'のぞみ')">のぞみ</button>
+        <button class="user-btn" onclick="selectUser('user_yui', 'ゆい')">ゆい</button>
+        <button class="user-btn" onclick="selectUser('user_chiemi', 'ちえみ')">ちえみ</button>
+        <button class="user-btn" onclick="selectUser('user_jun', 'じゅん')">じゅん</button>
+        <button class="user-btn" onclick="selectUser('user_yozo', 'ようぞう')" style="grid-column: span 2;">ようぞう</button>
+      </div>
+    </div>
+  </div>
+
   <header>
-    <h1>高校受験 数学対策システム</h1>
-    <span class="badge">公立高校 標準・上位レベル</span>
+    <h1>高校受験 AI学習システム</h1>
+    <div class="header-user-info">
+      <div class="user-pill" id="currentUserPill" onclick="openUserModal()">👤 ログイン中: <span id="currentUserName">未選択</span> ▾</div>
+    </div>
   </header>
 
   <div class="main-container">
     <!-- 左側：問題・正確な数式SVGグラフ -->
     <div class="card">
       <div class="card-header">
-        <span>【大問】二次関数と動点P・Qの図形融合問題</span>
+        <span id="problemTitle">【大問】二次関数と動点P・Qの図形融合問題</span>
         <span style="font-size: 0.8rem; color: #64748b;">配点：計15点</span>
       </div>
-      <div class="card-body" id="problemContent">
-        <div class="dialogue-box">
+      <div class="card-body">
+        <div class="dialogue-box" id="problemDialogue">
           <p><span class="dialogue-speaker">太郎：</span>「関数 $y = \frac{1}{2}x^2$ 上に $x$ 座標が $-2, 4$ である2点 $\text{A}, \text{B}$ をとり、直線 $\ell$ を引いたよ。」</p>
           <p><span class="dialogue-speaker">花子：</span>「放物線上を動く点 $\text{P}$ と直線上の点 $\text{Q}$ は常に $x$ 座標が等しく動くのね。」</p>
         </div>
 
-        <div class="svg-container" id="svgContainer">
-          <!-- 正確な数式連動SVGがJavaScriptでここに描画されます -->
-        </div>
+        <div class="svg-container" id="svgContainer"></div>
 
-        <ul class="question-list">
+        <ul class="question-list" id="questionsList">
           <li class="question-item">
             <strong>(1)</strong> 2点 $\text{A}, \text{B}$ を通る直線 $\ell$ の式を求めなさい。（4点）
           </li>
@@ -252,7 +277,7 @@
       </div>
     </div>
 
-    <!-- 右側：タブレット手書き入力キャンバス -->
+    <!-- 右側：手書きキャンバス -->
     <div class="card">
       <div class="card-header">
         <span>手書き解答エリア（途中式・答えを記入）</span>
@@ -267,13 +292,13 @@
     </div>
   </div>
 
-  <!-- 採点中ローディング画面 -->
+  <!-- ローディング -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
     <p>Gemini AI が手書き文字と途中式を解析・採点しています...</p>
   </div>
 
-  <!-- 採点結果モーダル -->
+  <!-- 結果モーダル -->
   <div class="modal-overlay" id="resultModal">
     <div class="modal-content">
       <div id="scoreBanner" class="score-banner">
@@ -307,8 +332,26 @@
   <script>
     const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxj5g9dOB3BLfi6I-GQBTaAcFy1hzeEPZ7ulz3CaUKjmFMEiBkDEifcYoNsECyWWeTY/exec";
 
+    let currentUser = { id: "", name: "" };
+    let currentQuestionId = "MATH_FUNC_001";
+
     /* ==========================================================
-       数式の自動レンダリング (KaTeX)
+       ユーザー選択ロジック
+       ========================================================== */
+    function selectUser(userId, userName) {
+      currentUser = { id: userId, name: userName };
+      localStorage.setItem("hs_study_user", JSON.stringify(currentUser));
+      document.getElementById("currentUserName").textContent = userName;
+      document.getElementById("userSelectModal").style.display = "none";
+      renderMath();
+    }
+
+    function openUserModal() {
+      document.getElementById("userSelectModal").style.display = "flex";
+    }
+
+    /* ==========================================================
+       KaTeX 数式レンダリング
        ========================================================== */
     function renderMath() {
       if (window.renderMathInElement) {
@@ -323,7 +366,7 @@
     }
 
     /* ==========================================================
-       正確な数式連動SVGグラフの描画
+       正確な数式連動SVGグラフ描画
        ========================================================== */
     function renderAccurateMathGraph() {
       const container = document.getElementById('svgContainer');
@@ -344,43 +387,29 @@
 
       const lineX1 = -3.5, lineY1 = lineX1 + 4;
       const lineX2 = 5.2,  lineY2 = lineX2 + 4;
-
       const ax = toSvgX(-2), ay = toSvgY(2);
       const bx = toSvgX(4),  by = toSvgY(8);
-
       const t = 2;
       const px = toSvgX(t), py = toSvgY(0.5 * t * t);
       const qx = toSvgX(t), qy = toSvgY(t + 4);
 
       const svgHtml = `
         <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-          <!-- 軸 -->
           <line x1="${toSvgX(minX)}" y1="${toSvgY(0)}" x2="${toSvgX(maxX)}" y2="${toSvgY(0)}" stroke="#94a3b8" stroke-width="1.5"/>
           <line x1="${toSvgX(0)}" y1="${toSvgY(minY)}" x2="${toSvgX(0)}" y2="${toSvgY(maxY)}" stroke="#94a3b8" stroke-width="1.5"/>
           <text x="${toSvgX(maxX)-14}" y="${toSvgY(0)+14}" font-size="11" fill="#64748b">x</text>
           <text x="${toSvgX(0)+6}" y="${toSvgY(maxY)+12}" font-size="11" fill="#64748b">y</text>
           <text x="${toSvgX(0)-10}" y="${toSvgY(0)+12}" font-size="10" fill="#64748b">O</text>
-
-          <!-- 放物線 y = 1/2 x^2 -->
           <path d="${parabolaD}" fill="none" stroke="#2563eb" stroke-width="2"/>
-          
-          <!-- 直線 ℓ (y = x + 4) -->
           <line x1="${toSvgX(lineX1)}" y1="${toSvgY(lineY1)}" x2="${toSvgX(lineX2)}" y2="${toSvgY(lineY2)}" stroke="#dc2626" stroke-width="1.5"/>
           <text x="${toSvgX(lineX2)-10}" y="${toSvgY(lineY2)-6}" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>
-
-          <!-- 線分PQ (点線) -->
           <line x1="${qx}" y1="${qy}" x2="${px}" y2="${py}" stroke="#059669" stroke-width="1.5" stroke-dasharray="3,3"/>
-
-          <!-- 点A, B, P, Q の描画 -->
           <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
           <text x="${ax-44}" y="${ay-4}" font-size="11" font-weight="bold" fill="#0f172a">A(-2, 2)</text>
-
           <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
           <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold" fill="#0f172a">B(4, 8)</text>
-
           <circle cx="${px}" cy="${py}" r="3.5" fill="#059669"/>
           <text x="${px+6}" y="${py+4}" font-size="10" font-weight="bold" fill="#059669">P</text>
-
           <circle cx="${qx}" cy="${qy}" r="3.5" fill="#059669"/>
           <text x="${qx-14}" y="${qy-4}" font-size="10" font-weight="bold" fill="#059669">Q</text>
         </svg>
@@ -390,7 +419,7 @@
 
     /* ==========================================================
        手書きキャンバス制御
-       ========================================================== */
+       ========================================================= */
     const canvas = document.getElementById('paintCanvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvasWrapper');
@@ -410,7 +439,6 @@
       const rect = wrapper.getBoundingClientRect();
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, rect.width, rect.height);
-      
       ctx.strokeStyle = '#f1f5f9';
       ctx.lineWidth = 1;
       for (let x = 0; x < rect.width; x += 24) {
@@ -425,10 +453,7 @@
       const rect = canvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
-      };
+      return { x: clientX - rect.left, y: clientY - rect.top };
     }
 
     function startDraw(e) {
@@ -468,14 +493,21 @@
        提出・GAS API通信・AI採点表示
        ========================================================== */
     document.getElementById('submitBtn').addEventListener('click', async () => {
+      if (!currentUser.id) {
+        alert('先に学習者を選択してください。');
+        openUserModal();
+        return;
+      }
+
       const loading = document.getElementById('loadingOverlay');
       loading.style.display = 'flex';
 
       try {
         const base64Image = canvas.toDataURL('image/png');
         const payload = {
-          user_id: "student_01",
-          question_id: "MATH_FUNC_001",
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          question_id: currentQuestionId,
           image_base64: base64Image
         };
 
@@ -495,7 +527,7 @@
         }
       } catch (err) {
         loading.style.display = 'none';
-        alert('通信に失敗しました。GASのデプロイ設定を確認してください。\n' + err.toString());
+        alert('通信に失敗しました。\n' + err.toString());
       }
     });
 
@@ -506,8 +538,8 @@
       
       if (data.is_cleared) {
         banner.className = 'score-banner cleared';
-        statusText.textContent = '🎉 合格基準達成！（次の単元へ進めます）';
-        document.getElementById('nextActionBtn').textContent = '次の単元へ進む';
+        statusText.textContent = '🎉 合格基準達成！（次の対象単元へ進めます）';
+        document.getElementById('nextActionBtn').textContent = '次の問題へ進む';
       } else {
         banner.className = 'score-banner stepdown';
         statusText.textContent = '⚠️ 復習が必要（ステップダウン問題に挑戦）';
@@ -524,7 +556,7 @@
           tagContainer.appendChild(chip);
         });
       } else {
-        tagContainer.innerHTML = '<span style="font-size:0.8rem; color:#64748b;">弱点タグは検出されませんでした（完璧です！）</span>';
+        tagContainer.innerHTML = '<span style="font-size:0.8rem; color:#64748b;">弱点タグなし</span>';
       }
 
       const subList = document.getElementById('subScoresList');
@@ -538,8 +570,6 @@
 
       document.getElementById('aiFeedbackText').textContent = data.ai_feedback;
       document.getElementById('resultModal').style.display = 'flex';
-      
-      // モーダル内の数式もレンダリング
       renderMath();
     }
 
@@ -552,7 +582,14 @@
       resizeCanvas();
     });
 
+    // 初期化
     window.addEventListener('DOMContentLoaded', () => {
+      const savedUser = localStorage.getItem("hs_study_user");
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        document.getElementById("currentUserName").textContent = currentUser.name;
+        document.getElementById("userSelectModal").style.display = "none";
+      }
       renderAccurateMathGraph();
       resizeCanvas();
       renderMath();
