@@ -2,712 +2,731 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>高校受験AI学習システム</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>高校受験 AI学習システム</title>
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
   <style>
-    /* =========================================================
-       基本スタイル & タブレットスクロール最適化
-       ========================================================= */
-    * {
-      box-sizing: border-box;
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
     }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     html, body {
-      margin: 0;
-      padding: 0;
       width: 100%;
-      min-height: 100%;
-      background-color: #f4f7f6;
+      height: 100%;
+      overflow: hidden; /* 外枠の全体スクロールを止め、左右独立スクロールを実現 */
+      background-color: var(--bg);
+      color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      color: #333;
-      /* 画面全体の縦スクロールを明示的に有効化 */
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .app-container {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
     }
 
-    /* ヘッダー */
     header {
-      background: #ffffff;
-      padding: 16px 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-shrink: 0;
+      height: 52px;
+      z-index: 10;
     }
-
-    .header-title {
-      font-size: 1.25rem;
-      font-weight: bold;
-      color: #2c3e50;
-    }
-
-    .user-select {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 0.95rem;
-      background: #fff;
-    }
-
-    /* 問題カード */
-    .card {
-      background: #ffffff;
-      padding: 24px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 4px 10px;
-      background: #e8f4fd;
-      color: #1976d2;
-      border-radius: 20px;
+    header h1 { font-size: 1.05rem; font-weight: 700; color: #0f172a; }
+    .user-pill {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: var(--primary);
+      padding: 4px 12px;
+      border-radius: 9999px;
       font-size: 0.85rem;
       font-weight: 600;
-      margin-bottom: 8px;
+      cursor: pointer;
     }
 
-    .question-title {
-      font-size: 1.2rem;
-      font-weight: bold;
-      margin: 0 0 12px 0;
-      color: #1a1a1a;
-    }
-
-    .question-context {
-      font-size: 1rem;
-      line-height: 1.7;
-      margin-bottom: 16px;
-      white-space: pre-wrap;
-    }
-
-    .visual-container {
-      margin: 16px 0;
-      display: flex;
-      justify-content: center;
-      background: #fafafa;
-      border: 1px solid #eee;
-      border-radius: 8px;
+    /* 左右分割メインレイアウト */
+    .main-container {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr; /* 左: 手書きノート(広め), 右: 問題文 */
+      flex: 1;
+      gap: 12px;
       padding: 12px;
-      overflow-x: auto;
+      overflow: hidden;
+      height: calc(100vh - 52px);
     }
 
-    .sub-questions-list {
-      list-style-type: none;
-      padding: 0;
-      margin: 16px 0 0 0;
+    /* 左右の独立カード */
+    .card-pane {
+      background: var(--card-bg);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
       display: flex;
       flex-direction: column;
-      gap: 12px;
-    }
-
-    .sub-question-item {
-      background: #f8f9fa;
-      border-left: 4px solid #3498db;
-      padding: 12px 16px;
-      border-radius: 0 8px 8px 0;
-    }
-
-    .sub-q-num {
-      font-weight: bold;
-      color: #2980b9;
-      margin-right: 8px;
-    }
-
-    .sub-q-points {
-      float: right;
-      font-size: 0.85rem;
-      color: #7f8c8d;
-      font-weight: bold;
-    }
-
-    /* =========================================================
-       手書きキャンバスエリア
-       ========================================================= */
-    .canvas-section {
-      background: #ffffff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-
-    .canvas-toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-
-    .tool-group {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      font-size: 0.95rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-tool {
-      background: #f1f2f6;
-      color: #333;
-      border: 1px solid #dcdde1;
-    }
-
-    .btn-tool.active {
-      background: #3498db;
-      color: #fff;
-      border-color: #2980b9;
-    }
-
-    .btn-action {
-      background: #e74c3c;
-      color: #fff;
-    }
-
-    .btn-submit {
-      background: #2ecc71;
-      color: #fff;
-      font-size: 1.1rem;
-      padding: 12px 24px;
-      width: 100%;
-      margin-top: 16px;
-      box-shadow: 0 4px 6px rgba(46, 204, 113, 0.2);
-    }
-
-    .canvas-wrapper {
-      position: relative;
-      width: 100%;
-      border: 2px solid #dfe6e9;
-      border-radius: 8px;
-      background: #ffffff;
+      height: 100%;
       overflow: hidden;
     }
 
-    /* キャンバス自体のタッチ設定 */
-    #drawing-canvas {
-      display: block;
-      width: 100%;
-      height: 480px;
-      background: #ffffff;
-      /* 1本指での意図しないブラウザ拡大・画面スクロールを防ぎ、キャンバス内描画に集中させる */
-      touch-action: none;
+    .card-header {
+      padding: 8px 14px;
+      background: #f1f5f9;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
     }
 
-    .canvas-hint {
-      font-size: 0.85rem;
-      color: #7f8c8d;
-      margin-top: 6px;
-      text-align: right;
-    }
-
-    /* 採点結果モーダル/表示 */
-    .result-section {
-      display: none;
-      background: #ffffff;
-      padding: 24px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      border-top: 6px solid #2ecc71;
-    }
-
-    .score-banner {
-      font-size: 1.8rem;
-      font-weight: bold;
-      text-align: center;
-      margin-bottom: 16px;
-      color: #27ae60;
-    }
-
-    .feedback-box {
-      background: #f8f9fa;
-      border-radius: 8px;
+    /* 右側：問題欄の独立スクロール領域 */
+    .problem-scroll-body {
       padding: 16px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+    }
+
+    .origin-badge {
+      display: inline-block;
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .dialogue-box {
+      background: #f8fafc;
+      border-left: 4px solid var(--primary);
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      line-height: 1.8;
       margin-bottom: 16px;
+    }
+    .svg-container {
+      width: 100%;
+      height: 230px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    svg { width: 100%; height: 100%; }
+    .question-list { list-style: none; }
+    .question-item {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
       line-height: 1.6;
     }
 
-    /* ローディング表示 */
+    /* 左側：手書き欄の独立スクロール領域 */
+    .canvas-scroll-container {
+      position: relative;
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background-color: #f8fafc;
+    }
+    .canvas-inner-wrapper {
+      position: relative;
+      width: 100%;
+      height: 4000px; /* 縦長スクロールノート */
+      background-color: #ffffff;
+      background-image: 
+        linear-gradient(to right, #f1f5f9 1px, transparent 1px),
+        linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    /* ツールボタン類 */
+    .canvas-tools { display: flex; align-items: center; gap: 6px; }
+    .tool-group { display: inline-flex; background: #e2e8f0; border-radius: 6px; padding: 2px; gap: 2px; }
+    .tool-btn {
+      padding: 4px 8px; border-radius: 4px; border: none; background: transparent;
+      font-size: 0.8rem; font-weight: 600; cursor: pointer; color: #475569;
+    }
+    .tool-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .btn {
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: white; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .btn:hover { background: #f8fafc; }
+    .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn-danger { color: #dc2626; }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: white; width: 90%; max-width: 520px; border-radius: 12px;
+      padding: 20px; max-height: 85vh; overflow-y: auto;
+    }
+    .user-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px; }
+    .user-btn {
+      padding: 14px; border: 2px solid var(--border); border-radius: 8px;
+      background: white; font-size: 0.95rem; font-weight: 700; cursor: pointer;
+    }
+    .user-btn:hover { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+
+    .score-banner { padding: 14px; border-radius: 8px; text-align: center; margin-bottom: 14px; }
+    .score-banner.cleared { background: #dcfce7; color: #166534; }
+    .score-banner.stepdown { background: #ffedd5; color: #9a3412; }
+    .score-num { font-size: 1.8rem; font-weight: 800; }
+    .tag-chip {
+      display: inline-block; background: #fee2e2; color: #991b1b;
+      padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; margin-right: 4px;
+    }
+    .feedback-text {
+      background: #f8fafc; padding: 10px; border-radius: 6px;
+      font-size: 0.85rem; line-height: 1.6; margin-top: 10px; border: 1px solid var(--border);
+    }
     .loading-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(255, 255, 255, 0.85);
-      z-index: 9999;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      gap: 16px;
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.85); z-index: 2000; justify-content: center; align-items: center;
+      flex-direction: column; gap: 14px; font-weight: 600;
     }
-
     .spinner {
-      width: 48px;
-      height: 48px;
-      border: 5px solid #f3f3f3;
-      border-top: 5px solid #3498db;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
+      width: 40px; height: 40px; border: 4px solid #e2e8f0;
+      border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;
     }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
-  <div class="app-container">
-    <header>
-      <div class="header-title">高校入試数学 AI演習</div>
-      <select id="user-select" class="user-select" onchange="changeUser()">
-        <option value="user_nozomi">のぞみ</option>
-        <option value="user_yui">ゆい</option>
-        <option value="user_chiemi">ちえみ</option>
-        <option value="user_jun">じゅん</option>
-        <option value="user_yozo">ようぞう</option>
-      </select>
-    </header>
-
-    <div class="card" id="question-card">
-      <div class="badge" id="pref-badge">公立高校入試 類題</div>
-      <h2 class="question-title" id="question-title">問題を読み込み中...</h2>
-      <div class="question-context" id="question-context"></div>
-      
-      <div class="visual-container" id="visual-container" style="display: none;">
-        <svg id="svg-stage" width="400" height="260" viewBox="0 0 400 260"></svg>
+  <!-- 学習者選択モーダル -->
+  <div class="modal-overlay" id="userSelectModal" style="display: flex;">
+    <div class="modal-content" style="text-align: center;">
+      <h2 style="font-size: 1.2rem; font-weight: 700;">学習者を選択してください</h2>
+      <p style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">全国公立高校入試マスターから対象問題を出題します</p>
+      <div class="user-grid">
+        <button class="user-btn" id="btn-user-nozomi">のぞみ</button>
+        <button class="user-btn" id="btn-user-yui">ゆい</button>
+        <button class="user-btn" id="btn-user-chiemi">ちえみ</button>
+        <button class="user-btn" id="btn-user-jun">じゅん</button>
+        <button class="user-btn" id="btn-user-yozo" style="grid-column: span 2;">ようぞう</button>
       </div>
-
-      <ul class="sub-questions-list" id="sub-questions-list"></ul>
-    </div>
-
-    <div class="canvas-section">
-      <div class="canvas-toolbar">
-        <div class="tool-group">
-          <button class="btn btn-tool active" id="tool-pen" onclick="setTool('pen')">✏️ ペン (黒)</button>
-          <button class="btn btn-tool" id="tool-eraser" onclick="setTool('eraser')">🧹 消しゴム</button>
-          <button class="btn btn-tool" id="tool-mode" onclick="toggleTouchMode()">👆 指でスクロール: ON</button>
-        </div>
-        <button class="btn btn-action" onclick="clearCanvas()">全消去</button>
-      </div>
-
-      <div class="canvas-wrapper">
-        <canvas id="drawing-canvas"></canvas>
-      </div>
-      <div class="canvas-hint">※タブレット操作：2本指で上下に画面スクロールが可能です</div>
-
-      <button class="btn btn-submit" id="btn-submit" onclick="submitAnswer()">解答を送信してAI採点する</button>
-    </div>
-
-    <div class="result-section" id="result-section">
-      <div class="score-banner" id="score-banner">15 / 15 点 (クリア!)</div>
-      <div class="feedback-box">
-        <strong>【AI総評・アドバイス】</strong>
-        <p id="ai-feedback-text"></p>
-      </div>
-      <div id="sub-scores-container"></div>
-      <button class="btn btn-submit" style="background:#3498db;" onclick="loadNewQuestion()">次の問題に挑戦する</button>
     </div>
   </div>
 
-  <div class="loading-overlay" id="loading-overlay">
+  <!-- ヘッダー -->
+  <header>
+    <h1>高校受験 AI学習システム</h1>
+    <div class="user-pill" id="currentUserPill">👤 ログイン中: <span id="currentUserName">未選択</span> ▾</div>
+  </header>
+
+  <!-- 左右分割レイアウト（左：手書き / 右：問題） -->
+  <div class="main-container">
+    
+    <!-- 左側：手書きノート欄（独立スクロール） -->
+    <div class="card-pane">
+      <div class="card-header">
+        <div class="tool-group">
+          <button class="tool-btn active" id="penToolBtn">✏️ ペン</button>
+          <button class="tool-btn" id="eraserToolBtn">🧹 消しゴム</button>
+          <button class="tool-btn" id="touchScrollToggleBtn">👆 指スクロール: OFF</button>
+        </div>
+        <div class="canvas-tools">
+          <button class="btn btn-danger" id="clearBtn">全消去</button>
+          <button class="btn btn-primary" id="submitBtn">提出してAI採点</button>
+        </div>
+      </div>
+      <div class="canvas-scroll-container" id="canvasScrollContainer">
+        <div class="canvas-inner-wrapper" id="canvasWrapper">
+          <canvas id="paintCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右側：問題欄（独立スクロール） -->
+    <div class="card-pane">
+      <div class="card-header">
+        <span id="problemTitle">問題を読み込み中...</span>
+        <span id="totalPointsText" style="font-size: 0.8rem; color: #64748b;"></span>
+      </div>
+      <div class="problem-scroll-body" id="problemScrollBody">
+        <div id="originBadgeContainer"></div>
+        <div class="dialogue-box" id="problemDialogue">読み込み中...</div>
+        <div class="svg-container" id="svgContainer"></div>
+        <ul class="question-list" id="questionsList"></ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ローディング -->
+  <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
-    <div id="loading-text" style="font-weight:bold; color:#2c3e50;">AIが入試問題を生成しています...</div>
+    <p id="loadingMessage">全国過去問DBから最適な類題を生成しています...</p>
+  </div>
+
+  <!-- 採点結果モーダル -->
+  <div class="modal-overlay" id="resultModal">
+    <div class="modal-content">
+      <div id="scoreBanner" class="score-banner">
+        <div style="font-size: 0.85rem; margin-bottom: 2px;">採点結果</div>
+        <div class="score-num"><span id="totalScore">0</span> / <span id="maxScore">15</span> 点</div>
+        <div id="clearStatusText" style="font-weight: 600; margin-top: 4px;"></div>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <strong style="font-size: 0.85rem;">検出された弱点タグ：</strong>
+        <div id="weaknessTagsContainer" style="margin-top: 4px;"></div>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <strong style="font-size: 0.85rem;">小問ごとの結果：</strong>
+        <div id="subScoresList" style="margin-top: 4px; font-size: 0.85rem;"></div>
+      </div>
+      <div class="feedback-text">
+        <strong>💡 AIからのフィードバックと解説：</strong>
+        <p id="aiFeedbackText" style="margin-top: 4px;"></p>
+      </div>
+      <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn" id="modalCloseBtn">閉じる</button>
+        <button class="btn btn-primary" id="nextActionBtn">次の対象問題を解く</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    // =========================================================
-    // 設定 & 状態管理
-    // =========================================================
-    // ※GAS WebアプリのURL（同一オリジンの場合は空文字、HTML埋め込みの場合はGASのdoGet/doPostを呼び出します）
-    let currentQuestion = null;
-    let currentUserId = 'user_nozomi';
-    let currentTool = 'pen';
-    let allowFingerDrawing = false; // true: 1本指でも描画, false: ペンのみ描画で1本指はスクロール
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbyTjUqmZ7WgSfFIaEkAEOhLSzGojc2ep_GPJO-JtH5mejX9Ff9BVwOF8LbwhAYstys/exec";
 
-    const canvas = document.getElementById('drawing-canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    let isDrawing = false;
+    let currentUser = { id: "", name: "" };
+    let currentQuestionData = null;
+    let currentDrawingMode = "pen";
+    let isFingerScrollOnly = false; // true: 指はスクロール優先（スタイラス描画専用）
 
-    // =========================================================
-    // キャンバス初期化・高解像度Retina対応
-    // =========================================================
-    function resizeCanvas() {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      
-      // 内部解像度をデバイスピクセル比に合わせる
-      canvas.width = rect.width * dpr;
-      canvas.height = 480 * dpr;
-      
-      ctx.scale(dpr, dpr);
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#111111';
-      ctx.lineWidth = 2.5;
+    function cleanMathText(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/ext([A-Za-z0-9]+)/g, '$1')
+        .replace(/riangle([A-Za-z0-9]+)/g, '△$1')
+        .replace(/\\text\{([^}]+)\}/g, '$1')
+        .replace(/\\triangle/g, '△');
     }
 
-    window.addEventListener('resize', resizeCanvas);
+    function selectUser(userId, userName) {
+      currentUser = { id: userId, name: userName };
+      localStorage.setItem("hs_study_user", JSON.stringify(currentUser));
+      document.getElementById("currentUserName").textContent = userName;
+      document.getElementById("userSelectModal").style.display = "none";
+      fetchNextTargetQuestion();
+    }
 
-    // =========================================================
-    // タッチ & ペン描画イベント（2本指スクロール & スタイラス最適化）
-    // =========================================================
-    function getCanvasPos(e) {
-      const rect = canvas.getBoundingClientRect();
-      let clientX, clientY;
+    function openUserModal() {
+      document.getElementById("userSelectModal").style.display = "flex";
+    }
 
-      if (e.touches && e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
+    async function fetchNextTargetQuestion() {
+      const loading = document.getElementById('loadingOverlay');
+      document.getElementById('loadingMessage').textContent = '全国過去問DBから類題を生成しています...';
+      loading.style.display = 'flex';
+      document.getElementById('resultModal').style.display = 'none';
+      clearCanvas();
+
+      document.getElementById('canvasScrollContainer').scrollTop = 0;
+      document.getElementById('problemScrollBody').scrollTop = 0;
+
+      try {
+        const fetchUrl = GAS_ENDPOINT_URL + "?user_id=" + encodeURIComponent(currentUser.id) + "&t=" + Date.now();
+        const res = await fetch(fetchUrl);
+        const result = await res.json();
+        loading.style.display = 'none';
+
+        if (result.status === 'success' && result.data) {
+          currentQuestionData = result.data;
+          renderQuestionUI(currentQuestionData);
+        } else {
+          document.getElementById('problemTitle').textContent = '問題の取得に失敗しました';
+          document.getElementById('problemDialogue').textContent = result.message || '設定を確認してください。';
+        }
+      } catch (err) {
+        loading.style.display = 'none';
+        alert('通信に失敗しました: ' + err.toString());
+      }
+    }
+
+    function renderQuestionUI(q) {
+      document.getElementById('problemTitle').textContent = q.title || "高校入試数学";
+      const badgeContainer = document.getElementById('originBadgeContainer');
+      badgeContainer.innerHTML = q.pref_ref ? `<span class="origin-badge">🏛️ 出典傾向: ${q.pref_ref}【${q.unit || ''}】</span>` : '';
+      
+      document.getElementById('problemDialogue').innerHTML = cleanMathText(q.context_text).replace(/\n/g, '<br>');
+
+      const subListEl = document.getElementById('questionsList');
+      subListEl.innerHTML = '';
+      const subQuestions = typeof q.sub_questions_json === 'string' ? JSON.parse(q.sub_questions_json) : q.sub_questions_json;
+      
+      let totalPts = 0;
+      if (Array.isArray(subQuestions)) {
+        subQuestions.forEach(function(sub) {
+          totalPts += sub.points;
+          const li = document.createElement('li');
+          li.className = 'question-item';
+          li.innerHTML = '<strong>(' + sub.q + ')</strong> ' + cleanMathText(sub.text) + ' <span style="color:#64748b; font-size:0.8rem;">（' + sub.points + '点）</span>';
+          subListEl.appendChild(li);
+        });
+      }
+      document.getElementById('totalPointsText').textContent = "配点：計" + (totalPts || 15) + "点";
+
+      const svgContainer = document.getElementById('svgContainer');
+      if (q.has_visual && q.svg_config_json) {
+        svgContainer.style.display = 'flex';
+        const configObj = typeof q.svg_config_json === 'string' ? JSON.parse(q.svg_config_json) : q.svg_config_json;
+        renderDynamicSvg(configObj);
       } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
+        svgContainer.style.display = 'none';
       }
 
+      renderMath();
+    }
+
+    function renderDynamicSvg(cfg) {
+      const container = document.getElementById('svgContainer');
+      const width = container.clientWidth || 340;
+      const height = 230;
+      if (!cfg || !cfg.type) return;
+
+      if (cfg.type === "linear_and_triangle" && cfg.pointA && cfg.pointB) {
+        const minX = Math.min(cfg.pointA.x, cfg.pointB.x, 0) - 2;
+        const maxX = Math.max(cfg.pointA.x, cfg.pointB.x, 0) + 2;
+        const minY = Math.min(cfg.pointA.y, cfg.pointB.y, 0) - 2;
+        const maxY = Math.max(cfg.pointA.y, cfg.pointB.y, 0) + 2;
+
+        const toX = (x) => ((x - minX) / (maxX - minX)) * width;
+        const toY = (y) => height - ((y - minY) / (maxY - minY)) * height;
+
+        const ax = toX(cfg.pointA.x), ay = toY(cfg.pointA.y);
+        const bx = toX(cfg.pointB.x), by = toY(cfg.pointB.y);
+        const ox = toX(0), oy = toY(0);
+
+        const dx = cfg.pointB.x - cfg.pointA.x;
+        const dy = cfg.pointB.y - cfg.pointA.y;
+        const m = dx !== 0 ? dy / dx : 0;
+        const k = cfg.pointA.y - m * cfg.pointA.x;
+        const cx = toX(0), cy = toY(k);
+
+        container.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}">
+            <polygon points="${ox},${oy} ${ax},${ay} ${bx},${by}" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.2"/>
+            <line x1="${toX(minX)}" y1="${oy}" x2="${toX(maxX)}" y2="${oy}" stroke="#94a3b8" stroke-width="1.5"/>
+            <line x1="${ox}" y1="${toY(minY)}" x2="${ox}" y2="${toY(maxY)}" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="${toX(maxX)-14}" y="${oy+14}" font-size="11" fill="#64748b">x</text>
+            <text x="${ox+6}" y="${toY(maxY)+12}" font-size="11" fill="#64748b">y</text>
+            <text x="${ox-10}" y="${oy+12}" font-size="10" fill="#64748b">O</text>
+
+            <line x1="${toX(minX+1)}" y1="${toY(m*(minX+1)+k)}" x2="${toX(maxX-1)}" y2="${toY(m*(maxX-1)+k)}" stroke="#dc2626" stroke-width="2"/>
+            <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
+            <text x="${ax-10}" y="${ay-8}" font-size="11" font-weight="bold">${cleanMathText(cfg.pointA.label)}</text>
+            <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
+            <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold">${cleanMathText(cfg.pointB.label)}</text>
+            <circle cx="${cx}" cy="${cy}" r="3.5" fill="#2563eb"/>
+            <text x="${cx+6}" y="${cy-4}" font-size="10" font-weight="bold" fill="#2563eb">C</text>
+          </svg>`;
+      } else if (cfg.type === "moving_point_rect") {
+        container.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}">
+            <rect x="60" y="40" width="220" height="130" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+            <polygon points="60,170 60,95 280,170" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="40" y="175" font-size="14" font-weight="bold">A</text>
+            <text x="40" y="45" font-size="14" font-weight="bold">B</text>
+            <text x="290" y="45" font-size="14" font-weight="bold">C</text>
+            <text x="290" y="175" font-size="14" font-weight="bold">D</text>
+            <circle cx="60" cy="95" r="5" fill="#ef4444"/>
+            <text x="35" y="100" font-size="13" font-weight="bold" fill="#ef4444">P</text>
+            <text x="120" y="200" font-size="12" fill="#64748b">移動方向: A → B → C → D</text>
+          </svg>`;
+      } else if (cfg.type === "speed_diagram") {
+        const pA = cfg.personA || {};
+        const pB = cfg.personB || {};
+        const maxT = Math.max(pA.time || 10, (pB.start || 0) + (pB.time || 10), 20);
+        const maxD = Math.max(pA.dist || 100, pB.dist || 100, 1000);
+
+        const toX = (t) => 40 + (t / maxT) * (width - 70);
+        const toY = (d) => height - 30 - (d / maxD) * (height - 60);
+
+        container.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}">
+            <line x1="40" y1="${height-30}" x2="${width-20}" y2="${height-30}" stroke="#94a3b8" stroke-width="1.5"/>
+            <line x1="40" y1="20" x2="40" y2="${height-30}" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="${width-35}" y="${height-10}" font-size="11" fill="#64748b">時間(分)</text>
+            <text x="10" y="20" font-size="11" fill="#64748b">(y)</text>
+
+            <line x1="${toX(0)}" y1="${toY(0)}" x2="${toX(pA.time)}" y2="${toY(pA.dist)}" stroke="#2563eb" stroke-width="2.5"/>
+            <text x="${toX(pA.time)+4}" y="${toY(pA.dist)}" font-size="11" font-weight="bold" fill="#2563eb">${pA.name || 'A'}</text>
+
+            <line x1="${toX(pB.start || 0)}" y1="${toY(0)}" x2="${toX((pB.start || 0) + pB.time)}" y2="${toY(pB.dist)}" stroke="#dc2626" stroke-width="2.5"/>
+            <text x="${toX((pB.start || 0) + pB.time)+4}" y="${toY(pB.dist)}" font-size="11" font-weight="bold" fill="#dc2626">${pB.name || 'B'}</text>
+
+            <text x="5" y="${toY(maxD)+4}" font-size="10" fill="#64748b">${maxD}</text>
+            <text x="${toX(maxT)-10}" y="${height-15}" font-size="10" fill="#64748b">${maxT}</text>
+            <text x="30" y="${height-15}" font-size="10" fill="#64748b">0</text>
+          </svg>`;
+      }
+    }
+
+    function renderMath() {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+          throwOnError: false
+        });
+      }
+    }
+
+    /* 手書きキャンバス制御（左右独立スクロール・2本指・ペン最適化） */
+    const canvas = document.getElementById('paintCanvas');
+    const ctx = canvas.getContext('2d');
+    const wrapper = document.getElementById('canvasWrapper');
+    let isDrawing = false, lastX = 0, lastY = 0;
+
+    function setDrawingMode(mode) {
+      currentDrawingMode = mode;
+      document.getElementById('penToolBtn').classList.toggle('active', mode === 'pen');
+      document.getElementById('eraserToolBtn').classList.toggle('active', mode === 'eraser');
+    }
+
+    function toggleFingerScroll() {
+      isFingerScrollOnly = !isFingerScrollOnly;
+      const btn = document.getElementById('touchScrollToggleBtn');
+      if (isFingerScrollOnly) {
+        btn.textContent = "👆 指スクロール: ON (ペン専用)";
+        btn.classList.add('active');
+      } else {
+        btn.textContent = "👆 指スクロール: OFF";
+        btn.classList.remove('active');
+      }
+    }
+
+    function resizeCanvas() {
+      const rect = wrapper.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      clearCanvas();
+    }
+
+    function clearCanvas() {
+      const rect = wrapper.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+    }
+
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       return {
         x: clientX - rect.left,
         y: clientY - rect.top
       };
     }
 
-    // Pointer Events による精密なペン・指の判定
-    canvas.addEventListener('pointerdown', (e) => {
-      // 指タッチで「指スクロール優先モード」の場合は描画を開始しない（ブラウザスクロールを許可）
-      if (e.pointerType === 'touch' && !allowFingerDrawing) {
-        return;
+    function startDraw(e) {
+      if (e.type.includes('touch')) {
+        // 2本指操作時は左ペインの縦スクロールを優先
+        if (e.touches.length > 1) {
+          isDrawing = false;
+          return;
+        }
+        // 指スクロールON時は、指タッチでの描画をキャンセルしてスクロールさせる
+        if (isFingerScrollOnly && (!e.pointerType || e.pointerType === 'touch')) {
+          isDrawing = false;
+          return;
+        }
+        e.preventDefault(); // 1本指描画時はキャンバススクロールを固定して線を引く
+      } else {
+        e.preventDefault();
       }
 
       isDrawing = true;
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const pos = getPointerPos(e);
+      lastX = pos.x; lastY = pos.y;
+    }
 
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-
-      if (currentTool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth = 24;
-      } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = '#111111';
-        ctx.lineWidth = e.pointerType === 'pen' ? 2.5 : 3.0;
-      }
-    });
-
-    canvas.addEventListener('pointermove', (e) => {
+    function draw(e) {
       if (!isDrawing) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    });
-
-    window.addEventListener('pointerup', () => {
-      if (isDrawing) {
-        isDrawing = false;
-        ctx.closePath();
-      }
-    });
-
-    // タッチイベントのバックアップ（2本指判定用）
-    canvas.addEventListener('touchstart', (e) => {
-      // 2本指以上のタッチは画面スクロールを最優先する
-      if (e.touches.length > 1) {
-        isDrawing = false;
-        return;
-      }
-
-      if (allowFingerDrawing) {
-        e.preventDefault(); // 1本指描画モード時のみデフォルトのスクロールを抑制
-      }
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', (e) => {
-      if (e.touches.length > 1) {
-        // 2本指スクロールを許可
-        return;
-      }
-
-      if (allowFingerDrawing && isDrawing) {
+      if (e.type.includes('touch')) {
+        if (e.touches.length > 1) {
+          isDrawing = false;
+          return;
+        }
+        e.preventDefault();
+      } else {
         e.preventDefault();
       }
-    }, { passive: false });
 
-    // =========================================================
-    // ツールバー操作
-    // =========================================================
-    function setTool(tool) {
-      currentTool = tool;
-      document.getElementById('tool-pen').classList.toggle('active', tool === 'pen');
-      document.getElementById('tool-eraser').classList.toggle('active', tool === 'eraser');
-    }
+      const pos = getPointerPos(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
 
-    function toggleTouchMode() {
-      allowFingerDrawing = !allowFingerDrawing;
-      const btn = document.getElementById('tool-mode');
-      if (allowFingerDrawing) {
-        btn.innerText = '✏️ 1本指で描画: ON';
-        btn.classList.add('active');
+      if (currentDrawingMode === 'pen') {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2.5;
       } else {
-        btn.innerText = '👆 指でスクロール: ON';
-        btn.classList.remove('active');
-      }
-    }
-
-    function clearCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-
-    // =========================================================
-    // API通信 & 問題ロード
-    // =========================================================
-    function showLoading(text) {
-      document.getElementById('loading-text').innerText = text;
-      document.getElementById('loading-overlay').style.display = 'flex';
-    }
-
-    function hideLoading() {
-      document.getElementById('loading-overlay').style.display = 'none';
-    }
-
-    function changeUser() {
-      currentUserId = document.getElementById('user-select').value;
-      loadNewQuestion();
-    }
-
-    function loadNewQuestion() {
-      showLoading('類題をAIが生成しています...');
-      document.getElementById('result-section').style.display = 'none';
-      clearCanvas();
-
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        // GAS 環境
-        google.script.run
-          .withSuccessHandler(onQuestionLoaded)
-          .withFailureHandler(onError)
-          .doGet({ parameter: { user_id: currentUserId } });
-      } else {
-        // ローカルテスト用モック
-        setTimeout(() => {
-          onQuestionLoaded({
-            status: 'success',
-            data: {
-              question_id: 'LOCAL_TEST_01',
-              pref_ref: '北海道公立入試類題',
-              unit: '一次関数と図形',
-              title: '直線と三角形の面積二等分',
-              context_text: '座標平面上に直線 ℓ: y = x + 4 があり、点A(-2, 2)と点B(4, 8)を通っています。直線ℓとy軸の交点をCとします。',
-              sub_questions_json: JSON.stringify([
-                { q: 1, points: 4, text: '点Cの座標を求めなさい。', answer: '(0, 4)' },
-                { q: 2, points: 5, text: '△OABの面積を求めなさい。', answer: '12' },
-                { q: 3, points: 6, text: '原点Oを通り△OABの面積を2等分する直線mの式を求めなさい。', answer: 'y = 5x' }
-              ]),
-              has_visual: true,
-              svg_config_json: JSON.stringify({
-                type: 'linear_and_triangle',
-                pointA: { x: -2, y: 2, label: 'A(-2, 2)' },
-                pointB: { x: 4, y: 8, label: 'B(4, 8)' }
-              })
-            }
-          });
-        }, 1000);
-      }
-    }
-
-    function onQuestionLoaded(res) {
-      hideLoading();
-      if (res.status !== 'success') {
-        alert('エラーが発生しました: ' + res.message);
-        return;
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = 24;
       }
 
-      currentQuestion = res.data;
-      renderQuestion(currentQuestion);
+      ctx.stroke();
+      lastX = pos.x; lastY = pos.y;
     }
 
-    function renderQuestion(q) {
-      document.getElementById('pref-badge').innerText = `${q.pref_ref} 【${q.unit}】`;
-      document.getElementById('question-title').innerText = q.title;
-      document.getElementById('question-context').innerText = q.context_text;
+    function endDraw() {
+      isDrawing = false;
+      ctx.globalCompositeOperation = 'source-over';
+    }
 
-      // 小問リスト描画
-      const subList = document.getElementById('sub-questions-list');
-      subList.innerHTML = '';
-      const subs = typeof q.sub_questions_json === 'string' ? JSON.parse(q.sub_questions_json) : q.sub_questions_json;
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    window.addEventListener('touchend', endDraw);
+
+    document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+    document.getElementById('penToolBtn').addEventListener('click', () => setDrawingMode('pen'));
+    document.getElementById('eraserToolBtn').addEventListener('click', () => setDrawingMode('eraser'));
+    document.getElementById('touchScrollToggleBtn').addEventListener('click', toggleFingerScroll);
+    document.getElementById('currentUserPill').addEventListener('click', openUserModal);
+    document.getElementById('nextActionBtn').addEventListener('click', fetchNextTargetQuestion);
+
+    document.getElementById('btn-user-nozomi').addEventListener('click', () => selectUser('user_nozomi', 'のぞみ'));
+    document.getElementById('btn-user-yui').addEventListener('click', () => selectUser('user_yui', 'ゆい'));
+    document.getElementById('btn-user-chiemi').addEventListener('click', () => selectUser('user_chiemi', 'ちえみ'));
+    document.getElementById('btn-user-jun').addEventListener('click', () => selectUser('user_jun', 'じゅん'));
+    document.getElementById('btn-user-yozo').addEventListener('click', () => selectUser('user_yozo', 'ようぞう'));
+
+    /* 提出・AI採点 */
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      if (!currentQuestionData) return;
+      const loading = document.getElementById('loadingOverlay');
+      document.getElementById('loadingMessage').textContent = '手書きノート全体を解析・採点しています...';
+      loading.style.display = 'flex';
+
+      try {
+        const offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width = canvas.width;
+        offscreenCanvas.height = canvas.height;
+        const offCtx = offscreenCanvas.getContext('2d');
+        offCtx.fillStyle = '#ffffff';
+        offCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+        offCtx.drawImage(canvas, 0, 0);
+
+        const payload = {
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          question_id: currentQuestionData.question_id,
+          image_base64: offscreenCanvas.toDataURL('image/jpeg', 0.85)
+        };
+
+        const response = await fetch(GAS_ENDPOINT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const resData = await response.json();
+        loading.style.display = 'none';
+
+        if (resData.status === 'success') {
+          showResultModal(resData.data);
+        } else {
+          alert('採点エラー:\n' + resData.message);
+        }
+      } catch (err) {
+        loading.style.display = 'none';
+        alert('通信エラー: ' + err.toString());
+      }
+    });
+
+    function showResultModal(data) {
+      document.getElementById('totalScore').textContent = data.total_score;
+      document.getElementById('maxScore').textContent = data.max_score || 15;
+      const banner = document.getElementById('scoreBanner');
+      const statusText = document.getElementById('clearStatusText');
       
-      subs.forEach(s => {
-        const li = document.createElement('li');
-        li.className = 'sub-question-item';
-        li.innerHTML = `
-          <span class="sub-q-num">(${s.q})</span>
-          <span>${s.text}</span>
-          <span class="sub-q-points">${s.points}点</span>
-        `;
-        subList.appendChild(li);
-      });
-
-      // SVG図形描画
-      const visualContainer = document.getElementById('visual-container');
-      if (q.has_visual) {
-        visualContainer.style.display = 'flex';
-        renderSVGVisual(q.svg_config_json);
+      if (data.is_cleared) {
+        banner.className = 'score-banner cleared';
+        statusText.textContent = '🎉 合格基準達成！（次の全国入試類題へ進めます）';
       } else {
-        visualContainer.style.display = 'none';
-      }
-    }
-
-    function renderSVGVisual(svgConfigRaw) {
-      const stage = document.getElementById('svg-stage');
-      stage.innerHTML = '';
-      const config = typeof svgConfigRaw === 'string' ? JSON.parse(svgConfigRaw || '{}') : svgConfigRaw;
-
-      // 簡易座標軸と直線の描画
-      let svgHtml = `
-        <defs>
-          <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#888" />
-          </marker>
-        </defs>
-        <line x1="40" y1="200" x2="360" y2="200" stroke="#888" stroke-width="1.5" marker-end="url(#arrow)" />
-        <line x1="200" y1="230" x2="200" y2="30" stroke="#888" stroke-width="1.5" marker-end="url(#arrow)" />
-        <text x="365" y="205" font-size="12" fill="#555">x</text>
-        <text x="195" y="20" font-size="12" fill="#555">y</text>
-        <text x="185" y="215" font-size="12" fill="#555">O</text>
-      `;
-
-      if (config.type === 'linear_and_triangle' || config.type === 'inverse_and_linear') {
-        svgHtml += `
-          <line x1="80" y1="220" x2="320" y2="60" stroke="#3498db" stroke-width="2.5" />
-          <circle cx="120" cy="190" r="4" fill="#e74c3c" />
-          <text x="80" y="185" font-size="12" font-weight="bold" fill="#333">A(-2, 2)</text>
-          <circle cx="280" cy="85" r="4" fill="#e74c3c" />
-          <text x="285" y="80" font-size="12" font-weight="bold" fill="#333">B(4, 8)</text>
-        `;
-      } else if (config.type === 'moving_point_rect') {
-        svgHtml = `
-          <rect x="100" y="50" width="200" height="150" fill="none" stroke="#2c3e50" stroke-width="2" />
-          <text x="85" y="50" font-size="14" font-weight="bold">A</text>
-          <text x="85" y="205" font-size="14" font-weight="bold">B</text>
-          <text x="305" y="205" font-size="14" font-weight="bold">C</text>
-          <text x="305" y="50" font-size="14" font-weight="bold">D</text>
-          <circle cx="100" cy="120" r="5" fill="#e74c3c" />
-          <text x="75" y="125" font-size="13" font-weight="bold" fill="#e74c3c">P →</text>
-        `;
+        banner.className = 'score-banner stepdown';
+        statusText.textContent = '⚠️ 復習が必要（基礎ステップダウン問題に挑戦）';
       }
 
-      stage.innerHTML = svgHtml;
-    }
-
-    // =========================================================
-    // 解答送信 & AI採点
-    // =========================================================
-    function submitAnswer() {
-      if (!currentQuestion) return;
-
-      const base64Image = canvas.toDataURL('image/jpeg', 0.85);
-      showLoading('AI採点官が手書き答案を採点中...');
-
-      const payload = {
-        user_id: currentUserId,
-        user_name: document.getElementById('user-select').selectedOptions[0].text,
-        question_id: currentQuestion.question_id,
-        image_base64: base64Image
-      };
-
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
-          .withSuccessHandler(onGraded)
-          .withFailureHandler(onError)
-          .doPost({ postData: { contents: JSON.stringify(payload) } });
-      } else {
-        // ローカルテスト用モック
-        setTimeout(() => {
-          onGraded({
-            status: 'success',
-            data: {
-              total_score: 15,
-              max_score: 15,
-              is_cleared: true,
-              scores: [
-                { q: 1, score: 4, max: 4, is_correct: true, comment: '正解です。' },
-                { q: 2, score: 5, max: 5, is_correct: true, comment: '正しく三角形の面積を計算できています。' },
-                { q: 3, score: 6, max: 6, is_correct: true, comment: '原点を通る直線の傾きが完璧に導出されています。' }
-              ],
-              ai_feedback: '全問正解です！等積変形と傾きの導出が極めてスムーズにできています。この調子で応用問題に進みましょう。',
-              next_action: 'NEXT_UNIT'
-            }
-          });
-        }, 1500);
-      }
-    }
-
-    function onGraded(res) {
-      hideLoading();
-      if (res.status !== 'success') {
-        alert('採点エラー: ' + res.message);
-        return;
+      const tagContainer = document.getElementById('weaknessTagsContainer');
+      tagContainer.innerHTML = '';
+      if (data.detected_weakness_tags && data.detected_weakness_tags.length > 0) {
+        data.detected_weakness_tags.forEach(tag => {
+          const chip = document.createElement('span');
+          chip.className = 'tag-chip';
+          chip.textContent = '#' + tag;
+          tagContainer.appendChild(chip);
+        });
       }
 
-      const evalData = res.data;
-      const resSection = document.getElementById('result-section');
-      resSection.style.display = 'block';
+      const subList = document.getElementById('subScoresList');
+      subList.innerHTML = '';
+      if (Array.isArray(data.scores)) {
+        data.scores.forEach(s => {
+          const item = document.createElement('div');
+          item.style.padding = '4px 0';
+          item.innerHTML = `<strong>(${s.q})</strong> ${s.is_correct ? '⭕' : '❌'} 得点: ${s.score}/${s.max}点 - <span style="color:#64748b;">${cleanMathText(s.comment) || ''}</span>`;
+          subList.appendChild(item);
+        });
+      }
 
-      const banner = document.getElementById('score-banner');
-      banner.innerText = `${evalData.total_score} / ${evalData.max_score} 点 (${evalData.is_cleared ? '合格・クリア！' : '要復習'})`;
-      banner.style.color = evalData.is_cleared ? '#27ae60' : '#e74c3c';
-
-      document.getElementById('ai-feedback-text').innerText = evalData.ai_feedback;
-
-      const subContainer = document.getElementById('sub-scores-container');
-      subContainer.innerHTML = '';
-      evalData.scores.forEach(s => {
-        const item = document.createElement('div');
-        item.style.padding = '8px 12px';
-        item.style.margin = '6px 0';
-        item.style.borderRadius = '6px';
-        item.style.background = s.is_correct ? '#e8f8f5' : '#fdedec';
-        item.innerHTML = `
-          <strong>小問(${s.q}): ${s.score} / ${s.max}点</strong> 【${s.is_correct ? '⭕ 正解' : '❌ 不正解'}】
-          <div style="font-size:0.9rem; color:#555; margin-top:4px;">${s.comment}</div>
-        `;
-        subContainer.appendChild(item);
-      });
-
-      // 採点結果位置まで滑らかにスクロール
-      resSection.scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('aiFeedbackText').textContent = cleanMathText(data.ai_feedback);
+      document.getElementById('resultModal').style.display = 'flex';
+      renderMath();
     }
 
-    function onError(err) {
-      hideLoading();
-      alert('エラーが発生しました: ' + err.toString());
-    }
+    document.getElementById('modalCloseBtn').addEventListener('click', () => {
+      document.getElementById('resultModal').style.display = 'none';
+    });
 
-    // 起動時処理
+    window.addEventListener('resize', resizeCanvas);
     window.addEventListener('DOMContentLoaded', () => {
+      const savedUser = localStorage.getItem("hs_study_user");
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        document.getElementById("currentUserName").textContent = currentUser.name;
+        document.getElementById("userSelectModal").style.display = "none";
+        fetchNextTargetQuestion();
+      }
       resizeCanvas();
-      loadNewQuestion();
     });
   </script>
 </body>
