@@ -335,8 +335,8 @@
   </div>
 
   <script>
-    // デプロイ先エンドポイントURL
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwCOOt-tYq0J1t8O7QQyioeEkA6f1XDsgpaCT_We5J1ICVXWY46plRO0XqcQo2sYudB/exec";
+    // デプロイ先GASエンドポイントURL
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbztxqsi0_QJak1WXbI2y6DHWJ1xIzCXNQI4_6zqdnTFPQ_3fqjccn484MtgsbWv0-z_/exec";
 
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
@@ -415,33 +415,57 @@
       const width = container.clientWidth || 360;
       const height = 230;
 
-      if (cfg && cfg.type === "linear_and_triangle" && cfg.pointA && cfg.pointB) {
+      if (cfg && cfg.pointA && cfg.pointB) {
         const minX = -4, maxX = 6, minY = -1, maxY = 9;
         const toSvgX = function(x) { return ((x - minX) / (maxX - minX)) * width; };
         const toSvgY = function(y) { return height - ((y - minY) / (maxY - minY)) * height; };
 
         const ax = toSvgX(cfg.pointA.x), ay = toSvgY(cfg.pointA.y);
         const bx = toSvgX(cfg.pointB.x), by = toSvgY(cfg.pointB.y);
-        const cx = cfg.pointC ? toSvgX(cfg.pointC.x) : toSvgX(0);
-        const cy = cfg.pointC ? toSvgY(cfg.pointC.y) : toSvgY(3);
         const ox = toSvgX(0), oy = toSvgY(0);
+
+        // 2点A, Bを通る直線 ℓ (y = mx + k) の傾きと切片を自動計算
+        const dx = cfg.pointB.x - cfg.pointA.x;
+        const dy = cfg.pointB.y - cfg.pointA.y;
+        const m = dx !== 0 ? dy / dx : 0;
+        const k = cfg.pointA.y - m * cfg.pointA.x;
+
+        const cx = toSvgX(0);
+        const cy = toSvgY(k);
+
+        // 直線ℓをグラフ枠外まできれいに延長する座標
+        const xStart = -3.8;
+        const yStart = m * xStart + k;
+        const xEnd = 5.2;
+        const yEnd = m * xEnd + k;
 
         container.innerHTML = 
           '<svg viewBox="0 0 ' + width + ' ' + height + '" xmlns="http://www.w3.org/2000/svg">' +
+            '' +
+            '<polygon points="' + ox + ',' + oy + ' ' + ax + ',' + ay + ' ' + bx + ',' + by + '" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>' +
+
+            '' +
             '<line x1="' + toSvgX(minX) + '" y1="' + oy + '" x2="' + toSvgX(maxX) + '" y2="' + oy + '" stroke="#94a3b8" stroke-width="1.5"/>' +
             '<line x1="' + ox + '" y1="' + toSvgY(minY) + '" x2="' + ox + '" y2="' + toSvgY(maxY) + '" stroke="#94a3b8" stroke-width="1.5"/>' +
             '<text x="' + (toSvgX(maxX)-14) + '" y="' + (oy+14) + '" font-size="11" fill="#64748b">x</text>' +
             '<text x="' + (ox+6) + '" y="' + (toSvgY(maxY)+12) + '" font-size="11" fill="#64748b">y</text>' +
             '<text x="' + (ox-10) + '" y="' + (oy+12) + '" font-size="10" fill="#64748b">O</text>' +
-            '<polygon points="' + ox + ',' + oy + ' ' + ax + ',' + ay + ' ' + bx + ',' + by + '" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>' +
-            '<line x1="' + toSvgX(-3.5) + '" y1="' + toSvgY(-0.5) + '" x2="' + toSvgX(5) + '" y2="' + toSvgY(8) + '" stroke="#dc2626" stroke-width="2"/>' +
-            '<text x="' + (toSvgX(5)-10) + '" y="' + (toSvgY(8)-6) + '" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>' +
+
+            '' +
+            '<line x1="' + toSvgX(xStart) + '" y1="' + toSvgY(yStart) + '" x2="' + toSvgX(xEnd) + '" y2="' + toSvgY(yEnd) + '" stroke="#dc2626" stroke-width="2"/>' +
+            '<text x="' + (toSvgX(xEnd)-6) + '" y="' + (toSvgY(yEnd)-6) + '" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>' +
+
+            '' +
             '<circle cx="' + ax + '" cy="' + ay + '" r="4" fill="#0f172a"/>' +
-            '<text x="' + (ax-46) + '" y="' + (ay-4) + '" font-size="11" font-weight="bold" fill="#0f172a">' + cfg.pointA.label + '</text>' +
+            '<text x="' + (ax-48) + '" y="' + (ay-4) + '" font-size="11" font-weight="bold" fill="#0f172a">' + cfg.pointA.label + '</text>' +
+
+            '' +
             '<circle cx="' + bx + '" cy="' + by + '" r="4" fill="#0f172a"/>' +
             '<text x="' + (bx+6) + '" y="' + (by+4) + '" font-size="11" font-weight="bold" fill="#0f172a">' + cfg.pointB.label + '</text>' +
+
+            '' +
             '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="#2563eb"/>' +
-            '<text x="' + (cx+6) + '" y="' + (cy-4) + '" font-size="10" font-weight="bold" fill="#2563eb">' + (cfg.pointC ? cfg.pointC.label : "C") + '</text>' +
+            '<text x="' + (cx+6) + '" y="' + (cy-4) + '" font-size="10" font-weight="bold" fill="#2563eb">C(0, ' + Math.round(k*10)/10 + ')</text>' +
           '</svg>';
       } else {
         container.innerHTML = '<div style="color:#64748b; font-size:0.85rem; padding: 20px; text-align:center;">（図形・グラフ表示領域）</div>';
