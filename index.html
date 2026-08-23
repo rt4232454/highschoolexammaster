@@ -124,6 +124,7 @@
       overflow-y: auto;
       overflow-x: hidden;
       background-color: #f1f5f9;
+      /* Android等での2本指スクロールを許可するため、touch-actionは指定しない */
     }
     .canvas-inner-wrapper {
       position: relative;
@@ -134,7 +135,7 @@
         linear-gradient(to right, #f1f5f9 1px, transparent 1px),
         linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
       background-size: 24px 24px;
-      touch-action: none;
+      /* ここにあった touch-action: none; を削除 */
     }
     canvas {
       position: absolute;
@@ -286,7 +287,6 @@
   </div>
 
   <script>
-    // ★新しいGASエンドポイントURLを設定★
     const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbyTjUqmZ7WgSfFIaEkAEOhLSzGojc2ep_GPJO-JtH5mejX9Ff9BVwOF8LbwhAYstys/exec";
 
     let currentUser = { id: "", name: "" };
@@ -312,7 +312,6 @@
       document.getElementById('resultModal').style.display = 'none';
       clearCanvas();
 
-      // スクロール位置を一番上に戻す
       document.getElementById('canvasScrollContainer').scrollTop = 0;
 
       try {
@@ -368,6 +367,7 @@
       renderMath();
     }
 
+    // グラフ描画関数の修正：最大値を動的に計算してスケールを合わせる
     function renderDynamicSvg(cfg) {
       const container = document.getElementById('svgContainer');
       const width = container.clientWidth || 360;
@@ -375,7 +375,11 @@
       if (!cfg || !cfg.type) return;
 
       if (cfg.type === "linear_and_triangle" && cfg.pointA && cfg.pointB) {
-        const minX = -4, maxX = 6, minY = -1, maxY = 9;
+        const minX = Math.min(cfg.pointA.x, cfg.pointB.x, 0) - 2;
+        const maxX = Math.max(cfg.pointA.x, cfg.pointB.x, 0) + 2;
+        const minY = Math.min(cfg.pointA.y, cfg.pointB.y, 0) - 2;
+        const maxY = Math.max(cfg.pointA.y, cfg.pointB.y, 0) + 2;
+
         const toX = (x) => ((x - minX) / (maxX - minX)) * width;
         const toY = (y) => height - ((y - minY) / (maxY - minY)) * height;
 
@@ -398,24 +402,23 @@
             <text x="${ox+6}" y="${toY(maxY)+12}" font-size="11" fill="#64748b">y</text>
             <text x="${ox-10}" y="${oy+12}" font-size="10" fill="#64748b">O</text>
 
-            <line x1="${toX(-3.8)}" y1="${toY(m*-3.8+k)}" x2="${toX(5.2)}" y2="${toY(m*5.2+k)}" stroke="#dc2626" stroke-width="2"/>
-            <text x="${toX(5.2)-6}" y="${toY(m*5.2+k)-6}" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>
-
+            <line x1="${toX(minX+1)}" y1="${toY(m*(minX+1)+k)}" x2="${toX(maxX-1)}" y2="${toY(m*(maxX-1)+k)}" stroke="#dc2626" stroke-width="2"/>
             <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
-            <text x="${ax-48}" y="${ay-4}" font-size="11" font-weight="bold">${cfg.pointA.label}</text>
+            <text x="${ax-10}" y="${ay-8}" font-size="11" font-weight="bold">${cfg.pointA.label}</text>
             <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
             <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold">${cfg.pointB.label}</text>
             <circle cx="${cx}" cy="${cy}" r="3.5" fill="#2563eb"/>
-            <text x="${cx+6}" y="${cy-4}" font-size="10" font-weight="bold" fill="#2563eb">C(0, ${Math.round(k*10)/10})</text>
+            <text x="${cx+6}" y="${cy-4}" font-size="10" font-weight="bold" fill="#2563eb">C</text>
           </svg>`;
       } else if (cfg.type === "inverse_and_linear") {
-        const minX = -1, maxX = 8, minY = -1, maxY = 8;
-        const toX = (x) => ((x - minX) / (maxX - minX)) * width;
-        const toY = (y) => height - ((y - minY) / (maxY - minY)) * height;
         const a = cfg.a || 12;
+        const maxX = Math.max(cfg.pointA.x, cfg.pointB.x) + 2;
+        const maxY = Math.max(cfg.pointA.y, cfg.pointB.y) + 2;
+        const toX = (x) => ((x + 1) / (maxX + 1)) * width;
+        const toY = (y) => height - ((y + 1) / (maxY + 1)) * height;
 
         let pathD = `M ${toX(1)} ${toY(a / 1)}`;
-        for (let x = 1.2; x <= 7.5; x += 0.2) pathD += ` L ${toX(x)} ${toY(a / x)}`;
+        for (let x = 1.2; x <= maxX-0.5; x += 0.2) pathD += ` L ${toX(x)} ${toY(a / x)}`;
 
         const ax = toX(cfg.pointA.x), ay = toY(cfg.pointA.y);
         const bx = toX(cfg.pointB.x), by = toY(cfg.pointB.y);
@@ -424,18 +427,16 @@
         container.innerHTML = `
           <svg viewBox="0 0 ${width} ${height}">
             <polygon points="${ox},${oy} ${ax},${ay} ${bx},${by}" fill="#fdf4ff" stroke="#f0abfc" stroke-width="1.2"/>
-            <line x1="${toX(minX)}" y1="${oy}" x2="${toX(maxX)}" y2="${oy}" stroke="#94a3b8" stroke-width="1.5"/>
-            <line x1="${ox}" y1="${toY(minY)}" x2="${ox}" y2="${toY(maxY)}" stroke="#94a3b8" stroke-width="1.5"/>
-            <text x="${toX(maxX)-14}" y="${oy+14}" font-size="11" fill="#64748b">x</text>
-            <text x="${ox+6}" y="${toY(maxY)+12}" font-size="11" fill="#64748b">y</text>
-            <text x="${ox-10}" y="${oy+12}" font-size="10" fill="#64748b">O</text>
+            <line x1="0" y1="${oy}" x2="${width}" y2="${oy}" stroke="#94a3b8" stroke-width="1.5"/>
+            <line x1="${ox}" y1="0" x2="${ox}" y2="${height}" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="${width-14}" y="${oy+14}" font-size="11" fill="#64748b">x</text>
+            <text x="${ox+6}" y="12" font-size="11" fill="#64748b">y</text>
 
             <path d="${pathD}" fill="none" stroke="#7c3aed" stroke-width="2"/>
-            <text x="${toX(7)-10}" y="${toY(a/7)-8}" font-size="11" font-weight="bold" fill="#7c3aed">y = ${a}/x</text>
-            <line x1="${toX(0.5)}" y1="${toY(cfg.pointA.y+1.5)}" x2="${toX(7)}" y2="${toY(cfg.pointB.y-1)}" stroke="#dc2626" stroke-width="2"/>
+            <line x1="${toX(0.5)}" y1="${toY(cfg.pointA.y+1.5)}" x2="${toX(maxX-1)}" y2="${toY(cfg.pointB.y-1)}" stroke="#dc2626" stroke-width="2"/>
 
             <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
-            <text x="${ax-44}" y="${ay-4}" font-size="11" font-weight="bold">${cfg.pointA.label}</text>
+            <text x="${ax+6}" y="${ay-4}" font-size="11" font-weight="bold">${cfg.pointA.label}</text>
             <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
             <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold">${cfg.pointB.label}</text>
           </svg>`;
@@ -450,25 +451,40 @@
             <text x="300" y="195" font-size="14" font-weight="bold">D</text>
             <circle cx="70" cy="100" r="5" fill="#ef4444"/>
             <text x="45" y="105" font-size="13" font-weight="bold" fill="#ef4444">P</text>
-            <text x="180" y="210" font-size="12" fill="#64748b">周上を A → B → C → D へ移動</text>
+            <text x="180" y="210" font-size="12" fill="#64748b">周上を移動</text>
           </svg>`;
       } else if (cfg.type === "speed_diagram") {
-        const toX = (t) => 40 + (t / 30) * (width - 70);
-        const toY = (d) => height - 30 - (d / 2000) * (height - 60);
+        // 最大値を動的に取得（時間と値のスケールを自動調整）
+        const pA = cfg.personA || {};
+        const pB = cfg.personB || {};
+        const maxT = Math.max(pA.time || 10, (pB.start || 0) + (pB.time || 10), 20);
+        const maxD = Math.max(pA.dist || 100, pB.dist || 100, 1000);
+
+        const toX = (t) => 40 + (t / maxT) * (width - 70);
+        const toY = (d) => height - 30 - (d / maxD) * (height - 60);
 
         container.innerHTML = `
           <svg viewBox="0 0 ${width} ${height}">
+            <!-- 軸 -->
             <line x1="40" y1="${height-30}" x2="${width-20}" y2="${height-30}" stroke="#94a3b8" stroke-width="1.5"/>
             <line x1="40" y1="20" x2="40" y2="${height-30}" stroke="#94a3b8" stroke-width="1.5"/>
-            <text x="${width-30}" y="${height-10}" font-size="11" fill="#64748b">時間(分)</text>
-            <text x="10" y="30" font-size="11" fill="#64748b">(m)</text>
+            
+            <!-- ラベル -->
+            <text x="${width-35}" y="${height-10}" font-size="11" fill="#64748b">時間(分)</text>
+            <text x="10" y="20" font-size="11" fill="#64748b">(y)</text>
 
-            <line x1="${toX(0)}" y1="${toY(0)}" x2="${toX(20)}" y2="${toY(1800)}" stroke="#2563eb" stroke-width="2.5"/>
-            <text x="${toX(20)+4}" y="${toY(1800)}" font-size="11" font-weight="bold" fill="#2563eb">A</text>
-            <line x1="${toX(5)}" y1="${toY(0)}" x2="${toX(25)}" y2="${toY(1800)}" stroke="#dc2626" stroke-width="2.5"/>
-            <text x="${toX(25)+4}" y="${toY(1800)}" font-size="11" font-weight="bold" fill="#dc2626">B</text>
+            <!-- Aのグラフ -->
+            <line x1="${toX(0)}" y1="${toY(0)}" x2="${toX(pA.time)}" y2="${toY(pA.dist)}" stroke="#2563eb" stroke-width="2.5"/>
+            <text x="${toX(pA.time)+4}" y="${toY(pA.dist)}" font-size="11" font-weight="bold" fill="#2563eb">${pA.name || 'A'}</text>
 
-            <text x="30" y="${toY(1800)+4}" font-size="10" fill="#64748b">1800</text>
+            <!-- Bのグラフ -->
+            <line x1="${toX(pB.start || 0)}" y1="${toY(0)}" x2="${toX((pB.start || 0) + pB.time)}" y2="${toY(pB.dist)}" stroke="#dc2626" stroke-width="2.5"/>
+            <text x="${toX((pB.start || 0) + pB.time)+4}" y="${toY(pB.dist)}" font-size="11" font-weight="bold" fill="#dc2626">${pB.name || 'B'}</text>
+
+            <!-- 最大値の目盛り -->
+            <text x="5" y="${toY(maxD)+4}" font-size="10" fill="#64748b">${maxD}</text>
+            <text x="${toX(maxT)-10}" y="${height-15}" font-size="10" fill="#64748b">${maxT}</text>
+            <text x="30" y="${height-15}" font-size="10" fill="#64748b">0</text>
           </svg>`;
       }
     }
@@ -482,7 +498,7 @@
       }
     }
 
-    /* 手書きキャンバス制御（縦スクロール対応） */
+    /* 手書きキャンバス制御（Android 2本指縦スクロール対応） */
     const canvas = document.getElementById('paintCanvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvasWrapper');
@@ -519,19 +535,38 @@
     }
 
     function startDraw(e) {
-      if (e.touches && e.touches.length > 1) return;
-      e.preventDefault();
-      isDrawing = true;
-      const pos = getPointerPos(e);
-      lastX = pos.x; lastY = pos.y;
+      // マウス操作、または「1本指でのタッチ」の時のみ描画を開始し、画面スクロールを止める
+      if (e.type.includes('touch')) {
+        if (e.touches.length === 1) {
+          e.preventDefault(); // 1本指は描画するためスクロール防止
+          isDrawing = true;
+          const pos = getPointerPos(e);
+          lastX = pos.x; lastY = pos.y;
+        } else {
+          isDrawing = false; // 2本指以上はスクロールを優先するため描画キャンセル
+        }
+      } else {
+        // PC等のマウス操作
+        e.preventDefault();
+        isDrawing = true;
+        const pos = getPointerPos(e);
+        lastX = pos.x; lastY = pos.y;
+      }
     }
 
     function draw(e) {
       if (!isDrawing) return;
-      if (e.touches && e.touches.length > 1) return;
-      e.preventDefault();
-      const pos = getPointerPos(e);
+      if (e.type.includes('touch')) {
+        if (e.touches.length > 1) {
+          isDrawing = false; // 途中で2本指になったら描画を中断
+          return;
+        }
+        e.preventDefault();
+      } else {
+        e.preventDefault();
+      }
 
+      const pos = getPointerPos(e);
       ctx.beginPath();
       ctx.moveTo(lastX, lastY);
       ctx.lineTo(pos.x, pos.y);
@@ -551,11 +586,12 @@
       lastX = pos.x; lastY = pos.y;
     }
 
-    function endDraw() {
+    function endDraw(e) {
       isDrawing = false;
       ctx.globalCompositeOperation = 'source-over';
     }
 
+    // passive: false を指定して preventDefault() を確実に効かせる
     canvas.addEventListener('mousedown', startDraw);
     canvas.addEventListener('mousemove', draw);
     window.addEventListener('mouseup', endDraw);
