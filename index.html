@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>高校入試 AI学習システム</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+    .badge {
+      background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600;
+    }
+    .main-container {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      flex: 1;
+      gap: 16px;
+      padding: 16px;
+      overflow: hidden;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 12px 16px;
+      background: #f1f5f9;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .dialogue-box {
+      background: #f8fafc;
+      border-left: 4px solid var(--primary);
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .dialogue-speaker { font-weight: 700; color: var(--primary); }
+    .svg-container {
+      width: 100%;
+      height: 230px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    svg { width: 100%; height: 100%; }
+    .question-list { list-style: none; }
+    .question-item {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    .canvas-wrapper {
+      position: relative;
+      flex: 1;
+      background: #ffffff;
+      touch-action: none;
+    }
+    canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      cursor: crosshair;
+    }
+    .canvas-tools {
+      display: flex;
+      gap: 8px;
+    }
+    .btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: white;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: #f8fafc; }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { color: #dc2626; }
+    .btn-danger:hover { background: #fee2e2; }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: white;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 12px;
+      padding: 24px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+    .score-banner {
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .score-banner.cleared { background: #dcfce7; color: #166534; }
+    .score-banner.stepdown { background: #ffedd5; color: #9a3412; }
+    .score-num { font-size: 2rem; font-weight: 800; }
+    .tag-chip {
+      display: inline-block;
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-right: 4px;
+      margin-top: 4px;
+    }
+    .feedback-text {
+      background: #f8fafc;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+    }
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.85);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 16px;
+      font-weight: 600;
+    }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>高校受験 数学対策システム</h1>
+    <span class="badge">公立高校 標準・上位レベル</span>
+  </header>
+
+  <div class="main-container">
+    <!-- 左側：問題・正確な数式SVGグラフ -->
+    <div class="card">
+      <div class="card-header">
+        <span>【大問】二次関数と動点P・Qの図形融合問題</span>
+        <span style="font-size: 0.8rem; color: #64748b;">配点：計15点</span>
+      </div>
+      <div class="card-body">
+        <div class="dialogue-box">
+          <p><span class="dialogue-speaker">太郎：</span>「関数 $y = \frac{1}{2}x^2$ 上に $x$ 座標が $-2, 4$ である2点 $\text{A}, \text{B}$ をとり、直線 $\ell$ を引いたよ。」</p>
+          <p><span class="dialogue-speaker">花子：</span>「放物線上を動く点 $\text{P}$ と直線上の点 $\text{Q}$ は常に $x$ 座標が等しく動くのね。」</p>
+        </div>
+
+        <div class="svg-container" id="svgContainer">
+          <!-- 正確な数式連動SVGがJavaScriptでここに描画されます -->
+        </div>
+
+        <ul class="question-list">
+          <li class="question-item">
+            <strong>(1)</strong> 2点 $\text{A}, \text{B}$ を通る直線 $\ell$ の式を求めなさい。（4点）
+          </li>
+          <li class="question-item">
+            <strong>(2)</strong> $0 \leqq t \leqq 4$ において、線分 $\text{PQ}$ の長さを $t$ で表し、$\triangle\text{ABP}$ の面積 $S$ を $t$ の式で表しなさい。（5点）
+          </li>
+          <li class="question-item">
+            <strong>(3)</strong> $t=1$ のときの点 $\text{P}$ を $\text{P}_1$ とする。点 $\text{A}$ を通り $\triangle\text{ABP}_1$ の面積を2等分する直線の式を求めなさい。（6点）
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 右側：タブレット手書き入力キャンバス -->
+    <div class="card">
+      <div class="card-header">
+        <span>手書き解答エリア（途中式・答えを記入）</span>
+        <div class="canvas-tools">
+          <button class="btn btn-danger" id="clearBtn">消去</button>
+          <button class="btn btn-primary" id="submitBtn">提出してAI採点</button>
+        </div>
+      </div>
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="paintCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 採点中ローディング画面 -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <p>Gemini AI が手書き文字と途中式を解析・採点しています...</p>
+  </div>
+
+  <!-- 採点結果モーダル -->
+  <div class="modal-overlay" id="resultModal">
+    <div class="modal-content">
+      <div id="scoreBanner" class="score-banner">
+        <div style="font-size: 0.9rem; margin-bottom: 4px;">採点結果</div>
+        <div class="score-num"><span id="totalScore">0</span> / 15 点</div>
+        <div id="clearStatusText" style="font-weight: 600; margin-top: 4px;"></div>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <strong style="font-size: 0.9rem;">検出された弱点タグ：</strong>
+        <div id="weaknessTagsContainer"></div>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <strong style="font-size: 0.9rem;">小問ごとの結果：</strong>
+        <div id="subScoresList" style="margin-top: 6px; font-size: 0.85rem;"></div>
+      </div>
+
+      <div class="feedback-text">
+        <strong>💡 AIからのフィードバックと解説：</strong>
+        <p id="aiFeedbackText" style="margin-top: 6px;"></p>
+      </div>
+
+      <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn" id="modalCloseBtn">閉じる</button>
+        <button class="btn btn-primary" id="nextActionBtn">次の問題へ</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ★ GASのWebアプリURL（設定済み）
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxj5g9dOB3BLfi6I-GQBTaAcFy1hzeEPZ7ulz3CaUKjmFMEiBkDEifcYoNsECyWWeTY/exec";
+
+    /* ==========================================================
+       1. 正確な数式連動SVGグラフの描画
+       ========================================================== */
+    function renderAccurateMathGraph() {
+      const container = document.getElementById('svgContainer');
+      const width = container.clientWidth || 360;
+      const height = 230;
+
+      // 数学座標系: X[-4.5, 6.5], Y[-1.5, 10.5]
+      const minX = -4.5, maxX = 6.5, minY = -1.5, maxY = 10.5;
+      const toSvgX = (x) => ((x - minX) / (maxX - minX)) * width;
+      const toSvgY = (y) => height - ((y - minY) / (maxY - minY)) * height;
+
+      // 放物線 y = 0.5 * x^2 のパス生成
+      let parabolaD = "";
+      for (let x = -4.2; x <= 4.5; x += 0.1) {
+        const y = 0.5 * x * x;
+        const sx = toSvgX(x);
+        const sy = toSvgY(y);
+        parabolaD += (x === -4.2) ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`;
+      }
+
+      // 直線 y = x + 4 の始点・終点
+      const lineX1 = -3.5, lineY1 = lineX1 + 4;
+      const lineX2 = 5.2,  lineY2 = lineX2 + 4;
+
+      // 点A(-2, 2) と 点B(4, 8)
+      const ax = toSvgX(-2), ay = toSvgY(2);
+      const bx = toSvgX(4),  by = toSvgY(8);
+
+      // 動点P(t=2), Q(t=2) の例示プロット
+      const t = 2;
+      const px = toSvgX(t), py = toSvgY(0.5 * t * t);
+      const qx = toSvgX(t), qy = toSvgY(t + 4);
+
+      const svgHtml = `
+        <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+          <!-- 軸 -->
+          <line x1="${toSvgX(minX)}" y1="${toSvgY(0)}" x2="${toSvgX(maxX)}" y2="${toSvgY(0)}" stroke="#94a3b8" stroke-width="1.5"/>
+          <line x1="${toSvgX(0)}" y1="${toSvgY(minY)}" x2="${toSvgX(0)}" y2="${toSvgY(maxY)}" stroke="#94a3b8" stroke-width="1.5"/>
+          <text x="${toSvgX(maxX)-14}" y="${toSvgY(0)+14}" font-size="11" fill="#64748b">x</text>
+          <text x="${toSvgX(0)+6}" y="${toSvgY(maxY)+12}" font-size="11" fill="#64748b">y</text>
+          <text x="${toSvgX(0)-10}" y="${toSvgY(0)+12}" font-size="10" fill="#64748b">O</text>
+
+          <!-- 放物線 y = 1/2 x^2 -->
+          <path d="${parabolaD}" fill="none" stroke="#2563eb" stroke-width="2"/>
+          
+          <!-- 直線 ℓ (y = x + 4) -->
+          <line x1="${toSvgX(lineX1)}" y1="${toSvgY(lineY1)}" x2="${toSvgX(lineX2)}" y2="${toSvgY(lineY2)}" stroke="#dc2626" stroke-width="1.5"/>
+          <text x="${toSvgX(lineX2)-10}" y="${toSvgY(lineY2)-6}" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>
+
+          <!-- 線分PQ (点線) -->
+          <line x1="${qx}" y1="${qy}" x2="${px}" y2="${py}" stroke="#059669" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+          <!-- 点A, B, P, Q の描画 -->
+          <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
+          <text x="${ax-40}" y="${ay-4}" font-size="10" font-weight="bold" fill="#0f172a">A(-2, 2)</text>
+
+          <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
+          <text x="${bx+6}" y="${by+4}" font-size="10" font-weight="bold" fill="#0f172a">B(4, 8)</text>
+
+          <circle cx="${px}" cy="${py}" r="3.5" fill="#059669"/>
+          <text x="${px+6}" y="${py+4}" font-size="10" font-weight="bold" fill="#059669">P</text>
+
+          <circle cx="${qx}" cy="${qy}" r="3.5" fill="#059669"/>
+          <text x="${qx-14}" y="${qy-4}" font-size="10" font-weight="bold" fill="#059669">Q</text>
+        </svg>
+      `;
+      container.innerHTML = svgHtml;
+    }
+
+    /* ==========================================================
+       2. 手書きキャンバス（タブレット・タッチペン対応）
+       ========================================================== */
+    const canvas = document.getElementById('paintCanvas');
+    const ctx = canvas.getContext('2d');
+    const wrapper = document.getElementById('canvasWrapper');
+    let isDrawing = false;
+    let lastX = 0, lastY = 0;
+
+    function resizeCanvas() {
+      const rect = wrapper.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      clearCanvas();
+    }
+
+    function clearCanvas() {
+      const rect = wrapper.getBoundingClientRect();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      
+      // 方眼グリッドを描画
+      ctx.strokeStyle = '#f1f5f9';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < rect.width; x += 24) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, rect.height); ctx.stroke();
+      }
+      for (let y = 0; y < rect.height; y += 24) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(rect.width, y); ctx.stroke();
+      }
+    }
+
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      isDrawing = true;
+      const pos = getPointerPos(e);
+      lastX = pos.x; lastY = pos.y;
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const pos = getPointerPos(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      lastX = pos.x; lastY = pos.y;
+    }
+
+    function endDraw() { isDrawing = false; }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    window.addEventListener('touchend', endDraw);
+
+    document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+
+    /* ==========================================================
+       3. 提出・GAS API通信・AI採点表示
+       ========================================================== */
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const loading = document.getElementById('loadingOverlay');
+      loading.style.display = 'flex';
+
+      try {
+        // キャンバスの画像（Base64）を取得
+        const base64Image = canvas.toDataURL('image/png');
+
+        const payload = {
+          user_id: "student_01",
+          question_id: "MATH_FUNC_001",
+          image_base64: base64Image
+        };
+
+        // GASへPOSTリクエスト
+        const response = await fetch(GAS_ENDPOINT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS CORS回避
+          body: JSON.stringify(payload)
+        });
+
+        const resData = await response.json();
+        loading.style.display = 'none';
+
+        if (resData.status === 'success') {
+          showResultModal(resData.data);
+        } else {
+          alert('採点エラー: ' + resData.message);
+        }
+      } catch (err) {
+        loading.style.display = 'none';
+        alert('通信に失敗しました。GASのデプロイ設定を確認してください。\n' + err.toString());
+      }
+    });
+
+    function showResultModal(data) {
+      document.getElementById('totalScore').textContent = data.total_score;
+      const banner = document.getElementById('scoreBanner');
+      const statusText = document.getElementById('clearStatusText');
+      
+      if (data.is_cleared) {
+        banner.className = 'score-banner cleared';
+        statusText.textContent = '🎉 合格基準達成！（次の単元へ進めます）';
+        document.getElementById('nextActionBtn').textContent = '次の単元へ進む';
+      } else {
+        banner.className = 'score-banner stepdown';
+        statusText.textContent = '⚠️ 復習が必要（ステップダウン問題に挑戦）';
+        document.getElementById('nextActionBtn').textContent = '基礎類題を解く';
+      }
+
+      // タグ表示
+      const tagContainer = document.getElementById('weaknessTagsContainer');
+      tagContainer.innerHTML = '';
+      if (data.detected_weakness_tags && data.detected_weakness_tags.length > 0) {
+        data.detected_weakness_tags.forEach(tag => {
+          const chip = document.createElement('span');
+          chip.className = 'tag-chip';
+          chip.textContent = '#' + tag;
+          tagContainer.appendChild(chip);
+        });
+      } else {
+        tagContainer.innerHTML = '<span style="font-size:0.8rem; color:#64748b;">弱点タグは検出されませんでした（完璧です！）</span>';
+      }
+
+      // 小問ごとの内訳
+      const subList = document.getElementById('subScoresList');
+      subList.innerHTML = '';
+      data.scores.forEach(s => {
+        const item = document.createElement('div');
+        item.style.padding = '4px 0';
+        item.innerHTML = `<strong>(${s.q})</strong> ${s.is_correct ? '⭕' : '❌'} 得点: ${s.score}/${s.max}点 - <span style="color:#64748b;">${s.comment || ''}</span>`;
+        subList.appendChild(item);
+      });
+
+      // AIフィードバック
+      document.getElementById('aiFeedbackText').textContent = data.ai_feedback;
+
+      document.getElementById('resultModal').style.display = 'flex';
+    }
+
+    document.getElementById('modalCloseBtn').addEventListener('click', () => {
+      document.getElementById('resultModal').style.display = 'none';
+    });
+
+    window.addEventListener('resize', () => {
+      renderAccurateMathGraph();
+      resizeCanvas();
+    });
+
+    // 初期化実行
+    window.addEventListener('DOMContentLoaded', () => {
+      renderAccurateMathGraph();
+      resizeCanvas();
+    });
+  </script>
+</body>
+</html>
