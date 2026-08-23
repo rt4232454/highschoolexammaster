@@ -23,7 +23,7 @@
     html, body {
       width: 100%;
       height: 100%;
-      overflow: hidden; /* 外枠の全体スクロールを止め、左右独立スクロールを実現 */
+      overflow: hidden; /* 画面全体のスクロールをロックし、左右独立スクロールを実現 */
       background-color: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -54,10 +54,10 @@
       cursor: pointer;
     }
 
-    /* 左右分割メインレイアウト */
+    /* 左右分割メインレイアウト（左：問題 / 右：手書き） */
     .main-container {
       display: grid;
-      grid-template-columns: 1.15fr 1fr; /* 左: 手書きノート(広め), 右: 問題文 */
+      grid-template-columns: 1fr 1.15fr; /* 左: 問題欄, 右: 手書きノート(広め) */
       flex: 1;
       gap: 12px;
       padding: 12px;
@@ -65,7 +65,7 @@
       height: calc(100vh - 52px);
     }
 
-    /* 左右の独立カード */
+    /* 左右のカードペイン */
     .card-pane {
       background: var(--card-bg);
       border-radius: 10px;
@@ -89,7 +89,7 @@
       flex-shrink: 0;
     }
 
-    /* 右側：問題欄の独立スクロール領域 */
+    /* 左側：問題欄（独立縦スクロール） */
     .problem-scroll-body {
       padding: 16px;
       overflow-y: auto;
@@ -139,7 +139,7 @@
       line-height: 1.6;
     }
 
-    /* 左側：手書き欄の独立スクロール領域 */
+    /* 右側：手書き欄（独立縦スクロール） */
     .canvas-scroll-container {
       position: relative;
       flex: 1;
@@ -150,7 +150,7 @@
     .canvas-inner-wrapper {
       position: relative;
       width: 100%;
-      height: 4000px; /* 縦長スクロールノート */
+      height: 4000px; /* 広大な手書き縦スクロール領域 */
       background-color: #ffffff;
       background-image: 
         linear-gradient(to right, #f1f5f9 1px, transparent 1px),
@@ -245,30 +245,10 @@
     <div class="user-pill" id="currentUserPill">👤 ログイン中: <span id="currentUserName">未選択</span> ▾</div>
   </header>
 
-  <!-- 左右分割レイアウト（左：手書き / 右：問題） -->
+  <!-- 左右分割メインコンテナ（左：問題 / 右：手書きノート） -->
   <div class="main-container">
     
-    <!-- 左側：手書きノート欄（独立スクロール） -->
-    <div class="card-pane">
-      <div class="card-header">
-        <div class="tool-group">
-          <button class="tool-btn active" id="penToolBtn">✏️ ペン</button>
-          <button class="tool-btn" id="eraserToolBtn">🧹 消しゴム</button>
-          <button class="tool-btn" id="touchScrollToggleBtn">👆 指スクロール: OFF</button>
-        </div>
-        <div class="canvas-tools">
-          <button class="btn btn-danger" id="clearBtn">全消去</button>
-          <button class="btn btn-primary" id="submitBtn">提出してAI採点</button>
-        </div>
-      </div>
-      <div class="canvas-scroll-container" id="canvasScrollContainer">
-        <div class="canvas-inner-wrapper" id="canvasWrapper">
-          <canvas id="paintCanvas"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- 右側：問題欄（独立スクロール） -->
+    <!-- 左側：問題欄（独立スクロール） -->
     <div class="card-pane">
       <div class="card-header">
         <span id="problemTitle">問題を読み込み中...</span>
@@ -282,9 +262,28 @@
       </div>
     </div>
 
+    <!-- 右側：手書きノート欄（独立スクロール・2本指スクロール対応） -->
+    <div class="card-pane">
+      <div class="card-header">
+        <div class="tool-group">
+          <button class="tool-btn active" id="penToolBtn">✏️ ペン</button>
+          <button class="tool-btn" id="eraserToolBtn">🧹 消しゴム</button>
+        </div>
+        <div class="canvas-tools">
+          <button class="btn btn-danger" id="clearBtn">全消去</button>
+          <button class="btn btn-primary" id="submitBtn">提出してAI採点</button>
+        </div>
+      </div>
+      <div class="canvas-scroll-container" id="canvasScrollContainer">
+        <div class="canvas-inner-wrapper" id="canvasWrapper">
+          <canvas id="paintCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- ローディング -->
+  <!-- ローディング表示 -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
     <p id="loadingMessage">全国過去問DBから最適な類題を生成しています...</p>
@@ -323,8 +322,8 @@
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
     let currentDrawingMode = "pen";
-    let isFingerScrollOnly = false; // true: 指はスクロール優先（スタイラス描画専用）
 
+    // 破損したLaTeX文字列の修復
     function cleanMathText(str) {
       if (!str) return "";
       return String(str)
@@ -503,28 +502,19 @@
       }
     }
 
-    /* 手書きキャンバス制御（左右独立スクロール・2本指・ペン最適化） */
+    /* 手書きキャンバス制御（タブレット2本指スクロール & 1本指描画の独立制御） */
     const canvas = document.getElementById('paintCanvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvasWrapper');
+    const scrollContainer = document.getElementById('canvasScrollContainer');
+    
     let isDrawing = false, lastX = 0, lastY = 0;
+    let twoFingerStartY = 0, initialScrollTop = 0;
 
     function setDrawingMode(mode) {
       currentDrawingMode = mode;
       document.getElementById('penToolBtn').classList.toggle('active', mode === 'pen');
       document.getElementById('eraserToolBtn').classList.toggle('active', mode === 'eraser');
-    }
-
-    function toggleFingerScroll() {
-      isFingerScrollOnly = !isFingerScrollOnly;
-      const btn = document.getElementById('touchScrollToggleBtn');
-      if (isFingerScrollOnly) {
-        btn.textContent = "👆 指スクロール: ON (ペン専用)";
-        btn.classList.add('active');
-      } else {
-        btn.textContent = "👆 指スクロール: OFF";
-        btn.classList.remove('active');
-      }
     }
 
     function resizeCanvas() {
@@ -553,17 +543,23 @@
 
     function startDraw(e) {
       if (e.type.includes('touch')) {
-        // 2本指操作時は左ペインの縦スクロールを優先
-        if (e.touches.length > 1) {
+        // ★ 2本指タッチ：手書き領域の独立縦スクロールを開始
+        if (e.touches.length === 2) {
+          isDrawing = false;
+          twoFingerStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          initialScrollTop = scrollContainer.scrollTop;
+          e.preventDefault();
+          return;
+        }
+
+        // 3本指以上は無視
+        if (e.touches.length > 2) {
           isDrawing = false;
           return;
         }
-        // 指スクロールON時は、指タッチでの描画をキャンセルしてスクロールさせる
-        if (isFingerScrollOnly && (!e.pointerType || e.pointerType === 'touch')) {
-          isDrawing = false;
-          return;
-        }
-        e.preventDefault(); // 1本指描画時はキャンバススクロールを固定して線を引く
+
+        // ★ 1本指タッチ：描画を開始（スクロールを止めて滑らかに線を引く）
+        e.preventDefault();
       } else {
         e.preventDefault();
       }
@@ -574,14 +570,24 @@
     }
 
     function draw(e) {
-      if (!isDrawing) return;
       if (e.type.includes('touch')) {
-        if (e.touches.length > 1) {
+        // ★ 2本指操作中：右側ノート領域を上下スクロール
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          const currentY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const deltaY = twoFingerStartY - currentY;
+          scrollContainer.scrollTop = initialScrollTop + deltaY;
+          return;
+        }
+
+        if (e.touches.length > 2 || !isDrawing) {
           isDrawing = false;
           return;
         }
+
         e.preventDefault();
       } else {
+        if (!isDrawing) return;
         e.preventDefault();
       }
 
@@ -610,6 +616,7 @@
       ctx.globalCompositeOperation = 'source-over';
     }
 
+    // イベント登録（passive: false でブラウザ標準の意図しない挙動を阻止）
     canvas.addEventListener('mousedown', startDraw);
     canvas.addEventListener('mousemove', draw);
     window.addEventListener('mouseup', endDraw);
@@ -620,7 +627,6 @@
     document.getElementById('clearBtn').addEventListener('click', clearCanvas);
     document.getElementById('penToolBtn').addEventListener('click', () => setDrawingMode('pen'));
     document.getElementById('eraserToolBtn').addEventListener('click', () => setDrawingMode('eraser'));
-    document.getElementById('touchScrollToggleBtn').addEventListener('click', toggleFingerScroll);
     document.getElementById('currentUserPill').addEventListener('click', openUserModal);
     document.getElementById('nextActionBtn').addEventListener('click', fetchNextTargetQuestion);
 
