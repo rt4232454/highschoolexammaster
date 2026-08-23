@@ -23,7 +23,7 @@
     html, body {
       width: 100%;
       height: 100%;
-      overflow: hidden; /* 画面全体のスクロールをロックし、左右独立スクロールを実現 */
+      overflow: hidden;
       background-color: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -54,10 +54,9 @@
       cursor: pointer;
     }
 
-    /* 左右分割メインレイアウト（左：問題 / 右：手書き） */
     .main-container {
       display: grid;
-      grid-template-columns: 1fr 1.15fr; /* 左: 問題欄, 右: 手書きノート(広め) */
+      grid-template-columns: 1fr 1.15fr;
       flex: 1;
       gap: 12px;
       padding: 12px;
@@ -65,7 +64,6 @@
       height: calc(100vh - 52px);
     }
 
-    /* 左右のカードペイン */
     .card-pane {
       background: var(--card-bg);
       border-radius: 10px;
@@ -87,9 +85,9 @@
       justify-content: space-between;
       align-items: center;
       flex-shrink: 0;
+      gap: 8px;
     }
 
-    /* 左側：問題欄（独立縦スクロール） */
     .problem-scroll-body {
       padding: 16px;
       overflow-y: auto;
@@ -139,18 +137,23 @@
       line-height: 1.6;
     }
 
-    /* 右側：手書き欄（独立縦スクロール） */
+    /* 手書き欄ズーム対応コンテナ */
     .canvas-scroll-container {
       position: relative;
       flex: 1;
-      overflow-y: auto;
+      overflow: auto;
       -webkit-overflow-scrolling: touch;
-      background-color: #f8fafc;
+      background-color: #cbd5e1;
+    }
+    .canvas-zoom-container {
+      transform-origin: 0 0;
+      display: inline-block;
+      min-width: 100%;
     }
     .canvas-inner-wrapper {
       position: relative;
       width: 100%;
-      height: 4000px; /* 広大な手書き縦スクロール領域 */
+      height: 4000px;
       background-color: #ffffff;
       background-image: 
         linear-gradient(to right, #f1f5f9 1px, transparent 1px),
@@ -165,8 +168,7 @@
       cursor: crosshair;
     }
 
-    /* ツールボタン類 */
-    .canvas-tools { display: flex; align-items: center; gap: 6px; }
+    .canvas-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .tool-group { display: inline-flex; background: #e2e8f0; border-radius: 6px; padding: 2px; gap: 2px; }
     .tool-btn {
       padding: 4px 8px; border-radius: 4px; border: none; background: transparent;
@@ -182,7 +184,6 @@
     .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
     .btn-danger { color: #dc2626; }
 
-    /* モーダル */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;
@@ -245,10 +246,10 @@
     <div class="user-pill" id="currentUserPill">👤 ログイン中: <span id="currentUserName">未選択</span> ▾</div>
   </header>
 
-  <!-- 左右分割メインコンテナ（左：問題 / 右：手書きノート） -->
+  <!-- 左右分割レイアウト -->
   <div class="main-container">
     
-    <!-- 左側：問題欄（独立スクロール） -->
+    <!-- 左側：問題欄 -->
     <div class="card-pane">
       <div class="card-header">
         <span id="problemTitle">問題を読み込み中...</span>
@@ -262,28 +263,38 @@
       </div>
     </div>
 
-    <!-- 右側：手書きノート欄（独立スクロール・2本指スクロール対応） -->
+    <!-- 右側：手書きノート欄（拡大・縮小・2本指スクロール対応） -->
     <div class="card-pane">
       <div class="card-header">
         <div class="tool-group">
           <button class="tool-btn active" id="penToolBtn">✏️ ペン</button>
           <button class="tool-btn" id="eraserToolBtn">🧹 消しゴム</button>
         </div>
+        
+        <!-- ズーム操作グループ -->
+        <div class="tool-group">
+          <button class="tool-btn" id="zoomOutBtn">🔍−</button>
+          <button class="tool-btn" id="zoomResetBtn" style="font-size:0.75rem;">100%</button>
+          <button class="tool-btn" id="zoomInBtn">🔍＋</button>
+        </div>
+
         <div class="canvas-tools">
           <button class="btn btn-danger" id="clearBtn">全消去</button>
           <button class="btn btn-primary" id="submitBtn">提出してAI採点</button>
         </div>
       </div>
       <div class="canvas-scroll-container" id="canvasScrollContainer">
-        <div class="canvas-inner-wrapper" id="canvasWrapper">
-          <canvas id="paintCanvas"></canvas>
+        <div class="canvas-zoom-container" id="canvasZoomContainer">
+          <div class="canvas-inner-wrapper" id="canvasWrapper">
+            <canvas id="paintCanvas"></canvas>
+          </div>
         </div>
       </div>
     </div>
 
   </div>
 
-  <!-- ローディング表示 -->
+  <!-- ローディング -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
     <p id="loadingMessage">全国過去問DBから最適な類題を生成しています...</p>
@@ -317,13 +328,17 @@
   </div>
 
   <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxMeKKABlM00v_dF7Od-8DTZYZEHkBXTv1MpNffMPZY3RAMNcozX--CZNSDKxPiu7o/exec";
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbyTjUqmZ7WgSfFIaEkAEOhLSzGojc2ep_GPJO-JtH5mejX9Ff9BVwOF8LbwhAYstys/exec";
 
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
     let currentDrawingMode = "pen";
 
-    // 破損したLaTeX文字列の修復
+    // ズーム倍率管理
+    let currentZoomScale = 1.0;
+    const MIN_ZOOM = 0.5;
+    const MAX_ZOOM = 3.0;
+
     function cleanMathText(str) {
       if (!str) return "";
       return String(str)
@@ -502,14 +517,25 @@
       }
     }
 
-    /* 手書きキャンバス制御（タブレット2本指スクロール & 1本指描画の独立制御） */
+    /* 手書きキャンバス・ズーム・スクロール制御 */
     const canvas = document.getElementById('paintCanvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvasWrapper');
+    const zoomContainer = document.getElementById('canvasZoomContainer');
     const scrollContainer = document.getElementById('canvasScrollContainer');
     
     let isDrawing = false, lastX = 0, lastY = 0;
+    
+    // 2本指ジェスチャー用
+    let initialPinchDist = 0;
+    let initialZoomScale = 1.0;
     let twoFingerStartY = 0, initialScrollTop = 0;
+
+    function applyZoom(scale) {
+      currentZoomScale = Math.min(Math.max(scale, MIN_ZOOM), MAX_ZOOM);
+      zoomContainer.style.transform = `scale(${currentZoomScale})`;
+      document.getElementById('zoomResetBtn').textContent = `${Math.round(currentZoomScale * 100)}%`;
+    }
 
     function setDrawingMode(mode) {
       currentDrawingMode = mode;
@@ -520,45 +546,52 @@
     function resizeCanvas() {
       const rect = wrapper.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      canvas.width = (rect.width / currentZoomScale) * dpr;
+      canvas.height = (rect.height / currentZoomScale) * dpr;
       ctx.scale(dpr, dpr);
       clearCanvas();
     }
 
     function clearCanvas() {
       const rect = wrapper.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.clearRect(0, 0, rect.width / currentZoomScale, rect.height / currentZoomScale);
     }
 
+    // ズーム倍率を反映した正確なポインタ座標の計算
     function getPointerPos(e) {
       const rect = canvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
+        x: (clientX - rect.left) / currentZoomScale,
+        y: (clientY - rect.top) / currentZoomScale
       };
+    }
+
+    function getTouchDistance(touches) {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
     }
 
     function startDraw(e) {
       if (e.type.includes('touch')) {
-        // ★ 2本指タッチ：手書き領域の独立縦スクロールを開始
+        // 2本指操作：ピンチズーム & スクロール開始
         if (e.touches.length === 2) {
           isDrawing = false;
+          initialPinchDist = getTouchDistance(e.touches);
+          initialZoomScale = currentZoomScale;
           twoFingerStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
           initialScrollTop = scrollContainer.scrollTop;
           e.preventDefault();
           return;
         }
 
-        // 3本指以上は無視
         if (e.touches.length > 2) {
           isDrawing = false;
           return;
         }
 
-        // ★ 1本指タッチ：描画を開始（スクロールを止めて滑らかに線を引く）
         e.preventDefault();
       } else {
         e.preventDefault();
@@ -571,9 +604,18 @@
 
     function draw(e) {
       if (e.type.includes('touch')) {
-        // ★ 2本指操作中：右側ノート領域を上下スクロール
+        // 2本指操作中：ピンチズームまたは縦スクロール
         if (e.touches.length === 2) {
           e.preventDefault();
+          
+          // ピンチズーム計算
+          const currentDist = getTouchDistance(e.touches);
+          if (initialPinchDist > 0 && Math.abs(currentDist - initialPinchDist) > 10) {
+            const factor = currentDist / initialPinchDist;
+            applyZoom(initialZoomScale * factor);
+          }
+
+          // 上下スクロール計算
           const currentY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
           const deltaY = twoFingerStartY - currentY;
           scrollContainer.scrollTop = initialScrollTop + deltaY;
@@ -613,16 +655,21 @@
 
     function endDraw() {
       isDrawing = false;
+      initialPinchDist = 0;
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    // イベント登録（passive: false でブラウザ標準の意図しない挙動を阻止）
     canvas.addEventListener('mousedown', startDraw);
     canvas.addEventListener('mousemove', draw);
     window.addEventListener('mouseup', endDraw);
     canvas.addEventListener('touchstart', startDraw, { passive: false });
     canvas.addEventListener('touchmove', draw, { passive: false });
     window.addEventListener('touchend', endDraw);
+
+    // ズームボタン操作
+    document.getElementById('zoomInBtn').addEventListener('click', () => applyZoom(currentZoomScale + 0.2));
+    document.getElementById('zoomOutBtn').addEventListener('click', () => applyZoom(currentZoomScale - 0.2));
+    document.getElementById('zoomResetBtn').addEventListener('click', () => applyZoom(1.0));
 
     document.getElementById('clearBtn').addEventListener('click', clearCanvas);
     document.getElementById('penToolBtn').addEventListener('click', () => setDrawingMode('pen'));
