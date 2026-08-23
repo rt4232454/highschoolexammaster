@@ -123,11 +123,7 @@
       width: 100%; height: 100%;
       cursor: crosshair;
     }
-    .canvas-tools {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .canvas-tools { display: flex; align-items: center; gap: 6px; }
     .tool-group {
       display: inline-flex;
       background: #e2e8f0;
@@ -341,11 +337,11 @@
   </div>
 
   <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxj5g9dOB3BLfi6I-GQBTaAcFy1hzeEPZ7ulz3CaUKjmFMEiBkDEifcYoNsECyWWeTY/exec";
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycby3rzmRqZVZ4V-HG48dPM-0julGYDKA9caVIxI8xNnRILVzRMGEDX1FQBwxMuRaK45U/exec;
 
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
-    let currentDrawingMode = "pen"; // 'pen' または 'eraser'
+    let currentDrawingMode = "pen";
 
     function selectUser(userId, userName) {
       currentUser = { id: userId, name: userName };
@@ -463,9 +459,7 @@
       }
     }
 
-    /* ==========================================================
-       手書きキャンバス制御（ペン / 部分消しゴム対応）
-       ========================================================== */
+    /* 手書きキャンバス制御 */
     const canvas = document.getElementById('paintCanvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvasWrapper');
@@ -521,9 +515,8 @@
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 2.5;
       } else {
-        // 消しゴムモード：描画されたピクセルを直接透明に消去
         ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth = 20; // 消しゴムの太さ
+        ctx.lineWidth = 20;
       }
 
       ctx.stroke();
@@ -532,7 +525,7 @@
 
     function endDraw() {
       isDrawing = false;
-      ctx.globalCompositeOperation = 'source-over'; // 通常モードに戻す
+      ctx.globalCompositeOperation = 'source-over';
     }
 
     canvas.addEventListener('mousedown', startDraw);
@@ -543,7 +536,7 @@
     window.addEventListener('touchend', endDraw);
     document.getElementById('clearBtn').addEventListener('click', clearCanvas);
 
-    /* 提出採点処理（白背景付きの画像を生成して送信） */
+    /* 提出・白背景合成・採点 */
     document.getElementById('submitBtn').addEventListener('click', async () => {
       if (!currentQuestionData) return;
       const loading = document.getElementById('loadingOverlay');
@@ -551,12 +544,12 @@
       loading.style.display = 'flex';
 
       try {
-        // AIが認識しやすいように白背景を合成したオフスクリーンCanvasを作成
         const offscreenCanvas = document.createElement('canvas');
         offscreenCanvas.width = canvas.width;
         offscreenCanvas.height = canvas.height;
         const offCtx = offscreenCanvas.getContext('2d');
         
+        // 白背景で塗りつぶし
         offCtx.fillStyle = '#ffffff';
         offCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
         offCtx.drawImage(canvas, 0, 0);
@@ -565,7 +558,7 @@
           user_id: currentUser.id,
           user_name: currentUser.name,
           question_id: currentQuestionData.question_id,
-          image_base64: offscreenCanvas.toDataURL('image/png')
+          image_base64: offscreenCanvas.toDataURL('image/jpeg', 0.95)
         };
 
         const response = await fetch(GAS_ENDPOINT_URL, {
@@ -579,7 +572,7 @@
         if (resData.status === 'success') {
           showResultModal(resData.data);
         } else {
-          alert('採点エラー: ' + resData.message);
+          alert('採点エラー:\n' + resData.message);
         }
       } catch (err) {
         loading.style.display = 'none';
