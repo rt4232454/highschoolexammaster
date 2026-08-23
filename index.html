@@ -257,18 +257,18 @@
       <p style="font-size: 0.85rem; color: #64748b; margin-top: 6px;">既習（対象）単元の問題のみを出題します</p>
       
       <div class="user-grid">
-        <button class="user-btn" onclick="selectUser('user_nozomi', 'のぞみ')">のぞみ</button>
-        <button class="user-btn" onclick="selectUser('user_yui', 'ゆい')">ゆい</button>
-        <button class="user-btn" onclick="selectUser('user_chiemi', 'ちえみ')">ちえみ</button>
-        <button class="user-btn" onclick="selectUser('user_jun', 'じゅん')">じゅん</button>
-        <button class="user-btn" onclick="selectUser('user_yozo', 'ようぞう')" style="grid-column: span 2;">ようぞう</button>
+        <button class="user-btn" id="btn-user-nozomi">のぞみ</button>
+        <button class="user-btn" id="btn-user-yui">ゆい</button>
+        <button class="user-btn" id="btn-user-chiemi">ちえみ</button>
+        <button class="user-btn" id="btn-user-jun">じゅん</button>
+        <button class="user-btn" id="btn-user-yozo" style="grid-column: span 2;">ようぞう</button>
       </div>
     </div>
   </div>
 
   <header>
     <h1>高校受験 AI学習システム</h1>
-    <div class="user-pill" id="currentUserPill" onclick="openUserModal()">👤 ログイン中: <span id="currentUserName">未選択</span> ▾</div>
+    <div class="user-pill" id="currentUserPill">👤 ログイン中: <span id="currentUserName">未選択</span> ▾</div>
   </header>
 
   <div class="main-container">
@@ -287,8 +287,8 @@
     <div class="card">
       <div class="card-header">
         <div class="tool-group">
-          <button class="tool-btn active" id="penToolBtn" onclick="setDrawingMode('pen')">✏️ ペン</button>
-          <button class="tool-btn" id="eraserToolBtn" onclick="setDrawingMode('eraser')">🧹 消しゴム</button>
+          <button class="tool-btn active" id="penToolBtn">✏️ ペン</button>
+          <button class="tool-btn" id="eraserToolBtn">🧹 消しゴム</button>
         </div>
         <div class="canvas-tools">
           <button class="btn btn-danger" id="clearBtn">全消去</button>
@@ -331,13 +331,13 @@
 
       <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
         <button class="btn" id="modalCloseBtn">閉じる</button>
-        <button class="btn btn-primary" id="nextActionBtn" onclick="fetchNextTargetQuestion()">次の対象問題を解く</button>
+        <button class="btn btn-primary" id="nextActionBtn">次の対象問題を解く</button>
       </div>
     </div>
   </div>
 
   <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycby3rzmRqZVZ4V-HG48dPM-0julGYDKA9caVIxI8xNnRILVzRMGEDX1FQBwxMuRaK45U/exec;
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxj5g9dOB3BLfi6I-GQBTaAcFy1hzeEPZ7ulz3CaUKjmFMEiBkDEifcYoNsECyWWeTY/exec";
 
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
@@ -363,7 +363,8 @@
       clearCanvas();
 
       try {
-        const res = await fetch(`${GAS_ENDPOINT_URL}?user_id=${currentUser.id}&t=${Date.now()}`);
+        const fetchUrl = GAS_ENDPOINT_URL + "?user_id=" + encodeURIComponent(currentUser.id) + "&t=" + Date.now();
+        const res = await fetch(fetchUrl);
         const result = await res.json();
         loading.style.display = 'none';
 
@@ -383,25 +384,26 @@
     }
 
     function renderQuestionUI(q) {
-      document.getElementById('problemTitle').textContent = `【${q.unit}】${q.title}`;
-      document.getElementById('problemDialogue').innerHTML = q.context_text.replace(/\n/g, '<br>');
+      document.getElementById('problemTitle').textContent = "【" + q.unit + "】" + q.title;
+      document.getElementById('problemDialogue').innerHTML = String(q.context_text).replace(/\n/g, '<br>');
 
       const subListEl = document.getElementById('questionsList');
       subListEl.innerHTML = '';
       const subQuestions = typeof q.sub_questions_json === 'string' ? JSON.parse(q.sub_questions_json) : q.sub_questions_json;
       
       let totalPts = 0;
-      subQuestions.forEach(sub => {
+      subQuestions.forEach(function(sub) {
         totalPts += sub.points;
         const li = document.createElement('li');
         li.className = 'question-item';
-        li.innerHTML = `<strong>(${sub.q})</strong> ${sub.text} <span style="color:#64748b; font-size:0.8rem;">（${sub.points}点）</span>`;
+        li.innerHTML = '<strong>(' + sub.q + ')</strong> ' + sub.text + ' <span style="color:#64748b; font-size:0.8rem;">（' + sub.points + '点）</span>';
         subListEl.appendChild(li);
       });
-      document.getElementById('totalPointsText').textContent = `配点：計${totalPts}点`;
+      document.getElementById('totalPointsText').textContent = "配点：計" + totalPts + "点";
 
       if (q.svg_config_json) {
-        renderDynamicSvg(typeof q.svg_config_json === 'string' ? JSON.parse(q.svg_config_json) : q.svg_config_json);
+        const configObj = typeof q.svg_config_json === 'string' ? JSON.parse(q.svg_config_json) : q.svg_config_json;
+        renderDynamicSvg(configObj);
       }
 
       renderMath();
@@ -414,39 +416,33 @@
 
       if (cfg.type === "linear_and_triangle") {
         const minX = -4, maxX = 6, minY = -1, maxY = 9;
-        const toSvgX = (x) => ((x - minX) / (maxX - minX)) * width;
-        const toSvgY = (y) => height - ((y - minY) / (maxY - minY)) * height;
+        const toSvgX = function(x) { return ((x - minX) / (maxX - minX)) * width; };
+        const toSvgY = function(y) { return height - ((y - minY) / (maxY - minY)) * height; };
 
         const ax = toSvgX(cfg.pointA.x), ay = toSvgY(cfg.pointA.y);
         const bx = toSvgX(cfg.pointB.x), by = toSvgY(cfg.pointB.y);
         const cx = toSvgX(cfg.pointC.x), cy = toSvgY(cfg.pointC.y);
         const ox = toSvgX(0), oy = toSvgY(0);
 
-        container.innerHTML = `
-          <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-            <line x1="${toSvgX(minX)}" y1="${oy}" x2="${toSvgX(maxX)}" y2="${oy}" stroke="#94a3b8" stroke-width="1.5"/>
-            <line x1="${ox}" y1="${toSvgY(minY)}" x2="${ox}" y2="${toSvgY(maxY)}" stroke="#94a3b8" stroke-width="1.5"/>
-            <text x="${toSvgX(maxX)-14}" y="${oy+14}" font-size="11" fill="#64748b">x</text>
-            <text x="${ox+6}" y="${toSvgY(maxY)+12}" font-size="11" fill="#64748b">y</text>
-            <text x="${ox-10}" y="${oy+12}" font-size="10" fill="#64748b">O</text>
-
-            <polygon points="${ox},${oy} ${ax},${ay} ${bx},${by}" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
-
-            <line x1="${toSvgX(-3.5)}" y1="${toSvgY(-0.5)}" x2="${toSvgX(5)}" y2="${toSvgY(8)}" stroke="#dc2626" stroke-width="2"/>
-            <text x="${toSvgX(5)-10}" y="${toSvgY(8)-6}" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>
-
-            <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
-            <text x="${ax-46}" y="${ay-4}" font-size="11" font-weight="bold" fill="#0f172a">${cfg.pointA.label}</text>
-
-            <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
-            <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold" fill="#0f172a">${cfg.pointB.label}</text>
-
-            <circle cx="${cx}" cy="${cy}" r="3.5" fill="#2563eb"/>
-            <text x="${cx+6}" y="${cy-4}" font-size="10" font-weight="bold" fill="#2563eb">${cfg.pointC.label}</text>
-          </svg>
-        `;
+        container.innerHTML = 
+          '<svg viewBox="0 0 ' + width + ' ' + height + '" xmlns="http://www.w3.org/2000/svg">' +
+            '<line x1="' + toSvgX(minX) + '" y1="' + oy + '" x2="' + toSvgX(maxX) + '" y2="' + oy + '" stroke="#94a3b8" stroke-width="1.5"/>' +
+            '<line x1="' + ox + '" y1="' + toSvgY(minY) + '" x2="' + ox + '" y2="' + toSvgY(maxY) + '" stroke="#94a3b8" stroke-width="1.5"/>' +
+            '<text x="' + (toSvgX(maxX)-14) + '" y="' + (oy+14) + '" font-size="11" fill="#64748b">x</text>' +
+            '<text x="' + (ox+6) + '" y="' + (toSvgY(maxY)+12) + '" font-size="11" fill="#64748b">y</text>' +
+            '<text x="' + (ox-10) + '" y="' + (oy+12) + '" font-size="10" fill="#64748b">O</text>' +
+            '<polygon points="' + ox + ',' + oy + ' ' + ax + ',' + ay + ' ' + bx + ',' + by + '" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>' +
+            '<line x1="' + toSvgX(-3.5) + '" y1="' + toSvgY(-0.5) + '" x2="' + toSvgX(5) + '" y2="' + toSvgY(8) + '" stroke="#dc2626" stroke-width="2"/>' +
+            '<text x="' + (toSvgX(5)-10) + '" y="' + (toSvgY(8)-6) + '" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>' +
+            '<circle cx="' + ax + '" cy="' + ay + '" r="4" fill="#0f172a"/>' +
+            '<text x="' + (ax-46) + '" y="' + (ay-4) + '" font-size="11" font-weight="bold" fill="#0f172a">' + cfg.pointA.label + '</text>' +
+            '<circle cx="' + bx + '" cy="' + by + '" r="4" fill="#0f172a"/>' +
+            '<text x="' + (bx+6) + '" y="' + (by+4) + '" font-size="11" font-weight="bold" fill="#0f172a">' + cfg.pointB.label + '</text>' +
+            '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="#2563eb"/>' +
+            '<text x="' + (cx+6) + '" y="' + (cy-4) + '" font-size="10" font-weight="bold" fill="#2563eb">' + cfg.pointC.label + '</text>' +
+          '</svg>';
       } else {
-        container.innerHTML = `<div style="color:#64748b; font-size:0.85rem;">（図表データ）</div>`;
+        container.innerHTML = '<div style="color:#64748b; font-size:0.85rem;">（図表データ）</div>';
       }
     }
 
@@ -534,10 +530,22 @@
     canvas.addEventListener('touchstart', startDraw, { passive: false });
     canvas.addEventListener('touchmove', draw, { passive: false });
     window.addEventListener('touchend', endDraw);
-    document.getElementById('clearBtn').addEventListener('click', clearCanvas);
 
-    /* 提出・白背景合成・採点 */
-    document.getElementById('submitBtn').addEventListener('click', async () => {
+    document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+    document.getElementById('penToolBtn').addEventListener('click', function() { setDrawingMode('pen'); });
+    document.getElementById('eraserToolBtn').addEventListener('click', function() { setDrawingMode('eraser'); });
+    document.getElementById('currentUserPill').addEventListener('click', openUserModal);
+    document.getElementById('nextActionBtn').addEventListener('click', fetchNextTargetQuestion);
+
+    // ユーザー選択ボタンのイベントリスナー
+    document.getElementById('btn-user-nozomi').addEventListener('click', function() { selectUser('user_nozomi', 'のぞみ'); });
+    document.getElementById('btn-user-yui').addEventListener('click', function() { selectUser('user_yui', 'ゆい'); });
+    document.getElementById('btn-user-chiemi').addEventListener('click', function() { selectUser('user_chiemi', 'ちえみ'); });
+    document.getElementById('btn-user-jun').addEventListener('click', function() { selectUser('user_jun', 'じゅん'); });
+    document.getElementById('btn-user-yozo').addEventListener('click', function() { selectUser('user_yozo', 'ようぞう'); });
+
+    /* 提出・採点 */
+    document.getElementById('submitBtn').addEventListener('click', async function() {
       if (!currentQuestionData) return;
       const loading = document.getElementById('loadingOverlay');
       document.getElementById('loadingMessage').textContent = 'Gemini AI が手書き文字と途中式を解析・採点しています...';
@@ -549,7 +557,6 @@
         offscreenCanvas.height = canvas.height;
         const offCtx = offscreenCanvas.getContext('2d');
         
-        // 白背景で塗りつぶし
         offCtx.fillStyle = '#ffffff';
         offCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
         offCtx.drawImage(canvas, 0, 0);
@@ -597,7 +604,7 @@
       const tagContainer = document.getElementById('weaknessTagsContainer');
       tagContainer.innerHTML = '';
       if (data.detected_weakness_tags && data.detected_weakness_tags.length > 0) {
-        data.detected_weakness_tags.forEach(tag => {
+        data.detected_weakness_tags.forEach(function(tag) {
           const chip = document.createElement('span');
           chip.className = 'tag-chip';
           chip.textContent = '#' + tag;
@@ -609,10 +616,10 @@
 
       const subList = document.getElementById('subScoresList');
       subList.innerHTML = '';
-      data.scores.forEach(s => {
+      data.scores.forEach(function(s) {
         const item = document.createElement('div');
         item.style.padding = '4px 0';
-        item.innerHTML = `<strong>(${s.q})</strong> ${s.is_correct ? '⭕' : '❌'} 得点: ${s.score}/${s.max}点 - <span style="color:#64748b;">${s.comment || ''}</span>`;
+        item.innerHTML = '<strong>(' + s.q + ')</strong> ' + (s.is_correct ? '⭕' : '❌') + ' 得点: ' + s.score + '/' + s.max + '点 - <span style="color:#64748b;">' + (s.comment || '') + '</span>';
         subList.appendChild(item);
       });
 
@@ -621,12 +628,12 @@
       renderMath();
     }
 
-    document.getElementById('modalCloseBtn').addEventListener('click', () => {
+    document.getElementById('modalCloseBtn').addEventListener('click', function() {
       document.getElementById('resultModal').style.display = 'none';
     });
 
-    window.addEventListener('resize', () => { resizeCanvas(); });
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('resize', function() { resizeCanvas(); });
+    window.addEventListener('DOMContentLoaded', function() {
       const savedUser = localStorage.getItem("hs_study_user");
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
