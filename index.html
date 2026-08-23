@@ -75,6 +75,16 @@
       align-items: center;
     }
     .card-body { padding: 16px; overflow-y: auto; flex: 1; }
+    .origin-badge {
+      display: inline-block;
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
     .dialogue-box {
       background: #f8fafc;
       border-left: 4px solid var(--primary);
@@ -86,7 +96,7 @@
     }
     .svg-container {
       width: 100%;
-      height: 230px;
+      height: 240px;
       background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -106,9 +116,19 @@
       font-size: 0.9rem;
       line-height: 1.6;
     }
-    .canvas-wrapper {
+
+    /* 10倍手書きスクロールエリア */
+    .canvas-scroll-container {
       position: relative;
       flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background-color: #f1f5f9;
+    }
+    .canvas-inner-wrapper {
+      position: relative;
+      width: 100%;
+      height: 4500px;
       background-color: #ffffff;
       background-image: 
         linear-gradient(to right, #f1f5f9 1px, transparent 1px),
@@ -119,85 +139,40 @@
     canvas {
       position: absolute;
       top: 0; left: 0;
-      width: 100%; height: 100%;
+      width: 100%;
+      height: 100%;
       cursor: crosshair;
     }
+
     .canvas-tools { display: flex; align-items: center; gap: 6px; }
-    .tool-group {
-      display: inline-flex;
-      background: #e2e8f0;
-      border-radius: 6px;
-      padding: 2px;
-      gap: 2px;
-    }
+    .tool-group { display: inline-flex; background: #e2e8f0; border-radius: 6px; padding: 2px; gap: 2px; }
     .tool-btn {
-      padding: 5px 10px;
-      border-radius: 4px;
-      border: none;
-      background: transparent;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      color: #475569;
-      transition: all 0.15s;
+      padding: 5px 10px; border-radius: 4px; border: none; background: transparent;
+      font-size: 0.8rem; font-weight: 600; cursor: pointer; color: #475569;
     }
-    .tool-btn.active {
-      background: white;
-      color: var(--primary);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
+    .tool-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
     .btn {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: white;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+      background: white; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px;
     }
     .btn:hover { background: #f8fafc; }
     .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
-    .btn-primary:hover { background: var(--primary-hover); }
     .btn-danger { color: #dc2626; }
-    .btn-danger:hover { background: #fee2e2; }
 
     /* モーダル */
     .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;
     }
     .modal-content {
-      background: white;
-      width: 90%;
-      max-width: 520px;
-      border-radius: 12px;
-      padding: 24px;
-      max-height: 85vh;
-      overflow-y: auto;
+      background: white; width: 90%; max-width: 520px; border-radius: 12px;
+      padding: 24px; max-height: 85vh; overflow-y: auto;
     }
-    .user-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      margin-top: 16px;
-    }
+    .user-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
     .user-btn {
-      padding: 16px;
-      border: 2px solid var(--border);
-      border-radius: 8px;
-      background: white;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
+      padding: 16px; border: 2px solid var(--border); border-radius: 8px;
+      background: white; font-size: 1rem; font-weight: 700; cursor: pointer;
     }
     .user-btn:hover { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
 
@@ -206,43 +181,21 @@
     .score-banner.stepdown { background: #ffedd5; color: #9a3412; }
     .score-num { font-size: 2rem; font-weight: 800; }
     .tag-chip {
-      display: inline-block;
-      background: #fee2e2;
-      color: #991b1b;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin-right: 4px;
-      margin-top: 4px;
+      display: inline-block; background: #fee2e2; color: #991b1b;
+      padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; margin-right: 4px;
     }
     .feedback-text {
-      background: #f8fafc;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      line-height: 1.6;
-      margin-top: 12px;
-      border: 1px solid var(--border);
+      background: #f8fafc; padding: 12px; border-radius: 6px;
+      font-size: 0.9rem; line-height: 1.6; margin-top: 12px; border: 1px solid var(--border);
     }
     .loading-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255,255,255,0.85);
-      z-index: 2000;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      gap: 16px;
-      font-weight: 600;
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.85); z-index: 2000; justify-content: center; align-items: center;
+      flex-direction: column; gap: 16px; font-weight: 600;
     }
     .spinner {
-      width: 44px; height: 44px;
-      border: 4px solid #e2e8f0;
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      width: 44px; height: 44px; border: 4px solid #e2e8f0;
+      border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
@@ -251,9 +204,8 @@
 
   <div class="modal-overlay" id="userSelectModal" style="display: flex;">
     <div class="modal-content" style="text-align: center;">
-      <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">学習者を選択してください</h2>
-      <p style="font-size: 0.85rem; color: #64748b; margin-top: 6px;">既習（対象）単元の問題のみを出題します</p>
-      
+      <h2 style="font-size: 1.25rem; font-weight: 700;">学習者を選択してください</h2>
+      <p style="font-size: 0.85rem; color: #64748b; margin-top: 6px;">全国公立高校入試の過去問から類題を出題します</p>
       <div class="user-grid">
         <button class="user-btn" id="btn-user-nozomi">のぞみ</button>
         <button class="user-btn" id="btn-user-yui">ゆい</button>
@@ -276,6 +228,7 @@
         <span id="totalPointsText" style="font-size: 0.8rem; color: #64748b;"></span>
       </div>
       <div class="card-body">
+        <div id="originBadgeContainer"></div>
         <div class="dialogue-box" id="problemDialogue">読み込み中...</div>
         <div class="svg-container" id="svgContainer"></div>
         <ul class="question-list" id="questionsList"></ul>
@@ -293,15 +246,17 @@
           <button class="btn btn-primary" id="submitBtn">提出してAI採点</button>
         </div>
       </div>
-      <div class="canvas-wrapper" id="canvasWrapper">
-        <canvas id="paintCanvas"></canvas>
+      <div class="canvas-scroll-container" id="canvasScrollContainer">
+        <div class="canvas-inner-wrapper" id="canvasWrapper">
+          <canvas id="paintCanvas"></canvas>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
-    <p id="loadingMessage">問題を読み込んでいます...</p>
+    <p id="loadingMessage">全国過去問DBから最適な類題を生成しています...</p>
   </div>
 
   <div class="modal-overlay" id="resultModal">
@@ -311,22 +266,18 @@
         <div class="score-num"><span id="totalScore">0</span> / <span id="maxScore">15</span> 点</div>
         <div id="clearStatusText" style="font-weight: 600; margin-top: 4px;"></div>
       </div>
-
       <div style="margin-bottom: 12px;">
         <strong style="font-size: 0.9rem;">検出された弱点タグ：</strong>
         <div id="weaknessTagsContainer"></div>
       </div>
-
       <div style="margin-bottom: 12px;">
         <strong style="font-size: 0.9rem;">小問ごとの結果：</strong>
         <div id="subScoresList" style="margin-top: 6px; font-size: 0.85rem;"></div>
       </div>
-
       <div class="feedback-text">
         <strong>💡 AIからのフィードバックと解説：</strong>
         <p id="aiFeedbackText" style="margin-top: 6px;"></p>
       </div>
-
       <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px;">
         <button class="btn" id="modalCloseBtn">閉じる</button>
         <button class="btn btn-primary" id="nextActionBtn">次の対象問題を解く</button>
@@ -335,8 +286,8 @@
   </div>
 
   <script>
-    // デプロイ先GASエンドポイントURL
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbztxqsi0_QJak1WXbI2y6DHWJ1xIzCXNQI4_6zqdnTFPQ_3fqjccn484MtgsbWv0-z_/exec";
+    // 指定のGASエンドポイントURLを設定済み
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzLthYXY5xmgiZ5WgWnewGvIql3HmLATQInODU9JKJ9hQ4HjuC1joJrYVjAwGqUICd8/exec";
 
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
@@ -356,10 +307,12 @@
 
     async function fetchNextTargetQuestion() {
       const loading = document.getElementById('loadingOverlay');
-      document.getElementById('loadingMessage').textContent = 'AIが学習状況に合わせて問題を生成・取得しています...';
+      document.getElementById('loadingMessage').textContent = '全国過去問DBから類題を生成しています...';
       loading.style.display = 'flex';
       document.getElementById('resultModal').style.display = 'none';
       clearCanvas();
+
+      document.getElementById('canvasScrollContainer').scrollTop = 0;
 
       try {
         const fetchUrl = GAS_ENDPOINT_URL + "?user_id=" + encodeURIComponent(currentUser.id) + "&t=" + Date.now();
@@ -372,9 +325,7 @@
           renderQuestionUI(currentQuestionData);
         } else {
           document.getElementById('problemTitle').textContent = '問題の取得に失敗しました';
-          document.getElementById('problemDialogue').textContent = result.message || 'スプレッドシートやGASの設定を確認してください。';
-          document.getElementById('svgContainer').innerHTML = '';
-          document.getElementById('questionsList').innerHTML = '';
+          document.getElementById('problemDialogue').textContent = result.message || '設定を確認してください。';
         }
       } catch (err) {
         loading.style.display = 'none';
@@ -383,7 +334,9 @@
     }
 
     function renderQuestionUI(q) {
-      document.getElementById('problemTitle').textContent = "【" + (q.unit || "数学") + "】" + q.title;
+      document.getElementById('problemTitle').textContent = q.title || "高校入試数学";
+      const badgeContainer = document.getElementById('originBadgeContainer');
+      badgeContainer.innerHTML = q.pref_ref ? `<span class="origin-badge">🏛️ 出典傾向: ${q.pref_ref}【${q.unit || ''}】</span>` : '';
       document.getElementById('problemDialogue').innerHTML = String(q.context_text).replace(/\n/g, '<br>');
 
       const subListEl = document.getElementById('questionsList');
@@ -402,9 +355,13 @@
       }
       document.getElementById('totalPointsText').textContent = "配点：計" + (totalPts || 15) + "点";
 
-      if (q.svg_config_json) {
+      const svgContainer = document.getElementById('svgContainer');
+      if (q.has_visual && q.svg_config_json) {
+        svgContainer.style.display = 'flex';
         const configObj = typeof q.svg_config_json === 'string' ? JSON.parse(q.svg_config_json) : q.svg_config_json;
         renderDynamicSvg(configObj);
+      } else {
+        svgContainer.style.display = 'none';
       }
 
       renderMath();
@@ -413,62 +370,107 @@
     function renderDynamicSvg(cfg) {
       const container = document.getElementById('svgContainer');
       const width = container.clientWidth || 360;
-      const height = 230;
+      const height = 240;
+      if (!cfg || !cfg.type) return;
 
-      if (cfg && cfg.pointA && cfg.pointB) {
+      if (cfg.type === "linear_and_triangle" && cfg.pointA && cfg.pointB) {
         const minX = -4, maxX = 6, minY = -1, maxY = 9;
-        const toSvgX = function(x) { return ((x - minX) / (maxX - minX)) * width; };
-        const toSvgY = function(y) { return height - ((y - minY) / (maxY - minY)) * height; };
+        const toX = (x) => ((x - minX) / (maxX - minX)) * width;
+        const toY = (y) => height - ((y - minY) / (maxY - minY)) * height;
 
-        const ax = toSvgX(cfg.pointA.x), ay = toSvgY(cfg.pointA.y);
-        const bx = toSvgX(cfg.pointB.x), by = toSvgY(cfg.pointB.y);
-        const ox = toSvgX(0), oy = toSvgY(0);
+        const ax = toX(cfg.pointA.x), ay = toY(cfg.pointA.y);
+        const bx = toX(cfg.pointB.x), by = toY(cfg.pointB.y);
+        const ox = toX(0), oy = toY(0);
 
-        // 2点A, Bを通る直線 ℓ (y = mx + k) の傾きと切片を自動計算
         const dx = cfg.pointB.x - cfg.pointA.x;
         const dy = cfg.pointB.y - cfg.pointA.y;
         const m = dx !== 0 ? dy / dx : 0;
         const k = cfg.pointA.y - m * cfg.pointA.x;
+        const cx = toX(0), cy = toY(k);
 
-        const cx = toSvgX(0);
-        const cy = toSvgY(k);
+        container.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}">
+            <polygon points="${ox},${oy} ${ax},${ay} ${bx},${by}" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.2"/>
+            <line x1="${toX(minX)}" y1="${oy}" x2="${toX(maxX)}" y2="${oy}" stroke="#94a3b8" stroke-width="1.5"/>
+            <line x1="${ox}" y1="${toY(minY)}" x2="${ox}" y2="${toY(maxY)}" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="${toX(maxX)-14}" y="${oy+14}" font-size="11" fill="#64748b">x</text>
+            <text x="${ox+6}" y="${toY(maxY)+12}" font-size="11" fill="#64748b">y</text>
+            <text x="${ox-10}" y="${oy+12}" font-size="10" fill="#64748b">O</text>
 
-        // 直線ℓをグラフ枠外まできれいに延長する座標
-        const xStart = -3.8;
-        const yStart = m * xStart + k;
-        const xEnd = 5.2;
-        const yEnd = m * xEnd + k;
+            <line x1="${toX(-3.8)}" y1="${toY(m*-3.8+k)}" x2="${toX(5.2)}" y2="${toY(m*5.2+k)}" stroke="#dc2626" stroke-width="2"/>
+            <text x="${toX(5.2)-6}" y="${toY(m*5.2+k)-6}" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>
 
-        container.innerHTML = 
-          '<svg viewBox="0 0 ' + width + ' ' + height + '" xmlns="http://www.w3.org/2000/svg">' +
-            '' +
-            '<polygon points="' + ox + ',' + oy + ' ' + ax + ',' + ay + ' ' + bx + ',' + by + '" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>' +
+            <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
+            <text x="${ax-48}" y="${ay-4}" font-size="11" font-weight="bold">${cfg.pointA.label}</text>
+            <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
+            <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold">${cfg.pointB.label}</text>
+            <circle cx="${cx}" cy="${cy}" r="3.5" fill="#2563eb"/>
+            <text x="${cx+6}" y="${cy-4}" font-size="10" font-weight="bold" fill="#2563eb">C(0, ${Math.round(k*10)/10})</text>
+          </svg>`;
+      } else if (cfg.type === "inverse_and_linear") {
+        const minX = -1, maxX = 8, minY = -1, maxY = 8;
+        const toX = (x) => ((x - minX) / (maxX - minX)) * width;
+        const toY = (y) => height - ((y - minY) / (maxY - minY)) * height;
+        const a = cfg.a || 12;
 
-            '' +
-            '<line x1="' + toSvgX(minX) + '" y1="' + oy + '" x2="' + toSvgX(maxX) + '" y2="' + oy + '" stroke="#94a3b8" stroke-width="1.5"/>' +
-            '<line x1="' + ox + '" y1="' + toSvgY(minY) + '" x2="' + ox + '" y2="' + toSvgY(maxY) + '" stroke="#94a3b8" stroke-width="1.5"/>' +
-            '<text x="' + (toSvgX(maxX)-14) + '" y="' + (oy+14) + '" font-size="11" fill="#64748b">x</text>' +
-            '<text x="' + (ox+6) + '" y="' + (toSvgY(maxY)+12) + '" font-size="11" fill="#64748b">y</text>' +
-            '<text x="' + (ox-10) + '" y="' + (oy+12) + '" font-size="10" fill="#64748b">O</text>' +
+        let pathD = `M ${toX(1)} ${toY(a / 1)}`;
+        for (let x = 1.2; x <= 7.5; x += 0.2) pathD += ` L ${toX(x)} ${toY(a / x)}`;
 
-            '' +
-            '<line x1="' + toSvgX(xStart) + '" y1="' + toSvgY(yStart) + '" x2="' + toSvgX(xEnd) + '" y2="' + toSvgY(yEnd) + '" stroke="#dc2626" stroke-width="2"/>' +
-            '<text x="' + (toSvgX(xEnd)-6) + '" y="' + (toSvgY(yEnd)-6) + '" font-size="11" font-weight="bold" fill="#dc2626">ℓ</text>' +
+        const ax = toX(cfg.pointA.x), ay = toY(cfg.pointA.y);
+        const bx = toX(cfg.pointB.x), by = toY(cfg.pointB.y);
+        const ox = toX(0), oy = toY(0);
 
-            '' +
-            '<circle cx="' + ax + '" cy="' + ay + '" r="4" fill="#0f172a"/>' +
-            '<text x="' + (ax-48) + '" y="' + (ay-4) + '" font-size="11" font-weight="bold" fill="#0f172a">' + cfg.pointA.label + '</text>' +
+        container.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}">
+            <polygon points="${ox},${oy} ${ax},${ay} ${bx},${by}" fill="#fdf4ff" stroke="#f0abfc" stroke-width="1.2"/>
+            <line x1="${toX(minX)}" y1="${oy}" x2="${toX(maxX)}" y2="${oy}" stroke="#94a3b8" stroke-width="1.5"/>
+            <line x1="${ox}" y1="${toY(minY)}" x2="${ox}" y2="${toY(maxY)}" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="${toX(maxX)-14}" y="${oy+14}" font-size="11" fill="#64748b">x</text>
+            <text x="${ox+6}" y="${toY(maxY)+12}" font-size="11" fill="#64748b">y</text>
+            <text x="${ox-10}" y="${oy+12}" font-size="10" fill="#64748b">O</text>
 
-            '' +
-            '<circle cx="' + bx + '" cy="' + by + '" r="4" fill="#0f172a"/>' +
-            '<text x="' + (bx+6) + '" y="' + (by+4) + '" font-size="11" font-weight="bold" fill="#0f172a">' + cfg.pointB.label + '</text>' +
+            <path d="${pathD}" fill="none" stroke="#7c3aed" stroke-width="2"/>
+            <text x="${toX(7)-10}" y="${toY(a/7)-8}" font-size="11" font-weight="bold" fill="#7c3aed">y = ${a}/x</text>
+            <line x1="${toX(0.5)}" y1="${toY(cfg.pointA.y+1.5)}" x2="${toX(7)}" y2="${toY(cfg.pointB.y-1)}" stroke="#dc2626" stroke-width="2"/>
 
-            '' +
-            '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="#2563eb"/>' +
-            '<text x="' + (cx+6) + '" y="' + (cy-4) + '" font-size="10" font-weight="bold" fill="#2563eb">C(0, ' + Math.round(k*10)/10 + ')</text>' +
-          '</svg>';
-      } else {
-        container.innerHTML = '<div style="color:#64748b; font-size:0.85rem; padding: 20px; text-align:center;">（図形・グラフ表示領域）</div>';
+            <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
+            <text x="${ax-44}" y="${ay-4}" font-size="11" font-weight="bold">${cfg.pointA.label}</text>
+            <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
+            <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold">${cfg.pointB.label}</text>
+          </svg>`;
+      } else if (cfg.type === "moving_point_rect") {
+        container.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}">
+            <rect x="70" y="40" width="220" height="150" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+            <polygon points="70,190 70,100 290,190" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="50" y="195" font-size="14" font-weight="bold">A</text>
+            <text x="50" y="45" font-size="14" font-weight="bold">B</text>
+            <text x="300" y="45" font-size="14" font-weight="bold">C</text>
+            <text x="300" y="195" font-size="14" font-weight="bold">D</text>
+            <circle cx="70" cy="100" r="5" fill="#ef4444"/>
+            <text x="45" y="105" font-size="13" font-weight="bold" fill="#ef4444">P</text>
+            <text x="180" y="210" font-size="12" fill="#64748b">毎秒1cmで A → B → C → D へ移動</text>
+          </svg>`;
+      } else if (cfg.type === "speed_diagram") {
+        const toX = (t) => 40 + (t / 30) * (width - 70);
+        const toY = (d) => height - 30 - (d / 2000) * (height - 60);
+
+        container.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}">
+            <line x1="40" y1="${height-30}" x2="${width-20}" y2="${height-30}" stroke="#94a3b8" stroke-width="1.5"/>
+            <line x1="40" y1="20" x2="40" y2="${height-30}" stroke="#94a3b8" stroke-width="1.5"/>
+            <text x="${width-30}" y="${height-10}" font-size="11" fill="#64748b">時間(分)</text>
+            <text x="10" y="30" font-size="11" fill="#64748b">(m)</text>
+
+            <line x1="${toX(0)}" y1="${toY(0)}" x2="${toX(20)}" y2="${toY(1800)}" stroke="#2563eb" stroke-width="2.5"/>
+            <text x="${toX(20)+4}" y="${toY(1800)}" font-size="11" font-weight="bold" fill="#2563eb">太郎</text>
+            <line x1="${toX(5)}" y1="${toY(0)}" x2="${toX(25)}" y2="${toY(1800)}" stroke="#dc2626" stroke-width="2.5"/>
+            <text x="${toX(25)+4}" y="${toY(1800)}" font-size="11" font-weight="bold" fill="#dc2626">花子</text>
+
+            <text x="30" y="${toY(1800)+4}" font-size="10" fill="#64748b">1800</text>
+            <text x="${toX(20)-8}" y="${height-15}" font-size="10" fill="#64748b">20</text>
+            <text x="${toX(5)-4}" y="${height-15}" font-size="10" fill="#64748b">5</text>
+          </svg>`;
       }
     }
 
@@ -481,7 +483,7 @@
       }
     }
 
-    /* 手書きキャンバス制御 */
+    /* 手書きキャンバス制御（縦スクロール対応） */
     const canvas = document.getElementById('paintCanvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvasWrapper');
@@ -511,10 +513,14 @@
       const rect = canvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return { x: clientX - rect.left, y: clientY - rect.top };
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
     }
 
     function startDraw(e) {
+      if (e.touches && e.touches.length > 1) return;
       e.preventDefault();
       isDrawing = true;
       const pos = getPointerPos(e);
@@ -523,9 +529,10 @@
 
     function draw(e) {
       if (!isDrawing) return;
+      if (e.touches && e.touches.length > 1) return;
       e.preventDefault();
       const pos = getPointerPos(e);
-      
+
       ctx.beginPath();
       ctx.moveTo(lastX, lastY);
       ctx.lineTo(pos.x, pos.y);
@@ -538,7 +545,7 @@
         ctx.lineWidth = 2.5;
       } else {
         ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth = 20;
+        ctx.lineWidth = 22;
       }
 
       ctx.stroke();
@@ -558,22 +565,22 @@
     window.addEventListener('touchend', endDraw);
 
     document.getElementById('clearBtn').addEventListener('click', clearCanvas);
-    document.getElementById('penToolBtn').addEventListener('click', function() { setDrawingMode('pen'); });
-    document.getElementById('eraserToolBtn').addEventListener('click', function() { setDrawingMode('eraser'); });
+    document.getElementById('penToolBtn').addEventListener('click', () => setDrawingMode('pen'));
+    document.getElementById('eraserToolBtn').addEventListener('click', () => setDrawingMode('eraser'));
     document.getElementById('currentUserPill').addEventListener('click', openUserModal);
     document.getElementById('nextActionBtn').addEventListener('click', fetchNextTargetQuestion);
 
-    document.getElementById('btn-user-nozomi').addEventListener('click', function() { selectUser('user_nozomi', 'のぞみ'); });
-    document.getElementById('btn-user-yui').addEventListener('click', function() { selectUser('user_yui', 'ゆい'); });
-    document.getElementById('btn-user-chiemi').addEventListener('click', function() { selectUser('user_chiemi', 'ちえみ'); });
-    document.getElementById('btn-user-jun').addEventListener('click', function() { selectUser('user_jun', 'じゅん'); });
-    document.getElementById('btn-user-yozo').addEventListener('click', function() { selectUser('user_yozo', 'ようぞう'); });
+    document.getElementById('btn-user-nozomi').addEventListener('click', () => selectUser('user_nozomi', 'のぞみ'));
+    document.getElementById('btn-user-yui').addEventListener('click', () => selectUser('user_yui', 'ゆい'));
+    document.getElementById('btn-user-chiemi').addEventListener('click', () => selectUser('user_chiemi', 'ちえみ'));
+    document.getElementById('btn-user-jun').addEventListener('click', () => selectUser('user_jun', 'じゅん'));
+    document.getElementById('btn-user-yozo').addEventListener('click', () => selectUser('user_yozo', 'ようぞう'));
 
     /* 提出・採点 */
-    document.getElementById('submitBtn').addEventListener('click', async function() {
+    document.getElementById('submitBtn').addEventListener('click', async () => {
       if (!currentQuestionData) return;
       const loading = document.getElementById('loadingOverlay');
-      document.getElementById('loadingMessage').textContent = 'Gemini AI が手書き文字と途中式を解析・採点しています...';
+      document.getElementById('loadingMessage').textContent = '手書きノート全体を解析・採点しています...';
       loading.style.display = 'flex';
 
       try {
@@ -581,7 +588,6 @@
         offscreenCanvas.width = canvas.width;
         offscreenCanvas.height = canvas.height;
         const offCtx = offscreenCanvas.getContext('2d');
-        
         offCtx.fillStyle = '#ffffff';
         offCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
         offCtx.drawImage(canvas, 0, 0);
@@ -590,7 +596,7 @@
           user_id: currentUser.id,
           user_name: currentUser.name,
           question_id: currentQuestionData.question_id,
-          image_base64: offscreenCanvas.toDataURL('image/jpeg', 0.95)
+          image_base64: offscreenCanvas.toDataURL('image/jpeg', 0.85)
         };
 
         const response = await fetch(GAS_ENDPOINT_URL, {
@@ -620,32 +626,30 @@
       
       if (data.is_cleared) {
         banner.className = 'score-banner cleared';
-        statusText.textContent = '🎉 合格基準達成！（次の対象単元へ進めます）';
+        statusText.textContent = '🎉 合格基準達成！（次の全国入試類題へ進めます）';
       } else {
         banner.className = 'score-banner stepdown';
-        statusText.textContent = '⚠️ 復習が必要（ステップダウン問題に挑戦）';
+        statusText.textContent = '⚠️ 復習が必要（基礎ステップダウン問題に挑戦）';
       }
 
       const tagContainer = document.getElementById('weaknessTagsContainer');
       tagContainer.innerHTML = '';
       if (data.detected_weakness_tags && data.detected_weakness_tags.length > 0) {
-        data.detected_weakness_tags.forEach(function(tag) {
+        data.detected_weakness_tags.forEach(tag => {
           const chip = document.createElement('span');
           chip.className = 'tag-chip';
           chip.textContent = '#' + tag;
           tagContainer.appendChild(chip);
         });
-      } else {
-        tagContainer.innerHTML = '<span style="font-size:0.8rem; color:#64748b;">弱点タグなし</span>';
       }
 
       const subList = document.getElementById('subScoresList');
       subList.innerHTML = '';
       if (Array.isArray(data.scores)) {
-        data.scores.forEach(function(s) {
+        data.scores.forEach(s => {
           const item = document.createElement('div');
           item.style.padding = '4px 0';
-          item.innerHTML = '<strong>(' + s.q + ')</strong> ' + (s.is_correct ? '⭕' : '❌') + ' 得点: ' + s.score + '/' + s.max + '点 - <span style="color:#64748b;">' + (s.comment || '') + '</span>';
+          item.innerHTML = `<strong>(${s.q})</strong> ${s.is_correct ? '⭕' : '❌'} 得点: ${s.score}/${s.max}点 - <span style="color:#64748b;">${s.comment || ''}</span>`;
           subList.appendChild(item);
         });
       }
@@ -655,12 +659,12 @@
       renderMath();
     }
 
-    document.getElementById('modalCloseBtn').addEventListener('click', function() {
+    document.getElementById('modalCloseBtn').addEventListener('click', () => {
       document.getElementById('resultModal').style.display = 'none';
     });
 
-    window.addEventListener('resize', function() { resizeCanvas(); });
-    window.addEventListener('DOMContentLoaded', function() {
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('DOMContentLoaded', () => {
       const savedUser = localStorage.getItem("hs_study_user");
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
