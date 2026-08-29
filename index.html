@@ -194,6 +194,8 @@
       line-height: 1.8;
       margin-bottom: 16px;
     }
+
+    /* 図形エリアのスタイル（相対配置を追加） */
     .svg-container {
       width: 100%;
       height: 240px;
@@ -204,8 +206,34 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      position: relative;
+      overflow: hidden;
     }
     svg { width: 100%; height: 100%; }
+
+    /* 図形書き込みボタン */
+    .svg-draw-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: var(--primary);
+      cursor: pointer;
+      z-index: 20;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      transition: all 0.2s;
+    }
+    .svg-draw-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
     .question-list { list-style: none; }
     .question-item {
       background: #fff;
@@ -302,7 +330,6 @@
       font-size: 0.85rem; line-height: 1.6; margin-top: 10px; border: 1px solid var(--border);
     }
 
-    /* ストック管理ダッシュボード用スタイル */
     .stock-dashboard { background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 16px; }
     .stock-stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.95rem; }
     .stock-progress-bg { background: #e2e8f0; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 8px; }
@@ -482,6 +509,13 @@
 
     let stockPollInterval = null;
 
+    // SVG描画系グローバル変数
+    let svgCtx = null;
+    let isSvgDrawMode = false;
+    let isSvgDrawing = false;
+    let lastSvgX = 0;
+    let lastSvgY = 0;
+
     function startTimer(limitMinutes = 10) {
       clearInterval(timerInterval);
       targetTimeSec = limitMinutes * 60;
@@ -561,6 +595,7 @@
       loading.style.display = 'flex';
       document.getElementById('resultModal').style.display = 'none';
       clearCanvas();
+      isSvgDrawMode = false; // 問題切り替え時にモードリセット
 
       document.getElementById('canvasScrollContainer').scrollTop = 0;
       document.getElementById('problemScrollBody').scrollTop = 0;
@@ -686,7 +721,7 @@
 
     /**
      * 【完全自動修復・バウンディングボックス対応 汎用SVGエンジン】
-     * - テキスト白縁取り(paint-order)と配置アンカー最適化による重なり・見切れ防止対応
+     * 図への書き込み対応版
      */
     function renderUniversalMathSvg(rawConfig, contextText) {
       const container = document.getElementById('svgContainer');
@@ -877,7 +912,94 @@
         }
       });
 
-      container.innerHTML = `<svg viewBox="0 0 ${width} ${height}">${svgElements.join('')}</svg>`;
+      // ★ SVGと同時に書き込み用キャンバスと切り替えボタンを埋め込み
+      container.innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" style="position:absolute; top:0; left:0; width:100%; height:100%; display:block;">${svgElements.join('')}</svg>
+        <canvas id="svgOverlayCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; pointer-events:none; touch-action:none;"></canvas>
+        <button id="svgDrawToggleBtn" class="svg-draw-btn" onclick="toggleSvgDrawMode()">✏️ 図に書き込む</button>
+      `;
+
+      initSvgCanvas();
+    }
+
+    /* ★ 図形書き込みキャンバス機能 */
+    window.toggleSvgDrawMode = function() {
+      isSvgDrawMode = !isSvgDrawMode;
+      const btn = document.getElementById('svgDrawToggleBtn');
+      const overlay = document.getElementById('svgOverlayCanvas');
+      if (isSvgDrawMode) {
+        btn.classList.add('active');
+        btn.textContent = '👆 スクロールに戻す';
+        overlay.style.pointerEvents = 'auto'; // キャンバスへのタッチを許可
+      } else {
+        btn.classList.remove('active');
+        btn.textContent = '✏️ 図に書き込む';
+        overlay.style.pointerEvents = 'none'; // タッチを通過させスクロールを許可
+      }
+    };
+
+    function initSvgCanvas() {
+      const svgCanvas = document.getElementById('svgOverlayCanvas');
+      if (!svgCanvas) return;
+      const rect = svgCanvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      svgCanvas.width = rect.width * dpr;
+      svgCanvas.height = rect.height * dpr;
+      svgCtx = svgCanvas.getContext('2d', { willReadFrequently: true });
+      svgCtx.scale(dpr, dpr);
+
+      const getSvgPointerPos = (e) => {
+        const r = svgCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - r.left, y: clientY - r.top };
+      };
+
+      const startSvgDraw = (e) => {
+        if (e.type.includes('touch')) {
+          if (e.touches.length > 1) return; // 2本指操作は無視
+          e.preventDefault();
+        } else {
+          e.preventDefault();
+        }
+        isSvgDrawing = true;
+        const pos = getSvgPointerPos(e);
+        lastSvgX = pos.x; lastSvgY = pos.y;
+      };
+
+      const drawSvg = (e) => {
+        if (!isSvgDrawing) return;
+        e.preventDefault();
+        const pos = getSvgPointerPos(e);
+        svgCtx.beginPath();
+        svgCtx.moveTo(lastSvgX, lastSvgY);
+        svgCtx.lineTo(pos.x, pos.y);
+        svgCtx.lineCap = 'round';
+        svgCtx.lineJoin = 'round';
+
+        if (currentDrawingMode === 'pen') {
+          svgCtx.globalCompositeOperation = 'source-over';
+          svgCtx.strokeStyle = '#dc2626'; // メモ用は目立つ赤ペン
+          svgCtx.lineWidth = 2.0;
+        } else {
+          svgCtx.globalCompositeOperation = 'destination-out';
+          svgCtx.lineWidth = 20;
+        }
+        svgCtx.stroke();
+        lastSvgX = pos.x; lastSvgY = pos.y;
+      };
+
+      const endSvgDraw = () => {
+        isSvgDrawing = false;
+        if(svgCtx) svgCtx.globalCompositeOperation = 'source-over';
+      };
+
+      svgCanvas.addEventListener('mousedown', startSvgDraw);
+      svgCanvas.addEventListener('mousemove', drawSvg);
+      window.addEventListener('mouseup', endSvgDraw);
+      svgCanvas.addEventListener('touchstart', startSvgDraw, { passive: false });
+      svgCanvas.addEventListener('touchmove', drawSvg, { passive: false });
+      window.addEventListener('touchend', endSvgDraw);
     }
 
     function renderMath() {
@@ -924,6 +1046,12 @@
     function clearCanvas() {
       const rect = wrapper.getBoundingClientRect();
       ctx.clearRect(0, 0, rect.width / currentZoomScale, rect.height / currentZoomScale);
+      
+      // ★ 図形書き込みもリセット
+      if (svgCtx) {
+        const svgCanvas = document.getElementById('svgOverlayCanvas');
+        if(svgCanvas) svgCtx.clearRect(0, 0, svgCanvas.width, svgCanvas.height);
+      }
     }
 
     function getPointerPos(e) {
