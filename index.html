@@ -323,6 +323,7 @@
 </head>
 <body>
 
+  <!-- 学習者選択モーダル -->
   <div class="modal-overlay" id="userSelectModal" style="display: flex;">
     <div class="modal-content" style="text-align: center;">
       <h2 style="font-size: 1.2rem; font-weight: 700;">学習者を選択してください</h2>
@@ -337,6 +338,7 @@
     </div>
   </div>
 
+  <!-- ストック管理ダッシュボード モーダル -->
   <div class="modal-overlay" id="stockStatusModal">
     <div class="modal-content">
       <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px;">📦 問題ストック管理・進捗状況</h2>
@@ -478,7 +480,6 @@
     let elapsedSec = 0;
     let isTimerRunning = false;
 
-    // ★ ストックダッシュボード用ポーリング管理
     let stockPollInterval = null;
 
     function startTimer(limitMinutes = 10) {
@@ -584,11 +585,9 @@
       }
     }
 
-    /* ★ ストックダッシュボードの表示・自動更新ロジック */
     function openStockModal() {
       document.getElementById('stockStatusModal').style.display = 'flex';
       fetchStockStatus();
-      // パネルが開いている間は10秒ごとに自動更新
       stockPollInterval = setInterval(fetchStockStatus, 10000);
     }
 
@@ -616,14 +615,12 @@
           document.getElementById('dashProgressBar').style.width = `${(c / t) * 100}%`;
           document.getElementById('dashTaskStatus').textContent = `状態: ${data.active_task.last_status}`;
           
-          // 実行中はボタンを無効化
           reqBtn.disabled = true;
           reqBtn.textContent = '生成中...';
           reqBtn.style.opacity = '0.5';
           reqBtn.style.cursor = 'not-allowed';
         } else {
           taskSec.style.display = 'none';
-          // 待機中はボタンを有効化
           reqBtn.disabled = false;
           reqBtn.textContent = '新たに20問予約';
           reqBtn.style.opacity = '1';
@@ -645,7 +642,7 @@
         const queueRes = await fetch(`${GAS_ENDPOINT_URL}?action=queue_batch&count=20&t=${Date.now()}`);
         const queueData = await queueRes.json();
         alert(queueData.message);
-        fetchStockStatus(); // 登録直後に表示を更新
+        fetchStockStatus();
       } catch (e) {
         alert('通信エラー: ' + e.toString());
         reqBtn.textContent = '新たに20問予約';
@@ -687,6 +684,10 @@
       renderMath();
     }
 
+    /**
+     * 【完全自動修復・バウンディングボックス対応 汎用SVGエンジン】
+     * - テキスト白縁取り(paint-order)と配置アンカー最適化による重なり・見切れ防止対応
+     */
     function renderUniversalMathSvg(rawConfig, contextText) {
       const container = document.getElementById('svgContainer');
       const width = container.clientWidth || 340;
@@ -808,7 +809,7 @@
       const minY = rawMinY - spanY * 0.15;
       const maxY = rawMaxY + spanY * 0.15;
 
-      const pad = { left: 40, right: 30, top: 25, bottom: 35 };
+      const pad = { left: 50, right: 40, top: 40, bottom: 45 };
 
       const toX = (x) => pad.left + ((x - minX) / (maxX - minX)) * (width - pad.left - pad.right);
       const toY = (y) => height - pad.bottom - ((y - minY) / (maxY - minY)) * (height - pad.top - pad.bottom);
@@ -819,18 +820,20 @@
       const originY = toY(0);
 
       const axisY = Math.max(pad.top, Math.min(height - pad.bottom, originY));
-      svgElements.push(`<line x1="${pad.left - 15}" y1="${axisY}" x2="${width - pad.right + 15}" y2="${axisY}" stroke="#64748b" stroke-width="1.5" />`);
-      svgElements.push(`<polygon points="${width - pad.right + 15},${axisY} ${width - pad.right + 7},${axisY - 3.5} ${width - pad.right + 7},${axisY + 3.5}" fill="#64748b" />`);
+      svgElements.push(`<line x1="${pad.left - 20}" y1="${axisY}" x2="${width - pad.right + 20}" y2="${axisY}" stroke="#64748b" stroke-width="1.5" />`);
+      svgElements.push(`<polygon points="${width - pad.right + 20},${axisY} ${width - pad.right + 12},${axisY - 3.5} ${width - pad.right + 12},${axisY + 3.5}" fill="#64748b" />`);
+      
       const xLabelText = (cfg.viewport && cfg.viewport.xLabel) ? cfg.viewport.xLabel : 'x';
-      svgElements.push(`<text x="${width - pad.right + 5}" y="${axisY + 16}" font-size="11" fill="#64748b">${xLabelText}</text>`);
+      svgElements.push(`<text x="${width - pad.right + 20}" y="${axisY + 20}" font-size="11" fill="#64748b" text-anchor="end" paint-order="stroke" stroke="#ffffff" stroke-width="3">${xLabelText}</text>`);
 
       const axisX = Math.max(pad.left, Math.min(width - pad.right, originX));
-      svgElements.push(`<line x1="${axisX}" y1="${height - pad.bottom + 15}" x2="${axisX}" y2="${pad.top - 15}" stroke="#64748b" stroke-width="1.5" />`);
-      svgElements.push(`<polygon points="${axisX},${pad.top - 15} ${axisX - 3.5},${pad.top - 7} ${axisX + 3.5},${pad.top - 7}" fill="#64748b" />`);
+      svgElements.push(`<line x1="${axisX}" y1="${height - pad.bottom + 20}" x2="${axisX}" y2="${pad.top - 20}" stroke="#64748b" stroke-width="1.5" />`);
+      svgElements.push(`<polygon points="${axisX},${pad.top - 20} ${axisX - 3.5},${pad.top - 12} ${axisX + 3.5},${pad.top - 12}" fill="#64748b" />`);
+      
       const yLabelText = (cfg.viewport && cfg.viewport.yLabel) ? cfg.viewport.yLabel : 'y';
-      svgElements.push(`<text x="${axisX - 16}" y="${pad.top - 6}" font-size="11" fill="#64748b">${yLabelText}</text>`);
+      svgElements.push(`<text x="${axisX}" y="${pad.top - 24}" font-size="11" fill="#64748b" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="3">${yLabelText}</text>`);
 
-      svgElements.push(`<text x="${axisX - 12}" y="${axisY + 14}" font-size="11" fill="#64748b">O</text>`);
+      svgElements.push(`<text x="${axisX - 14}" y="${axisY + 16}" font-size="11" fill="#64748b" paint-order="stroke" stroke="#ffffff" stroke-width="3">O</text>`);
 
       cfg.polygons.forEach(poly => {
         if (!poly.points || poly.points.length === 0) return;
@@ -848,7 +851,7 @@
         svgElements.push(`<path d="${d}" fill="none" stroke="${line.color || '#dc2626'}" stroke-width="${line.width || 2}" ${dash} stroke-linecap="round" stroke-linejoin="round" />`);
         if (line.label && line.points.length > 0) {
           const lastPt = line.points[line.points.length - 1];
-          svgElements.push(`<text x="${toX(lastPt[0]) + 4}" y="${toY(lastPt[1]) - 4}" font-size="11" font-weight="bold" fill="${line.color || '#dc2626'}">${line.label}</text>`);
+          svgElements.push(`<text x="${toX(lastPt[0]) + 4}" y="${toY(lastPt[1]) - 4}" font-size="11" font-weight="bold" fill="${line.color || '#dc2626'}" paint-order="stroke" stroke="#ffffff" stroke-width="3">${line.label}</text>`);
         }
       });
 
@@ -859,13 +862,18 @@
         if (pt.guideLines && (pt.x !== 0 || pt.y !== 0)) {
           svgElements.push(`<line x1="${px}" y1="${py}" x2="${px}" y2="${axisY}" stroke="#cbd5e1" stroke-dasharray="3,3" stroke-width="1.2" />`);
           svgElements.push(`<line x1="${axisX}" y1="${py}" x2="${px}" y2="${py}" stroke="#cbd5e1" stroke-dasharray="3,3" stroke-width="1.2" />`);
-          svgElements.push(`<text x="${px - 4}" y="${axisY + 14}" font-size="10" font-weight="600" fill="#475569">${pt.x}</text>`);
-          svgElements.push(`<text x="${axisX - 20}" y="${py + 4}" font-size="10" font-weight="600" fill="#475569">${pt.y}</text>`);
+          
+          if (Math.abs(pt.x) > 0.001) {
+            svgElements.push(`<text x="${px}" y="${axisY + 16}" font-size="10" font-weight="600" fill="#475569" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="3">${pt.x}</text>`);
+          }
+          if (Math.abs(pt.y) > 0.001) {
+            svgElements.push(`<text x="${axisX - 6}" y="${py + 4}" font-size="10" font-weight="600" fill="#475569" text-anchor="end" paint-order="stroke" stroke="#ffffff" stroke-width="3">${pt.y}</text>`);
+          }
         }
 
         svgElements.push(`<circle cx="${px}" cy="${py}" r="3.5" fill="${pt.color || '#0f172a'}" />`);
         if (pt.label) {
-          svgElements.push(`<text x="${px + 6}" y="${py - 4}" font-size="11" font-weight="bold" fill="${pt.color || '#0f172a'}">${cleanMathText(pt.label)}</text>`);
+          svgElements.push(`<text x="${px + 6}" y="${py - 6}" font-size="11" font-weight="bold" fill="${pt.color || '#0f172a'}" paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${cleanMathText(pt.label)}</text>`);
         }
       });
 
