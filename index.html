@@ -195,23 +195,25 @@
       margin-bottom: 16px;
     }
 
-    /* 図形エリアのスタイル（相対配置を追加） */
-    .svg-container {
+    /* ★ 図形エリアのズーム・スクロール用スタイル */
+    .svg-scroll-wrapper {
       width: 100%;
-      height: 240px;
+      overflow: auto;
       background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 8px;
       margin-bottom: 16px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      min-height: 240px;
       position: relative;
-      overflow: hidden;
+    }
+    .svg-container {
+      width: 340px;
+      height: 240px;
+      position: relative;
+      transform-origin: 0 0;
     }
     svg { width: 100%; height: 100%; }
 
-    /* 図形書き込みボタン */
     .svg-draw-btn {
       position: absolute;
       top: 8px;
@@ -350,7 +352,6 @@
 </head>
 <body>
 
-  <!-- 学習者選択モーダル -->
   <div class="modal-overlay" id="userSelectModal" style="display: flex;">
     <div class="modal-content" style="text-align: center;">
       <h2 style="font-size: 1.2rem; font-weight: 700;">学習者を選択してください</h2>
@@ -365,7 +366,6 @@
     </div>
   </div>
 
-  <!-- ストック管理ダッシュボード モーダル -->
   <div class="modal-overlay" id="stockStatusModal">
     <div class="modal-content">
       <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px;">📦 問題ストック管理・進捗状況</h2>
@@ -420,13 +420,26 @@
   <div class="main-container">
     <div class="card-pane">
       <div class="card-header">
-        <span id="problemTitle">問題を読み込み中...</span>
-        <span id="totalPointsText" style="font-size: 0.8rem; color: #64748b;"></span>
+        <div>
+          <span id="problemTitle">問題を読み込み中...</span>
+          <span id="totalPointsText" style="font-size: 0.8rem; color: #64748b; margin-left:8px;"></span>
+        </div>
+        <!-- ★ 左側の図形ズームボタンを追加 -->
+        <div class="tool-group">
+          <button class="tool-btn" onclick="applySvgZoom(-0.2)">🔍−</button>
+          <button class="tool-btn" id="svgZoomResetBtn" onclick="resetSvgZoom()" style="font-size:0.75rem;">100%</button>
+          <button class="tool-btn" onclick="applySvgZoom(0.2)">🔍＋</button>
+        </div>
       </div>
       <div class="problem-scroll-body" id="problemScrollBody">
         <div id="originBadgeContainer"></div>
         <div class="dialogue-box" id="problemDialogue">読み込み中...</div>
-        <div class="svg-container" id="svgContainer"></div>
+        
+        <!-- ★ 左側の図形エリア（ズーム＆スクロール対応ラッパー） -->
+        <div class="svg-scroll-wrapper" id="svgScrollWrapper" style="display:none;">
+          <div class="svg-container" id="svgContainer"></div>
+        </div>
+
         <ul class="question-list" id="questionsList"></ul>
       </div>
     </div>
@@ -481,7 +494,7 @@
         <div id="subScoresList" style="margin-top: 4px; font-size: 0.85rem;"></div>
       </div>
       <div class="feedback-text">
-        <strong>💡 AIからのフィードバックと解説：</strong>
+        <strong>💡 AIからのフィードバックと全体講評：</strong>
         <p id="aiFeedbackText" style="margin-top: 4px;"></p>
       </div>
       <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
@@ -492,15 +505,19 @@
   </div>
 
   <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzkpzVdEUvUMNlQ5HKyMcj4q00OhWEY4VcVhZsJyhWix0B8ggK74Gso_PylnilQOZ8m/exec";
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzKgZUilLg_HH14CvoRJr7nLEbHgxcu2aVJpEetWBS4vV6TP9_ROffNcrJRtT-Lco0d/exec";
 
     let currentUser = { id: "", name: "" };
     let currentQuestionData = null;
     let currentDrawingMode = "pen";
 
+    // 右側（手書き）ズーム管理
     let currentZoomScale = 1.0;
     const MIN_ZOOM = 0.5;
     const MAX_ZOOM = 3.0;
+
+    // ★ 左側（SVG図形）ズーム管理
+    let currentSvgZoom = 1.0;
 
     let timerInterval = null;
     let targetTimeSec = 600;
@@ -509,12 +526,14 @@
 
     let stockPollInterval = null;
 
-    // SVG描画系グローバル変数
     let svgCtx = null;
     let isSvgDrawMode = false;
     let isSvgDrawing = false;
     let lastSvgX = 0;
     let lastSvgY = 0;
+
+    let initialSvgPinchDist = 0;
+    let initialSvgZoomScale = 1.0;
 
     function startTimer(limitMinutes = 10) {
       clearInterval(timerInterval);
@@ -595,7 +614,9 @@
       loading.style.display = 'flex';
       document.getElementById('resultModal').style.display = 'none';
       clearCanvas();
-      isSvgDrawMode = false; // 問題切り替え時にモードリセット
+      
+      resetSvgZoom();
+      isSvgDrawMode = false;
 
       document.getElementById('canvasScrollContainer').scrollTop = 0;
       document.getElementById('problemScrollBody').scrollTop = 0;
@@ -708,24 +729,35 @@
       }
       document.getElementById('totalPointsText').textContent = "配点：計" + (totalPts || 15) + "点";
 
-      const svgContainer = document.getElementById('svgContainer');
+      const wrapper = document.getElementById('svgScrollWrapper');
       if (q.has_visual) {
-        svgContainer.style.display = 'flex';
+        wrapper.style.display = 'block';
         renderUniversalMathSvg(q.svg_config_json, q.context_text);
       } else {
-        svgContainer.style.display = 'none';
+        wrapper.style.display = 'none';
       }
 
       renderMath();
     }
 
-    /**
-     * 【完全自動修復・バウンディングボックス対応 汎用SVGエンジン】
-     * 図への書き込み対応版
-     */
+    /* ★ 左側 SVG ズーム関数群 */
+    function applySvgZoom(delta) {
+      applySvgZoomScale(currentSvgZoom + delta);
+    }
+    function applySvgZoomScale(scale) {
+      currentSvgZoom = Math.min(Math.max(scale, 0.5), 3.0);
+      document.getElementById('svgContainer').style.transform = `scale(${currentSvgZoom})`;
+      document.getElementById('svgZoomResetBtn').textContent = `${Math.round(currentSvgZoom * 100)}%`;
+    }
+    function resetSvgZoom() {
+      currentSvgZoom = 1.0;
+      document.getElementById('svgContainer').style.transform = `scale(1)`;
+      document.getElementById('svgZoomResetBtn').textContent = `100%`;
+    }
+
     function renderUniversalMathSvg(rawConfig, contextText) {
       const container = document.getElementById('svgContainer');
-      const width = container.clientWidth || 340;
+      const width = 340;
       const height = 240;
 
       let cfg = {};
@@ -912,7 +944,6 @@
         }
       });
 
-      // ★ SVGと同時に書き込み用キャンバスと切り替えボタンを埋め込み
       container.innerHTML = `
         <svg viewBox="0 0 ${width} ${height}" style="position:absolute; top:0; left:0; width:100%; height:100%; display:block;">${svgElements.join('')}</svg>
         <canvas id="svgOverlayCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; pointer-events:none; touch-action:none;"></canvas>
@@ -922,7 +953,6 @@
       initSvgCanvas();
     }
 
-    /* ★ 図形書き込みキャンバス機能 */
     window.toggleSvgDrawMode = function() {
       isSvgDrawMode = !isSvgDrawMode;
       const btn = document.getElementById('svgDrawToggleBtn');
@@ -930,34 +960,46 @@
       if (isSvgDrawMode) {
         btn.classList.add('active');
         btn.textContent = '👆 スクロールに戻す';
-        overlay.style.pointerEvents = 'auto'; // キャンバスへのタッチを許可
+        overlay.style.pointerEvents = 'auto';
       } else {
         btn.classList.remove('active');
         btn.textContent = '✏️ 図に書き込む';
-        overlay.style.pointerEvents = 'none'; // タッチを通過させスクロールを許可
+        overlay.style.pointerEvents = 'none';
       }
     };
 
     function initSvgCanvas() {
       const svgCanvas = document.getElementById('svgOverlayCanvas');
       if (!svgCanvas) return;
-      const rect = svgCanvas.parentElement.getBoundingClientRect();
+      
+      const width = 340;
+      const height = 240;
       const dpr = window.devicePixelRatio || 1;
-      svgCanvas.width = rect.width * dpr;
-      svgCanvas.height = rect.height * dpr;
+      
+      svgCanvas.width = width * dpr;
+      svgCanvas.height = height * dpr;
+      
       svgCtx = svgCanvas.getContext('2d', { willReadFrequently: true });
       svgCtx.scale(dpr, dpr);
 
+      // ★ スケールを加味した座標計算
       const getSvgPointerPos = (e) => {
         const r = svgCanvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: clientX - r.left, y: clientY - r.top };
+        return { x: (clientX - r.left) / currentSvgZoom, y: (clientY - r.top) / currentSvgZoom };
       };
 
       const startSvgDraw = (e) => {
         if (e.type.includes('touch')) {
-          if (e.touches.length > 1) return; // 2本指操作は無視
+          if (e.touches.length === 2) {
+            isSvgDrawing = false;
+            initialSvgPinchDist = getTouchDistance(e.touches);
+            initialSvgZoomScale = currentSvgZoom;
+            e.preventDefault();
+            return;
+          }
+          if (e.touches.length > 2) return;
           e.preventDefault();
         } else {
           e.preventDefault();
@@ -968,8 +1010,22 @@
       };
 
       const drawSvg = (e) => {
-        if (!isSvgDrawing) return;
-        e.preventDefault();
+        if (e.type.includes('touch')) {
+          if (e.touches.length === 2) {
+            e.preventDefault();
+            const currentDist = getTouchDistance(e.touches);
+            if (initialSvgPinchDist > 0 && Math.abs(currentDist - initialSvgPinchDist) > 10) {
+              const factor = currentDist / initialSvgPinchDist;
+              applySvgZoomScale(initialSvgZoomScale * factor);
+            }
+            return;
+          }
+          if (e.touches.length > 2 || !isSvgDrawing) return;
+          e.preventDefault();
+        } else {
+          if (!isSvgDrawing) return;
+          e.preventDefault();
+        }
         const pos = getSvgPointerPos(e);
         svgCtx.beginPath();
         svgCtx.moveTo(lastSvgX, lastSvgY);
@@ -979,7 +1035,7 @@
 
         if (currentDrawingMode === 'pen') {
           svgCtx.globalCompositeOperation = 'source-over';
-          svgCtx.strokeStyle = '#dc2626'; // メモ用は目立つ赤ペン
+          svgCtx.strokeStyle = '#dc2626';
           svgCtx.lineWidth = 2.0;
         } else {
           svgCtx.globalCompositeOperation = 'destination-out';
@@ -1047,7 +1103,6 @@
       const rect = wrapper.getBoundingClientRect();
       ctx.clearRect(0, 0, rect.width / currentZoomScale, rect.height / currentZoomScale);
       
-      // ★ 図形書き込みもリセット
       if (svgCtx) {
         const svgCanvas = document.getElementById('svgOverlayCanvas');
         if(svgCanvas) svgCtx.clearRect(0, 0, svgCanvas.width, svgCanvas.height);
@@ -1245,13 +1300,30 @@
         });
       }
 
+      // ★ 不正解時の詳しい説明表示を強化
       const subList = document.getElementById('subScoresList');
       subList.innerHTML = '';
       if (Array.isArray(data.scores)) {
         data.scores.forEach(s => {
           const item = document.createElement('div');
-          item.style.padding = '4px 0';
-          item.innerHTML = `<strong>(${s.q})</strong> ${s.is_correct ? '⭕' : '❌'} 得点: ${s.score}/${s.max}点 - <span style="color:#64748b;">${cleanMathText(s.comment) || ''}</span>`;
+          item.style.padding = '8px 12px';
+          item.style.margin = '6px 0';
+          item.style.borderRadius = '6px';
+          
+          item.style.border = s.is_correct ? '1px solid #a7f3d0' : '1px solid #fca5a5';
+          item.style.background = s.is_correct ? '#ecfdf5' : '#fef2f2';
+
+          let commentHtml = `<span style="color:#475569;">${cleanMathText(s.comment) || ''}</span>`;
+          if (!s.is_correct) {
+            commentHtml = `
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fca5a5;">
+                <strong style="color:#b91c1c; font-size:0.85rem;">💡 詳しい解説・解法ステップ：</strong><br>
+                <span style="color:#991b1b; display:inline-block; margin-top:4px;">${cleanMathText(s.comment) || ''}</span>
+              </div>
+            `;
+          }
+
+          item.innerHTML = `<strong>(${s.q})</strong> ${s.is_correct ? '⭕' : '❌'} 得点: ${s.score}/${s.max}点 <br> ${commentHtml}`;
           subList.appendChild(item);
         });
       }
