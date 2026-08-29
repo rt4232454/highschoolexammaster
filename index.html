@@ -301,6 +301,14 @@
       background: #f8fafc; padding: 10px; border-radius: 6px;
       font-size: 0.85rem; line-height: 1.6; margin-top: 10px; border: 1px solid var(--border);
     }
+
+    /* ストック管理ダッシュボード用スタイル */
+    .stock-dashboard { background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 16px; }
+    .stock-stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.95rem; }
+    .stock-progress-bg { background: #e2e8f0; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 8px; }
+    .stock-progress-bar { background: #10b981; height: 100%; width: 0%; transition: width 0.5s ease-out; }
+    .stock-status-text { font-size: 0.8rem; color: #64748b; margin-top: 6px; }
+
     .loading-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(255,255,255,0.85); z-index: 2000; justify-content: center; align-items: center;
@@ -329,6 +337,40 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="stockStatusModal">
+    <div class="modal-content">
+      <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px;">📦 問題ストック管理・進捗状況</h2>
+      
+      <div class="stock-dashboard">
+        <div class="stock-stat-row">
+          <span>🟢 即時出題可能なプール残数:</span>
+          <strong id="dashUnusedCount">-- 問</strong>
+        </div>
+        
+        <hr style="border:none; border-top:1px dashed #cbd5e1; margin:14px 0;">
+        
+        <div id="dashTaskSection">
+          <div class="stock-stat-row">
+            <span>⚙️ バックグラウンド生成進捗:</span>
+            <strong id="dashTaskCount">-- / -- 問</strong>
+          </div>
+          <div class="stock-progress-bg">
+            <div class="stock-progress-bar" id="dashProgressBar"></div>
+          </div>
+          <div class="stock-status-text" id="dashTaskStatus">状態: --</div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size:0.75rem; color:#94a3b8;">※開いている間は自動更新されます</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" onclick="closeStockModal()">閉じる</button>
+          <button class="btn btn-primary" id="requestStockBtn">新たに20問予約</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <header>
     <h1>高校受験 AI学習システム</h1>
     
@@ -337,7 +379,7 @@
     </div>
 
     <div class="header-right-tools">
-      <button class="btn-stock" id="stockStatusBtn">📦 ストック管理</button>
+      <button class="btn-stock" onclick="openStockModal()">📦 ストック管理</button>
       <div class="user-pill" id="currentUserPill">👤 ログイン中: <span id="currentUserName">未選択</span> ▾</div>
     </div>
     
@@ -435,6 +477,9 @@
     let targetTimeSec = 600;
     let elapsedSec = 0;
     let isTimerRunning = false;
+
+    // ★ ストックダッシュボード用ポーリング管理
+    let stockPollInterval = null;
 
     function startTimer(limitMinutes = 10) {
       clearInterval(timerInterval);
@@ -539,33 +584,72 @@
       }
     }
 
-    document.getElementById('stockStatusBtn').addEventListener('click', async () => {
-      const loading = document.getElementById('loadingOverlay');
-      document.getElementById('loadingMessage').textContent = 'ストック状況を確認中...';
-      loading.style.display = 'flex';
+    /* ★ ストックダッシュボードの表示・自動更新ロジック */
+    function openStockModal() {
+      document.getElementById('stockStatusModal').style.display = 'flex';
+      fetchStockStatus();
+      // パネルが開いている間は10秒ごとに自動更新
+      stockPollInterval = setInterval(fetchStockStatus, 10000);
+    }
 
+    function closeStockModal() {
+      document.getElementById('stockStatusModal').style.display = 'none';
+      clearInterval(stockPollInterval);
+    }
+
+    async function fetchStockStatus() {
       try {
         const res = await fetch(`${GAS_ENDPOINT_URL}?action=check_status&t=${Date.now()}`);
         const data = await res.json();
-        loading.style.display = 'none';
+        
+        document.getElementById('dashUnusedCount').textContent = `${data.unused_pool_count} 問`;
+        
+        const taskSec = document.getElementById('dashTaskSection');
+        const reqBtn = document.getElementById('requestStockBtn');
 
-        let statusText = `【現在の問題ストック状況】\n現在即時解ける問題: ${data.unused_pool_count}問\n\n`;
         if (data.active_task) {
-          statusText += `現在バックグラウンド自律生成タスクが進行中です:\n進捗: ${data.active_task.current} / ${data.active_task.target}問\n状態: ${data.active_task.last_status}\n\n`;
-        }
-
-        const answer = confirm(statusText + "最高精度モデル（gemini-3.6-flash）で新たに20問の自律ストック予約を追加しますか？\n（画面を閉じても数時間かけて安全に生成されます）");
-        if (answer) {
-          loading.style.display = 'flex';
-          document.getElementById('loadingMessage').textContent = '自律ストックタスクを登録中...';
-          const queueRes = await fetch(`${GAS_ENDPOINT_URL}?action=queue_batch&count=20&t=${Date.now()}`);
-          const queueData = await queueRes.json();
-          loading.style.display = 'none';
-          alert(queueData.message);
+          taskSec.style.display = 'block';
+          const t = data.active_task.target;
+          const c = data.active_task.current;
+          
+          document.getElementById('dashTaskCount').textContent = `${c} / ${t} 問`;
+          document.getElementById('dashProgressBar').style.width = `${(c / t) * 100}%`;
+          document.getElementById('dashTaskStatus').textContent = `状態: ${data.active_task.last_status}`;
+          
+          // 実行中はボタンを無効化
+          reqBtn.disabled = true;
+          reqBtn.textContent = '生成中...';
+          reqBtn.style.opacity = '0.5';
+          reqBtn.style.cursor = 'not-allowed';
+        } else {
+          taskSec.style.display = 'none';
+          // 待機中はボタンを有効化
+          reqBtn.disabled = false;
+          reqBtn.textContent = '新たに20問予約';
+          reqBtn.style.opacity = '1';
+          reqBtn.style.cursor = 'pointer';
         }
       } catch (e) {
-        loading.style.display = 'none';
+        console.warn('Status fetch failed', e);
+      }
+    }
+
+    document.getElementById('requestStockBtn').addEventListener('click', async () => {
+      if (!confirm("最高精度モデル（gemini-3.6-flash）で新たに20問の自律ストック予約を追加しますか？\n（画面を閉じてもバックグラウンドで数時間かけて安全に生成されます）")) return;
+      
+      const reqBtn = document.getElementById('requestStockBtn');
+      reqBtn.textContent = '予約登録中...';
+      reqBtn.disabled = true;
+      
+      try {
+        const queueRes = await fetch(`${GAS_ENDPOINT_URL}?action=queue_batch&count=20&t=${Date.now()}`);
+        const queueData = await queueRes.json();
+        alert(queueData.message);
+        fetchStockStatus(); // 登録直後に表示を更新
+      } catch (e) {
         alert('通信エラー: ' + e.toString());
+        reqBtn.textContent = '新たに20問予約';
+        reqBtn.disabled = false;
       }
     });
 
@@ -603,9 +687,6 @@
       renderMath();
     }
 
-    /**
-     * 【完全自動修復・バウンディングボックス対応 汎用SVGエンジン】
-     */
     function renderUniversalMathSvg(rawConfig, contextText) {
       const container = document.getElementById('svgContainer');
       const width = container.clientWidth || 340;
@@ -624,7 +705,6 @@
 
       const text = (contextText || '') + ' ' + (cfg.context_text || '');
 
-      // ★ 1. 究極の互換性パッチ：旧形式の料金プラン・ダイヤグラムの完全修復
       if (cfg.type === 'speed_diagram' && cfg.lines.length === 0) {
         if (text.includes('基本料') || text.includes('プラン')) {
           cfg.viewport = { minX: 0, maxX: 160, minY: 0, maxY: 4500, xLabel: "時間(分)", yLabel: "料金(円)" };
@@ -644,7 +724,6 @@
         }
       }
 
-      // ★ 1.5 互換性パッチ：旧形式の water_tank_graph の修復
       const isBrokenLineGraph = (cfg.type === 'water_tank_graph' || cfg.type === 'broken_line_graph' || text.includes('水深'));
       if (isBrokenLineGraph && cfg.points.length > 0 && cfg.lines.length === 0) {
         cfg.lines.push({
@@ -655,7 +734,6 @@
         cfg.points.forEach(p => { p.guideLines = true; });
       }
 
-      // 問題文から座標を正規表現で自動抽出（フォールバック用）
       let autoPoints = [];
       const coordRegex = /([A-Z])\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/g;
       let match;
@@ -668,7 +746,6 @@
         });
       }
 
-      // 旧形式 (pointA, pointB) の吸収
       if (cfg.pointA && cfg.pointB) {
         cfg.points = [
           { x: cfg.pointA.x, y: cfg.pointA.y, label: cfg.pointA.label || 'A' },
@@ -680,7 +757,6 @@
         cfg.points = autoPoints;
       }
 
-      // 一次関数直線と三角形の自動構築
       const isLinearTriangle = (cfg.type === 'linear_and_triangle' || (!isBrokenLineGraph && cfg.points.length >= 2 && cfg.lines.length === 0));
       if (isLinearTriangle && cfg.points.length >= 2 && cfg.lines.length === 0) {
         const p1 = cfg.points[0];
@@ -705,7 +781,6 @@
         }
       }
 
-      // バウンディングボックス（描画範囲）の自動計算
       let allX = [0];
       let allY = [0];
 
@@ -740,7 +815,6 @@
 
       let svgElements = [];
 
-      // 原点・X軸・Y軸の描画
       const originX = toX(0);
       const originY = toY(0);
 
@@ -758,14 +832,12 @@
 
       svgElements.push(`<text x="${axisX - 12}" y="${axisY + 14}" font-size="11" fill="#64748b">O</text>`);
 
-      // 多角形の描画
       cfg.polygons.forEach(poly => {
         if (!poly.points || poly.points.length === 0) return;
         const pts = poly.points.map(([x, y]) => `${toX(x)},${toY(y)}`).join(' ');
         svgElements.push(`<polygon points="${pts}" fill="${poly.fill || 'rgba(37,99,235,0.08)'}" stroke="${poly.stroke || '#93c5fd'}" stroke-width="${poly.width || 1.2}" />`);
       });
 
-      // 線の描画
       cfg.lines.forEach(line => {
         if (!line.points || line.points.length === 0) return;
         let d = '';
@@ -780,7 +852,6 @@
         }
       });
 
-      // 点とラベルの描画
       cfg.points.forEach(pt => {
         const px = toX(pt.x);
         const py = toY(pt.y);
@@ -952,7 +1023,6 @@
     document.getElementById('clearBtn').addEventListener('click', clearCanvas);
     document.getElementById('penToolBtn').addEventListener('click', () => setDrawingMode('pen'));
     document.getElementById('eraserToolBtn').addEventListener('click', () => setDrawingMode('eraser'));
-    document.getElementById('currentUserPill').addEventListener('click', openUserModal);
     document.getElementById('nextActionBtn').addEventListener('click', fetchNextTargetQuestion);
 
     document.getElementById('btn-user-nozomi').addEventListener('click', () => selectUser('user_nozomi', 'のぞみ'));
