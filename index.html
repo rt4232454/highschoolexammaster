@@ -196,7 +196,7 @@
     }
     .svg-container {
       width: 100%;
-      height: 230px;
+      height: 240px;
       background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -539,7 +539,6 @@
       }
     }
 
-    /* ストック管理 & 自律バックグラウンド生成予約 */
     document.getElementById('stockStatusBtn').addEventListener('click', async () => {
       const loading = document.getElementById('loadingOverlay');
       document.getElementById('loadingMessage').textContent = 'ストック状況を確認中...';
@@ -597,7 +596,7 @@
       if (q.has_visual && q.svg_config_json) {
         svgContainer.style.display = 'flex';
         const configObj = typeof q.svg_config_json === 'string' ? JSON.parse(q.svg_config_json) : q.svg_config_json;
-        renderDynamicSvg(configObj);
+        renderUniversalMathSvg(configObj);
       } else {
         svgContainer.style.display = 'none';
       }
@@ -605,88 +604,80 @@
       renderMath();
     }
 
-    function renderDynamicSvg(cfg) {
+    /**
+     * 【宣言型汎用グラフィックス・エンジン】
+     * どんなグラフ・図形も1つのレンダラーで自動スケーリング描画
+     */
+    function renderUniversalMathSvg(cfg) {
       const container = document.getElementById('svgContainer');
       const width = container.clientWidth || 340;
-      const height = 230;
-      if (!cfg || !cfg.type) return;
+      const height = 240;
+      if (!cfg) return;
 
-      if (cfg.type === "linear_and_triangle" && cfg.pointA && cfg.pointB) {
-        const minX = Math.min(cfg.pointA.x, cfg.pointB.x, 0) - 2;
-        const maxX = Math.max(cfg.pointA.x, cfg.pointB.x, 0) + 2;
-        const minY = Math.min(cfg.pointA.y, cfg.pointB.y, 0) - 2;
-        const maxY = Math.max(cfg.pointA.y, cfg.pointB.y, 0) + 2;
+      const vp = cfg.viewport || { minX: 0, maxX: 10, minY: 0, maxY: 10, xLabel: "x", yLabel: "y" };
+      const pad = { left: 45, right: 25, top: 20, bottom: 35 };
 
-        const toX = (x) => ((x - minX) / (maxX - minX)) * width;
-        const toY = (y) => height - ((y - minY) / (maxY - minY)) * height;
+      const toX = (x) => pad.left + ((x - vp.minX) / (vp.maxX - vp.minX)) * (width - pad.left - pad.right);
+      const toY = (y) => height - pad.bottom - ((y - vp.minY) / (vp.maxY - vp.minY)) * (height - pad.top - pad.bottom);
 
-        const ax = toX(cfg.pointA.x), ay = toY(cfg.pointA.y);
-        const bx = toX(cfg.pointB.x), by = toY(cfg.pointB.y);
-        const ox = toX(0), oy = toY(0);
+      let svgElements = [];
 
-        const dx = cfg.pointB.x - cfg.pointA.x;
-        const dy = cfg.pointB.y - cfg.pointA.y;
-        const m = dx !== 0 ? dy / dx : 0;
-        const k = cfg.pointA.y - m * cfg.pointA.x;
-        const cx = toX(0), cy = toY(k);
+      // 1. 軸の描画
+      const originX = toX(Math.max(vp.minX, Math.min(0, vp.maxX)));
+      const originY = toY(Math.max(vp.minY, Math.min(0, vp.maxY)));
 
-        container.innerHTML = `
-          <svg viewBox="0 0 ${width} ${height}">
-            <polygon points="${ox},${oy} ${ax},${ay} ${bx},${by}" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.2"/>
-            <line x1="${toX(minX)}" y1="${oy}" x2="${toX(maxX)}" y2="${oy}" stroke="#94a3b8" stroke-width="1.5"/>
-            <line x1="${ox}" y1="${toY(minY)}" x2="${ox}" y2="${toY(maxY)}" stroke="#94a3b8" stroke-width="1.5"/>
-            <text x="${toX(maxX)-14}" y="${oy+14}" font-size="11" fill="#64748b">x</text>
-            <text x="${ox+6}" y="${toY(maxY)+12}" font-size="11" fill="#64748b">y</text>
-            <text x="${ox-10}" y="${oy+12}" font-size="10" fill="#64748b">O</text>
+      svgElements.push(`<line x1="${pad.left}" y1="${originY}" x2="${width - 15}" y2="${originY}" stroke="#64748b" stroke-width="1.5" />`);
+      svgElements.push(`<line x1="${originX}" y1="${pad.top}" x2="${originX}" y2="${height - pad.bottom}" stroke="#64748b" stroke-width="1.5" />`);
+      
+      if (vp.xLabel) svgElements.push(`<text x="${width - 25}" y="${originY + 16}" font-size="11" fill="#64748b">${vp.xLabel}</text>`);
+      if (vp.yLabel) svgElements.push(`<text x="${originX - 18}" y="${pad.top + 4}" font-size="11" fill="#64748b">${vp.yLabel}</text>`);
+      svgElements.push(`<text x="${originX - 12}" y="${originY + 14}" font-size="11" fill="#64748b">0</text>`);
 
-            <line x1="${toX(minX+1)}" y1="${toY(m*(minX+1)+k)}" x2="${toX(maxX-1)}" y2="${toY(m*(maxX-1)+k)}" stroke="#dc2626" stroke-width="2"/>
-            <circle cx="${ax}" cy="${ay}" r="4" fill="#0f172a"/>
-            <text x="${ax-10}" y="${ay-8}" font-size="11" font-weight="bold">${cleanMathText(cfg.pointA.label)}</text>
-            <circle cx="${bx}" cy="${by}" r="4" fill="#0f172a"/>
-            <text x="${bx+6}" y="${by+4}" font-size="11" font-weight="bold">${cleanMathText(cfg.pointB.label)}</text>
-            <circle cx="${cx}" cy="${cy}" r="3.5" fill="#2563eb"/>
-            <text x="${cx+6}" y="${cy-4}" font-size="10" font-weight="bold" fill="#2563eb">C</text>
-          </svg>`;
-      } else if (cfg.type === "moving_point_rect") {
-        container.innerHTML = `
-          <svg viewBox="0 0 ${width} ${height}">
-            <rect x="60" y="40" width="220" height="130" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
-            <polygon points="60,170 60,95 280,170" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
-            <text x="40" y="175" font-size="14" font-weight="bold">A</text>
-            <text x="40" y="45" font-size="14" font-weight="bold">B</text>
-            <text x="290" y="45" font-size="14" font-weight="bold">C</text>
-            <text x="290" y="175" font-size="14" font-weight="bold">D</text>
-            <circle cx="60" cy="95" r="5" fill="#ef4444"/>
-            <text x="35" y="100" font-size="13" font-weight="bold" fill="#ef4444">P</text>
-            <text x="120" y="200" font-size="12" fill="#64748b">移動方向: A → B → C → D</text>
-          </svg>`;
-      } else if (cfg.type === "speed_diagram") {
-        const pA = cfg.personA || {};
-        const pB = cfg.personB || {};
-        const maxT = Math.max(pA.time || 10, (pB.start || 0) + (pB.time || 10), 20);
-        const maxD = Math.max(pA.dist || 100, pB.dist || 100, 1000);
-
-        const toX = (t) => 40 + (t / maxT) * (width - 70);
-        const toY = (d) => height - 30 - (d / maxD) * (height - 60);
-
-        container.innerHTML = `
-          <svg viewBox="0 0 ${width} ${height}">
-            <line x1="40" y1="${height-30}" x2="${width-20}" y2="${height-30}" stroke="#94a3b8" stroke-width="1.5"/>
-            <line x1="40" y1="20" x2="40" y2="${height-30}" stroke="#94a3b8" stroke-width="1.5"/>
-            <text x="${width-35}" y="${height-10}" font-size="11" fill="#64748b">時間(分)</text>
-            <text x="10" y="20" font-size="11" fill="#64748b">(y)</text>
-
-            <line x1="${toX(0)}" y1="${toY(0)}" x2="${toX(pA.time)}" y2="${toY(pA.dist)}" stroke="#2563eb" stroke-width="2.5"/>
-            <text x="${toX(pA.time)+4}" y="${toY(pA.dist)}" font-size="11" font-weight="bold" fill="#2563eb">${pA.name || 'A'}</text>
-
-            <line x1="${toX(pB.start || 0)}" y1="${toY(0)}" x2="${toX((pB.start || 0) + pB.time)}" y2="${toY(pB.dist)}" stroke="#dc2626" stroke-width="2.5"/>
-            <text x="${toX((pB.start || 0) + pB.time)+4}" y="${toY(pB.dist)}" font-size="11" font-weight="bold" fill="#dc2626">${pB.name || 'B'}</text>
-
-            <text x="5" y="${toY(maxD)+4}" font-size="10" fill="#64748b">${maxD}</text>
-            <text x="${toX(maxT)-10}" y="${height-15}" font-size="10" fill="#64748b">${maxT}</text>
-            <text x="30" y="${height-15}" font-size="10" fill="#64748b">0</text>
-          </svg>`;
+      // 2. 多角形の描画
+      if (Array.isArray(cfg.polygons)) {
+        cfg.polygons.forEach(poly => {
+          const pts = poly.points.map(([x, y]) => `${toX(x)},${toY(y)}`).join(' ');
+          svgElements.push(`<polygon points="${pts}" fill="${poly.fill || 'rgba(37,99,235,0.08)'}" stroke="${poly.stroke || '#2563eb'}" stroke-width="${poly.width || 1.5}" />`);
+        });
       }
+
+      // 3. 線の描画（折れ線・直線）
+      if (Array.isArray(cfg.lines)) {
+        cfg.lines.forEach(line => {
+          let d = '';
+          line.points.forEach(([x, y], idx) => {
+            d += (idx === 0 ? 'M ' : ' L ') + `${toX(x)} ${toY(y)}`;
+          });
+          const dash = line.dashed ? 'stroke-dasharray="4,4"' : '';
+          svgElements.push(`<path d="${d}" fill="none" stroke="${line.color || '#2563eb'}" stroke-width="${line.width || 2.2}" ${dash} stroke-linecap="round" stroke-linejoin="round" />`);
+          if (line.label && line.points.length > 0) {
+            const lastPt = line.points[line.points.length - 1];
+            svgElements.push(`<text x="${toX(lastPt[0]) + 4}" y="${toY(lastPt[1]) - 4}" font-size="11" font-weight="bold" fill="${line.color || '#2563eb'}">${line.label}</text>`);
+          }
+        });
+      }
+
+      // 4. 点・補助線・ラベルの描画
+      if (Array.isArray(cfg.points)) {
+        cfg.points.forEach(pt => {
+          const px = toX(pt.x);
+          const py = toY(pt.y);
+
+          if (pt.guideLines && (pt.x !== 0 || pt.y !== 0)) {
+            svgElements.push(`<line x1="${px}" y1="${py}" x2="${px}" y2="${originY}" stroke="#cbd5e1" stroke-dasharray="3,3" stroke-width="1.2" />`);
+            svgElements.push(`<line x1="${originX}" y1="${py}" x2="${px}" y2="${py}" stroke="#cbd5e1" stroke-dasharray="3,3" stroke-width="1.2" />`);
+            svgElements.push(`<text x="${px - 6}" y="${originY + 14}" font-size="10" font-weight="600" fill="#475569">${pt.x}</text>`);
+            svgElements.push(`<text x="${originX - 22}" y="${py + 4}" font-size="10" font-weight="600" fill="#475569">${pt.y}</text>`);
+          }
+
+          svgElements.push(`<circle cx="${px}" cy="${py}" r="3.5" fill="${pt.color || '#0f172a'}" />`);
+          if (pt.label) {
+            svgElements.push(`<text x="${px + 6}" y="${py - 4}" font-size="11" font-weight="bold" fill="${pt.color || '#0f172a'}">${cleanMathText(pt.label)}</text>`);
+          }
+        });
+      }
+
+      container.innerHTML = `<svg viewBox="0 0 ${width} ${height}">${svgElements.join('')}</svg>`;
     }
 
     function renderMath() {
