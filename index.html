@@ -18,7 +18,7 @@
             color: #2c3e50;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         .selector-panel {
@@ -70,6 +70,8 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
         }
         .card h2 {
             font-size: 1.1rem;
@@ -78,24 +80,56 @@
             padding-bottom: 8px;
             color: #34495e;
         }
+        /* 画像ビューア（移動・拡大縮小対応） */
         .image-container {
-            text-align: center;
-            min-height: 400px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            flex-grow: 1;
+            height: 550px;
             background: #fafafa;
             border: 1px dashed #ddd;
             border-radius: 4px;
             overflow: hidden;
             position: relative;
+            cursor: grab;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        .image-container img {
+        .image-container:active {
+            cursor: grabbing;
+        }
+        .image-wrapper {
+            position: absolute;
+            transform-origin: center center;
+            transition: transform 0.05s ease-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-wrapper img {
             max-width: 100%;
-            height: auto;
-            max-height: 700px;
-            object-fit: contain;
+            max-height: 550px;
+            user-select: none;
+            pointer-events: none;
+        }
+        .controls-overlay {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 5px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        .controls-overlay button {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            background-color: #6c757d;
+        }
+        .controls-overlay button:hover {
+            background-color: #5a6268;
         }
         .pagination {
             display: flex;
@@ -120,11 +154,26 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
+        .memo-box {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .memo-box textarea {
+            width: 100%;
+            height: 80px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+            resize: vertical;
+        }
         .action-bar {
             margin-top: 15px;
             display: flex;
-            gap: 10px;
-            justify-content: flex-end;
+            justify-content: space-between;
+            align-items: center;
         }
     </style>
 </head>
@@ -161,26 +210,50 @@
         <!-- 問題用紙エリア -->
         <div class="card">
             <h2>問題用紙</h2>
-            <div class="image-container" id="problem-container">
-                <p style="color: #888;">条件を選択してください</p>
+            <div class="image-container" id="problem-container" onwheel="handleZoom(event, 'problem')" onmousedown="startDrag(event, 'problem')">
+                <div class="image-wrapper" id="problem-wrapper">
+                    <p style="color: #888; padding: 20px;">条件を選択してください</p>
+                </div>
+                <div class="controls-overlay">
+                    <button onclick="zoomImage('problem', 0.2)">+</button>
+                    <button onclick="zoomImage('problem', -0.2)">-</button>
+                    <button onclick="resetImage('problem')">リセット</button>
+                </div>
             </div>
             <div class="pagination">
                 <button id="prob-prev" onclick="changePage('problem', -1)" disabled>前のページ</button>
                 <span id="prob-page-info">0 / 0</span>
                 <button id="prob-next" onclick="changePage('problem', 1)" disabled>次のページ</button>
             </div>
+            <!-- 問題用メモ -->
+            <div class="memo-box">
+                <label for="problem-memo">問題メモ・気付いたこと</label>
+                <textarea id="problem-memo" placeholder="ここにメモを入力できます..." oninput="saveMemo('problem')"></textarea>
+            </div>
         </div>
 
         <!-- 解答用紙エリア -->
         <div class="card">
             <h2>解答用紙 (答案)</h2>
-            <div class="image-container" id="answer-container">
-                <p style="color: #888;">条件を選択してください</p>
+            <div class="image-container" id="answer-container" onwheel="handleZoom(event, 'answer')" onmousedown="startDrag(event, 'answer')">
+                <div class="image-wrapper" id="answer-wrapper">
+                    <p style="color: #888; padding: 20px;">条件を選択してください</p>
+                </div>
+                <div class="controls-overlay">
+                    <button onclick="zoomImage('answer', 0.2)">+</button>
+                    <button onclick="zoomImage('answer', -0.2)">-</button>
+                    <button onclick="resetImage('answer')">リセット</button>
+                </div>
             </div>
             <div class="pagination">
                 <button id="ans-prev" onclick="changePage('answer', -1)" disabled>前のページ</button>
                 <span id="ans-page-info">0 / 0</span>
                 <button id="ans-next" onclick="changePage('answer', 1)" disabled>次のページ</button>
+            </div>
+            <!-- 解答用紙用メモ -->
+            <div class="memo-box">
+                <label for="answer-memo">解答メモ・採点メモ</label>
+                <textarea id="answer-memo" placeholder="ここにメモを入力できます..." oninput="saveMemo('answer')"></textarea>
             </div>
             <div class="action-bar">
                 <button onclick="clearCacheAndReload()" style="background-color: #6c757d; font-size: 0.8rem;">キャッシュ更新</button>
@@ -190,7 +263,6 @@
 </div>
 
 <script>
-    // 取得した新しいGASのウェブアプリURL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwPKqU_Tg0Jv9k51pLyue3R7aOSWZ1IXRxXWhZ-7JbKlhLrIbajlzjq5EbfVNt5rarmGw/exec";
 
     let allFiles = [];
@@ -203,17 +275,23 @@
     let currentProbIndex = 0;
     let currentAnsIndex = 0;
 
-    // 起動時にデータを取得
+    // 画像の拡大・移動用ステート
+    const viewStates = {
+        problem: { scale: 1, x: 0, y: 0 },
+        answer: { scale: 1, x: 0, y: 0 }
+    };
+    let isDragging = false;
+    let dragTarget = null;
+    let startX = 0, startY = 0;
+
     window.onload = () => {
         fetchImagesFromCloud();
     };
 
-    // Googleスプレッドシート（GAS）からファイル一覧を取得（ブラウザキャッシュ対応）
     const fetchImagesFromCloud = async () => {
         try {
             document.getElementById('status-message').textContent = 'データ読込中...';
             
-            // 1. ローカルストレージにキャッシュがあれば優先使用
             const cachedFiles = localStorage.getItem('past_exam_files_cache');
             if (cachedFiles) {
                 allFiles = JSON.parse(cachedFiles);
@@ -223,7 +301,6 @@
                 return;
             }
 
-            // 2. なければGASから取得
             const response = await fetch(GAS_URL);
             const data = await response.json();
             
@@ -243,14 +320,12 @@
         }
     };
 
-    // キャッシュを手動クリアして再読み込みする関数
     const clearCacheAndReload = () => {
         localStorage.removeItem('past_exam_files_cache');
         alert('キャッシュをクリアしました。再読み込みします。');
         location.reload();
     };
 
-    // 読み込んだファイル群を構造化データに変換
     const processLoadedFiles = (files) => {
         structuredData = {};
         files.forEach(file => {
@@ -288,7 +363,6 @@
         initPrefSelect();
     };
 
-    // 都道府県セレクトボックスの初期化
     const initPrefSelect = () => {
         const prefSelect = document.getElementById('pref-select');
         prefSelect.innerHTML = '<option value="">選択してください</option>';
@@ -302,7 +376,6 @@
         prefSelect.disabled = false;
     };
 
-    // 都道府県変更時
     const onPrefChange = () => {
         currentPref = document.getElementById('pref-select').value;
         const subSelect = document.getElementById('subject-select');
@@ -326,7 +399,6 @@
         }
     };
 
-    // 教科変更時
     const onSubjectChange = () => {
         currentSubject = document.getElementById('subject-select').value;
         const yearSelect = document.getElementById('year-select');
@@ -346,15 +418,14 @@
         }
     };
 
-    // 年度変更時（データ表示の確定）
     const onYearChange = () => {
         currentYear = document.getElementById('year-select').value;
         currentProbIndex = 0;
         currentAnsIndex = 0;
+        loadMemos();
         updateViewers();
     };
 
-    // ビューアの描画更新
     const updateViewers = () => {
         if (!currentPref || !currentSubject || !currentYear) return;
         const targetData = structuredData[currentPref][currentSubject][currentYear];
@@ -363,17 +434,17 @@
         renderImage('answer', targetData.ansPages, currentAnsIndex);
     };
 
-    // 画像の描画とページネーション状態の更新
     const renderImage = (type, pageList, index) => {
-        const container = document.getElementById(`${type}-container`);
+        const wrapper = document.getElementById(`${type}-wrapper`);
         const info = document.getElementById(`${type}-page-info`);
         const prevBtn = document.getElementById(`${type}-prev`);
         const nextBtn = document.getElementById(`${type}-next`);
 
-        container.innerHTML = '';
+        wrapper.innerHTML = '';
+        resetImage(type);
 
         if (!pageList || pageList.length === 0) {
-            container.innerHTML = '<p style="color: #888;">画像がありません</p>';
+            wrapper.innerHTML = '<p style="color: #888; padding: 20px;">画像がありません</p>';
             info.textContent = '0 / 0';
             prevBtn.disabled = true;
             nextBtn.disabled = true;
@@ -382,16 +453,21 @@
 
         const file = pageList[index];
         const img = document.createElement('img');
-        // GoogleドライブのダウンロードURLを直接指定
-        img.src = file.url;
-        container.appendChild(img);
+        
+        // GoogleドライブのURLを正しく読み込ませるための処理
+        let imageUrl = file.url;
+        if (imageUrl && imageUrl.includes('export=download')) {
+            imageUrl = imageUrl.replace('export=download', 'export=view');
+        }
+        img.src = imageUrl;
+        
+        wrapper.appendChild(img);
 
         info.textContent = `${index + 1} / ${pageList.length}`;
         prevBtn.disabled = (index === 0);
         nextBtn.disabled = (index === pageList.length - 1);
     };
 
-    // ページ切り替え
     const changePage = (type, direction) => {
         const targetData = structuredData[currentPref][currentSubject][currentYear];
         if (type === 'problem') {
@@ -403,16 +479,92 @@
         }
     };
 
-    // ビューアのクリア
+    // --- 拡大・縮小・移動機能 ---
+    const zoomImage = (type, delta) => {
+        viewStates[type].scale = Math.max(0.5, Math.min(5, viewStates[type].scale + delta));
+        applyTransform(type);
+    };
+
+    const handleZoom = (event, type) => {
+        event.preventDefault();
+        const delta = event.deltaY < 0 ? 0.2 : -0.2;
+        zoomImage(type, delta);
+    };
+
+    const resetImage = (type) => {
+        viewStates[type] = { scale: 1, x: 0, y: 0 };
+        applyTransform(type);
+    };
+
+    const applyTransform = (type) => {
+        const wrapper = document.getElementById(`${type}-wrapper`);
+        const state = viewStates[type];
+        wrapper.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+    };
+
+    const startDrag = (event, type) => {
+        if (event.button !== 0) return; // 左クリックのみ
+        isDragging = true;
+        dragTarget = type;
+        startX = event.clientX - viewStates[type].x;
+        startY = event.clientY - viewStates[type].y;
+
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', stopDrag);
+    };
+
+    const onDrag = (event) => {
+        if (!isDragging || !dragTarget) return;
+        viewStates[dragTarget].x = event.clientX - startX;
+        viewStates[dragTarget].y = event.clientY - startY;
+        applyTransform(dragTarget);
+    };
+
+    const stopDrag = () => {
+        isDragging = false;
+        dragTarget = null;
+        document.removeEventListener('mousemove', onDrag);
+        document.removeEventListener('mouseup', stopDrag);
+    };
+
+    // --- メモ機能（LocalStorage保存） ---
+    const getMemoKey = () => `memo_${currentPref}_${currentSubject}_${currentYear}`;
+
+    const saveMemo = (type) => {
+        if (!currentPref || !currentSubject || !currentYear) return;
+        const probMemo = document.getElementById('problem-memo').value;
+        const ansMemo = document.getElementById('answer-memo').value;
+        
+        const memoData = { problem: probMemo, answer: ansMemo };
+        localStorage.setItem(getMemoKey(), JSON.stringify(memoData));
+    };
+
+    const loadMemos = () => {
+        if (!currentPref || !currentSubject || !currentYear) return;
+        const saved = localStorage.getItem(getMemoKey());
+        if (saved) {
+            try {
+                const memoData = JSON.parse(saved);
+                document.getElementById('problem-memo').value = memoData.problem || '';
+                document.getElementById('answer-memo').value = memoData.answer || '';
+                return;
+            } catch(e) {}
+        }
+        document.getElementById('problem-memo').value = '';
+        document.getElementById('answer-memo').value = '';
+    };
+
     const clearViewers = () => {
-        document.getElementById('problem-container').innerHTML = '<p style="color: #888;">条件を選択してください</p>';
-        document.getElementById('answer-container').innerHTML = '<p style="color: #888;">条件を選択してください</p>';
+        document.getElementById('problem-wrapper').innerHTML = '<p style="color: #888; padding: 20px;">条件を選択してください</p>';
+        document.getElementById('answer-wrapper').innerHTML = '<p style="color: #888; padding: 20px;">条件を選択してください</p>';
         document.getElementById('prob-page-info').textContent = '0 / 0';
         document.getElementById('ans-page-info').textContent = '0 / 0';
         document.getElementById('prob-prev').disabled = true;
         document.getElementById('prob-next').disabled = true;
         document.getElementById('ans-prev').disabled = true;
         document.getElementById('ans-next').disabled = true;
+        document.getElementById('problem-memo').value = '';
+        document.getElementById('answer-memo').value = '';
     }
 </script>
 
