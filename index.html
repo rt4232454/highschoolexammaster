@@ -25,7 +25,7 @@
             margin: 0 auto;
         }
         
-        /* コントロールヘッダー */
+        /* トップコントロールバー */
         .top-bar {
             background: #fff;
             padding: 12px 20px;
@@ -80,7 +80,7 @@
             margin-left: auto;
         }
 
-        /* メインビューア（2カラム） */
+        /* ビューアグリッド */
         .viewer-panel {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -162,7 +162,7 @@
             background-color: #6c757d;
         }
 
-        /* ページ送り */
+        /* ページ送り・共通ボタン */
         .pagination {
             display: flex;
             justify-content: center;
@@ -193,7 +193,7 @@
         .btn-danger { background-color: #dc3545; }
         .btn-danger:hover { background-color: #c82333; }
 
-        /* 途中計算手書きキャンバス */
+        /* 途中計算キャンバス */
         .scratchpad-section {
             margin-top: 10px;
             border: 1px solid #ddd;
@@ -254,7 +254,7 @@
 <body>
 
 <div class="container">
-    <h1>過去問演習・管理システム</h1>
+    <h1>高校受験 過去問演習・管理システム</h1>
 
     <!-- トップバー -->
     <div class="top-bar">
@@ -418,7 +418,7 @@
         fetchImagesFromCloud();
     };
 
-    // --- Googleスプレッドシート（GAS）からファイルデータ取得 ---
+    // Googleスプレッドシート（GAS）からファイルデータ取得
     const fetchImagesFromCloud = async () => {
         try {
             document.getElementById('status-message').textContent = 'データ読込中...';
@@ -554,13 +554,14 @@
         renderImage('answer', targetData.ansPages, currentAnsIndex);
     };
 
-    const renderImage = (type, pageList, index) => {
+    // 画像描画（CORSブロック対策・Base64フォールバック付き）
+    const renderImage = async (type, pageList, index) => {
         const wrapper = document.getElementById(`${type}-wrapper`);
         const info = document.getElementById(`${type}-page-info`);
         const prevBtn = document.getElementById(`${type}-prev`);
         const nextBtn = document.getElementById(`${type}-next`);
 
-        wrapper.innerHTML = '';
+        wrapper.innerHTML = '<p style="color: #007bff; padding: 20px;">画像読込中...</p>';
         resetImage(type);
 
         if (!pageList || pageList.length === 0) {
@@ -572,18 +573,45 @@
         }
 
         const file = pageList[index];
-        const img = document.createElement('img');
-        
-        let imageUrl = file.url;
-        if (imageUrl && imageUrl.includes('export=download')) {
-            imageUrl = imageUrl.replace('export=download', 'export=view');
-        }
-        img.src = imageUrl;
-        wrapper.appendChild(img);
-
         info.textContent = `${index + 1} / ${pageList.length}`;
         prevBtn.disabled = (index === 0);
         nextBtn.disabled = (index === pageList.length - 1);
+
+        try {
+            let fileId = file.url;
+            if (fileId.includes('id=')) {
+                fileId = fileId.split('id=')[1].split('&')[0];
+            } else if (fileId.includes('/d/')) {
+                fileId = fileId.split('/d/')[1].split('/')[0];
+            }
+
+            const img = document.createElement('img');
+            img.src = `https://lh3.googleusercontent.com/d/${fileId}`;
+            
+            img.onload = () => {
+                wrapper.innerHTML = '';
+                wrapper.appendChild(img);
+            };
+
+            img.onerror = async () => {
+                try {
+                    const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
+                    const json = await res.json();
+                    if (json.status === "success") {
+                        wrapper.innerHTML = '';
+                        const apiImg = document.createElement('img');
+                        apiImg.src = json.dataUrl;
+                        wrapper.appendChild(apiImg);
+                    } else {
+                        wrapper.innerHTML = '<p style="color: #dc3545; padding: 20px;">画像の取得に失敗しました</p>';
+                    }
+                } catch(err) {
+                    wrapper.innerHTML = '<p style="color: #dc3545; padding: 20px;">画像読込エラー</p>';
+                }
+            };
+        } catch (e) {
+            wrapper.innerHTML = '<p style="color: #dc3545; padding: 20px;">エラーが発生しました</p>';
+        }
     };
 
     const changePage = (type, direction) => {
@@ -655,7 +683,7 @@
         document.getElementById('ans-next').disabled = true;
     };
 
-    // --- 途中計算キャンバス ---
+    // --- 途中計算手書きキャンバス ---
     const initCanvas = () => {
         canvas = document.getElementById('scratchpad');
         ctx = canvas.getContext('2d');
@@ -758,7 +786,7 @@
         document.getElementById('timer-display').textContent = `${mins}:${secs}`;
     };
 
-    // --- 演習結果・弱点分析ログ送信 ---
+    // --- 演習結果・学習ログ送信 ---
     const openLogModal = () => {
         if (isTimerRunning) toggleTimer();
         const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
