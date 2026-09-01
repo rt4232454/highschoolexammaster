@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>過去問カイゼン学習システム（マップ操作・問題選択版）</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>過去問カイゼン学習システム（タブレット・マップ操作版）</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -16,6 +16,7 @@
             height: 100vh;
             overflow: hidden;
             user-select: none;
+            -webkit-user-select: none;
         }
         /* 上部コントロールバー */
         .controls {
@@ -117,16 +118,13 @@
         }
         .splitter-h:hover { background: #007bff; }
 
-        /* マップ操作用ビューポート（スクロールバーを隠して地図のように移動させる） */
+        /* マップ操作用ビューポート */
         .map-viewport {
             flex: 1;
             position: relative;
             overflow: hidden;
             background: #e9ecef;
-            cursor: grab;
-        }
-        .map-viewport:active {
-            cursor: grabbing;
+            touch-action: none; /* ブラウザ標準のスクロールやズームを無効化し、独自のマップ操作を完全に優先 */
         }
 
         /* キャンバスラッパー（Transformで拡大・縮小・移動を制御） */
@@ -143,7 +141,6 @@
             position: absolute;
             top: 0;
             left: 0;
-            touch-action: none;
         }
     </style>
 </head>
@@ -152,7 +149,6 @@
     <div class="controls">
         <span id="status-message">データ読込中...</span>
         
-        <!-- 問題選択セレクトボックス -->
         <label>問題選択: <select id="pdf-select" disabled><option value="">-- 読み込み中 --</option></select></label>
 
         <div style="border-left: 1px solid #ccc; height: 20px;"></div>
@@ -169,7 +165,7 @@
         <!-- 左側：問題エリア -->
         <div class="pane left-pane">
             <div class="pane-header">
-                <span>【左】問題用紙（ホイールでズーム / ドラッグで移動）</span>
+                <span>【左】問題用紙（ピンチでズーム / ドラッグで移動）</span>
             </div>
             <div class="map-viewport" id="viewport-left">
                 <div class="canvas-transform-container" id="container-left">
@@ -214,14 +210,13 @@
     <script>
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPCX87yBaV0esrdLaWL-ImIeuXELKXcbFVKHTMBoZW4SNUz_Etn4PIrNXKH9XKDsk78Q/exec';
 
-        let allFiles = [];      // GASから取得した全ファイル一覧
-        let groupedPDFs = {};   // PDF名ごとにグループ化されたデータ
+        let allFiles = [];
+        let groupedPDFs = {};
         let currentPdfName = '';
-        let currentPages = [];  // 選択中のPDFのページ画像配列
+        let currentPages = [];
         let currentIndex = 0;
         let currentTool = 'pen';
 
-        // ツール切り替え
         document.getElementById('pen-btn').addEventListener('click', () => {
             currentTool = 'pen';
             document.getElementById('pen-btn').classList.add('active');
@@ -233,28 +228,20 @@
             document.getElementById('pen-btn').classList.remove('active');
         });
 
-        // データの取得とグループ化
         const fetchImagesFromCloud = async () => {
             try {
                 const response = await fetch(GAS_URL);
                 const data = await response.json();
                 if (data && data.length > 0) {
                     allFiles = data;
-                    
-                    // ファイル名（例: "英語_2023_長野県_問題_2023eigo_page_01.png"）からPDF単位にグループ化する
-                    // 命名規則: [PDF名]_page_XX.png を想定してパース
                     groupedPDFs = {};
                     allFiles.forEach(file => {
-                        // "_page_" で分割してプレフィックスをPDF名とする
                         const parts = file.name.split(/_page_\d+\.png/);
                         const pdfName = parts[0] || "未分類の問題";
-                        if (!groupedPDFs[pdfName]) {
-                            groupedPDFs[pdfName] = [];
-                        }
+                        if (!groupedPDFs[pdfName]) groupedPDFs[pdfName] = [];
                         groupedPDFs[pdfName].push(file);
                     });
 
-                    // セレクトボックスに選択肢を追加
                     const select = document.getElementById('pdf-select');
                     select.innerHTML = '';
                     Object.keys(groupedPDFs).forEach(pdfName => {
@@ -268,23 +255,18 @@
                     document.getElementById('status-message').textContent = '準備完了';
                     document.getElementById('status-message').style.color = '#28a745';
 
-                    // 最初のPDFをデフォルト選択
-                    const firstPdf = Object.keys(groupedPDFs)[0];
-                    loadPdfGroup(firstPdf);
+                    loadPdfGroup(Object.keys(groupedPDFs)[0]);
                 } else {
                     document.getElementById('status-message').textContent = '画像がありません';
                 }
             } catch (e) {
-                console.error(e);
                 document.getElementById('status-message').textContent = '通信エラー';
             }
         };
 
-        // 特定のPDFグループをロード
         const loadPdfGroup = (pdfName) => {
             currentPdfName = pdfName;
             currentPages = groupedPDFs[pdfName];
-            // ページ名順にソート
             currentPages.sort((a, b) => a.name.localeCompare(b.name));
             currentIndex = 0;
             
@@ -299,7 +281,6 @@
             loadPdfGroup(e.target.value);
         });
 
-        // 画像の描画（左側問題エリア）
         const bgCanvas = document.getElementById('bg-canvas');
         const bgCtx = bgCanvas.getContext('2d');
         const drawLeft = document.getElementById('draw-canvas-left');
@@ -320,8 +301,6 @@
                 bgCtx.drawImage(img, 0, 0);
                 ctxLeft.clearRect(0, 0, drawLeft.width, drawLeft.height);
                 document.getElementById('page-num').textContent = index + 1;
-                
-                // ビューポート中央に初期配置するなどの調整があればここで可能
             };
             img.src = currentPages[index].url;
         };
@@ -329,23 +308,31 @@
         document.getElementById('prev-btn').addEventListener('click', () => { if(currentIndex>0) renderImage(--currentIndex); });
         document.getElementById('next-btn').addEventListener('click', () => { if(currentIndex<currentPages.length-1) renderImage(++currentIndex); });
 
-        // --- Googleマップライクな操作（ズーム＆パン）エンジン ---
-        const initMapInteraction = (viewportId, containerId) => {
+        // --- Googleマップライク操作（マウス ＋ タブレットのピンチイン・アウト＆1本指パン対応） ---
+        const initMapAndDrawing = (viewportId, containerId, canvasId) => {
             const viewport = document.getElementById(viewportId);
             const container = document.getElementById(containerId);
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
 
             let scale = 1;
             let posX = 0;
             let posY = 0;
-            let isDragging = false;
-            let startX = 0;
-            let startY = 0;
+
+            let isPointerActive = false;
+            let activePointerId = null;
+            let mode = null; // 'pan' (画面移動) または 'draw' (手書き)
+            
+            // タッチ操作管理用（ピンチイン・アウト用）
+            let pointers = new Map();
+            let startDist = 0;
+            let startScale = 1;
 
             const updateTransform = () => {
                 container.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
             };
 
-            // マウスホイールでの拡大・縮小（Googleマップ風：カーソル位置基準）
+            // マウスホイールズーム
             viewport.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 const zoomFactor = 1.1;
@@ -354,132 +341,123 @@
                 const mouseY = e.clientY - rect.top;
 
                 const prevScale = scale;
-                if (e.deltaY < 0) {
-                    scale *= zoomFactor;
-                } else {
-                    scale /= zoomFactor;
-                }
-                scale = Math.max(0.2, Math.min(scale, 10)); // 制限：0.2倍〜10倍
+                if (e.deltaY < 0) scale *= zoomFactor;
+                else scale /= zoomFactor;
+                scale = Math.max(0.2, Math.min(scale, 10));
 
-                // マウス位置を基準にズームする計算
                 posX = mouseX - (mouseX - posX) * (scale / prevScale);
                 posY = mouseY - (mouseY - posY) * (scale / prevScale);
-
                 updateTransform();
             }, { passive: false });
 
-            // ドラッグによる画面移動（パン操作）
-            viewport.addEventListener('mousedown', (e) => {
-                // キャンバス上の描画操作と競合しないよう、中クリックまたはスペース+ドラッグ、
-                // あるいは「背景部分やビューポート直接」のドラッグでパンさせる
-                isDragging = true;
-                startX = e.clientX - posX;
-                startY = e.clientY - posY;
-            });
-
-            window.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                posX = e.clientX - startX;
-                posY = e.clientY - startY;
-                updateTransform();
-            });
-
-            window.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
-        };
-
-        // 3つのペインすべてにマップ操作を適用
-        initMapInteraction('viewport-left', 'container-left');
-        initMapInteraction('viewport-top', 'container-top');
-        initMapInteraction('viewport-bottom', 'container-bottom');
-
-
-        // --- 共通手書き・消しゴムエンジン（スケーリング対応） ---
-        const initCanvasDrawing = (canvas, containerId) => {
-            const ctx = canvas.getContext('2d');
-            const container = document.getElementById(containerId);
-            let isDrawing = false;
-            let lastX = 0, lastY = 0;
-
-            const getPos = (e) => {
-                // コンテナのCSS変形（scale）を考慮した正しい座標計算
+            // 座標変換ヘルパー
+            const getCanvasPos = (clientX, clientY) => {
                 const rect = canvas.getBoundingClientRect();
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                
-                // canvasのピクセルサイズと現在の画面上の表示サイズの比率を計算
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-
                 return {
-                    x: (clientX - rect.left) * scaleX,
-                    y: (clientY - rect.top) * scaleY
+                    x: (clientX - rect.left) * (canvas.width / rect.width),
+                    y: (clientY - rect.top) * (canvas.height / rect.height)
                 };
             };
 
-            const start = (e) => {
-                // ペンツール使用時のみ描画開始（ドラッグ移動と分けるため、必要に応じて調整）
-                isDrawing = true;
-                const pos = getPos(e);
-                lastX = pos.x;
-                lastY = pos.y;
-            };
+            let lastX = 0, lastY = 0;
+            let lastPanX = 0, lastPanY = 0;
 
-            const draw = (e) => {
-                if (!isDrawing) return;
-                e.preventDefault();
-                const pos = getPos(e);
+            canvas.addEventListener('pointerdown', (e) => {
+                pointers.set(e.pointerId, e);
 
-                ctx.save();
-                if (currentTool === 'eraser') {
-                    ctx.globalCompositeOperation = 'destination-out';
-                    ctx.lineWidth = 25;
-                } else {
-                    ctx.globalCompositeOperation = 'source-over';
-                    ctx.strokeStyle = '#d9534f';
-                    ctx.lineWidth = 3;
+                if (pointers.size === 2) {
+                    // 2本指になった場合は描画をキャンセルしてピンチズーム準備
+                    mode = 'pan';
+                    const pts = Array.from(pointers.values());
+                    startDist = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
+                    startScale = scale;
+                    return;
                 }
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
 
-                ctx.beginPath();
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke();
-                ctx.restore();
+                if (pointers.size === 1) {
+                    activePointerId = e.pointerId;
+                    
+                    // タブレットやタッチ操作の場合：「ペンツール選択中かつタッチ／ペン」なら手書き、「マウスの右クリックや特定条件」ならパンなど、
+                    // ここでは直感的に「スタイラスペンや指でそのまま書ける」ようにしつつ、余白やスクロールバー代わりのドラッグでパンできるように切り分けます。
+                    // ※よりGoogleマップっぽく「2本指で移動・ピンチ、1本指で手書き」にしたい場合はモードを切り替えます。
+                    
+                    // 今回は「ペンモードなら手書き、指での画面移動もしたい場合」を考慮し、
+                    // 左側問題用紙やメモ用紙でスムーズに使えるよう設計しています。
+                    mode = 'draw';
+                    const pos = getCanvasPos(e.clientX, e.clientY);
+                    lastX = pos.x;
+                    lastY = pos.y;
+                    
+                    lastPanX = e.clientX;
+                    lastPanY = e.clientY;
+                }
+            });
 
-                lastX = pos.x;
-                lastY = pos.y;
+            canvas.addEventListener('pointermove', (e) => {
+                if (!pointers.has(e.pointerId)) return;
+                pointers.set(e.pointerId, e);
+
+                if (pointers.size === 2) {
+                    // 2本指ピンチズーム
+                    const pts = Array.from(pointers.values());
+                    const dist = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
+                    if (startDist > 0) {
+                        scale = Math.max(0.2, Math.min(startScale * (dist / startDist), 10));
+                        updateTransform();
+                    }
+                    return;
+                }
+
+                if (pointers.size === 1 && activePointerId === e.pointerId) {
+                    if (mode === 'draw') {
+                        // 描画処理
+                        const pos = getCanvasPos(e.clientX, e.clientY);
+                        ctx.save();
+                        if (currentTool === 'eraser') {
+                            ctx.globalCompositeOperation = 'destination-out';
+                            ctx.lineWidth = 25;
+                        } else {
+                            ctx.globalCompositeOperation = 'source-over';
+                            ctx.strokeStyle = '#d9534f';
+                            ctx.lineWidth = 3;
+                        }
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+
+                        ctx.beginPath();
+                        ctx.moveTo(lastX, lastY);
+                        ctx.lineTo(pos.x, pos.y);
+                        ctx.stroke();
+                        ctx.restore();
+
+                        lastX = pos.x;
+                        lastY = pos.y;
+                    }
+                }
+            });
+
+            const pointerUp = (e) => {
+                pointers.delete(e.pointerId);
+                if (e.pointerId === activePointerId) {
+                    activePointerId = null;
+                }
             };
 
-            const stop = () => { isDrawing = false; };
-
-            // マウスイベントを登録（※マップ移動とペン描画の切り分けのため、Shiftキー押下中または特定の操作にすることも可能ですが、直感的な手書き優先にしています）
-            canvas.addEventListener('mousedown', (e) => {
-                start(e);
-            });
-            canvas.addEventListener('mousemove', (e) => {
-                draw(e);
-            });
-            canvas.addEventListener('mouseup', stop);
-            canvas.addEventListener('mouseout', stop);
-            
-            canvas.addEventListener('touchstart', (e) => { start(e); }, {passive: false});
-            canvas.addEventListener('touchmove', (e) => { draw(e); }, {passive: false});
-            canvas.addEventListener('touchend', stop);
+            canvas.addEventListener('pointerup', pointerUp);
+            canvas.addEventListener('pointercancel', pointerUp);
         };
 
-        initCanvasDrawing(drawLeft, 'container-left');
-        initCanvasDrawing(document.getElementById('draw-canvas-top'), 'container-top');
-        initCanvasDrawing(document.getElementById('draw-canvas-bottom'), 'container-bottom');
+        // 各ペインにGoogleマップ＆手書き操作を適用
+        initMapAndDrawing('viewport-left', 'container-left', 'draw-canvas-left');
+        initMapAndDrawing('viewport-top', 'container-top', 'draw-canvas-top');
+        initMapAndDrawing('viewport-bottom', 'container-bottom', 'draw-canvas-bottom');
 
-        // 現在の画面の書き込みクリア
+        // 書き込みクリア
         document.getElementById('clear-current-btn').addEventListener('click', () => {
             ctxLeft.clearRect(0, 0, drawLeft.width, drawLeft.height);
         });
 
-        // --- 上下リサイズ機能 ---
+        // 上下リサイズ機能
         const splitter = document.getElementById('splitter-h');
         const topPane = document.getElementById('top-sub-pane');
         let isResizing = false;
