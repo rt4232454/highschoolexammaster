@@ -88,7 +88,6 @@
     </div>
 
     <div class="workspace">
-        <!-- 左ペイン：問題用紙 -->
         <div class="pane-left">
             <div class="card-header">
                 <h2>問題用紙</h2>
@@ -111,9 +110,7 @@
             </div>
         </div>
 
-        <!-- 右ペイン：解答とメモ -->
         <div class="pane-right">
-            <!-- 右上：解答用紙 -->
             <div class="pane-right-top">
                 <div class="card-header">
                     <h2>解答用紙 (答案)</h2>
@@ -150,7 +147,6 @@
                 </div>
             </div>
 
-            <!-- 右下：途中計算・メモ用紙 -->
             <div class="pane-right-bottom">
                 <div class="card-header">
                     <h2>途中計算・メモ用紙</h2>
@@ -174,6 +170,7 @@
     </div>
 </div>
 
+<!-- モーダル群 -->
 <div class="modal" id="log-modal">
     <div class="modal-content">
         <h3>演習結果の記録（スプレッドシート連携）</h3>
@@ -246,7 +243,6 @@
             if (cachedFiles) {
                 allFiles = JSON.parse(cachedFiles);
                 processLoadedFiles(allFiles);
-                document.getElementById('status-message').textContent = `準備完了 (${allFiles.length}件)`;
                 return;
             }
             const response = await fetch(GAS_URL);
@@ -255,7 +251,6 @@
                 allFiles = data;
                 localStorage.setItem('past_exam_files_cache', JSON.stringify(data));
                 processLoadedFiles(allFiles);
-                document.getElementById('status-message').textContent = `準備完了 (${allFiles.length}件)`;
             }
         } catch (e) {
             document.getElementById('status-message').textContent = 'GAS接続エラー';
@@ -267,9 +262,10 @@
         location.reload();
     };
 
-    // スプレッドシートの実JSONデータ（name:ファイル名, url:ファイルID）に完全準拠したパーサー
     const processLoadedFiles = (files) => {
         structuredData = {};
+        let validFileCount = 0;
+
         files.forEach(file => {
             const fileName = String(file.name || "").trim();
             const fileId = String(file.url || "").trim();
@@ -302,9 +298,9 @@
             } else {
                 structuredData[pref][subject][year].pages.push(item);
             }
+            validFileCount++;
         });
 
-        // ページ番号ソート
         Object.keys(structuredData).forEach(p => {
             Object.keys(structuredData[p]).forEach(s => {
                 Object.keys(structuredData[p][s]).forEach(y => {
@@ -318,6 +314,7 @@
             });
         });
 
+        document.getElementById('status-message').textContent = `準備完了 (${validFileCount}件)`;
         initPrefSelect();
     };
 
@@ -380,61 +377,131 @@
     };
 
     const updateViewers = () => {
-        if (!currentYear || !structuredData[currentPref] || !structuredData[currentPref][currentSubject] || !structuredData[currentPref][currentSubject][currentYear]) {
-            return;
+        try {
+            if (!currentYear || !structuredData[currentPref] || !structuredData[currentPref][currentSubject] || !structuredData[currentPref][currentSubject][currentYear]) {
+                clearViewers();
+                return;
+            }
+            const data = structuredData[currentPref][currentSubject][currentYear];
+            renderImage('problem', data.pages, currentProbIndex);
+            renderImage('answer', data.ansPages, currentAnsIndex);
+        } catch (err) {
+            console.error("updateViewers error:", err);
         }
-        const data = structuredData[currentPref][currentSubject][currentYear];
-        renderImage('problem', data.pages, currentProbIndex);
-        renderImage('answer', data.ansPages, currentAnsIndex);
     };
 
-    const renderImage = (type, pageList, index) => {
-        const isAnswer = type === 'answer';
-        const wrapper = document.getElementById(`${type}-wrapper`);
-        const info = document.getElementById(`${type}-page-info`);
-        const prevBtn = document.getElementById(`${type}-prev`);
-        const nextBtn = document.getElementById(`${type}-next`);
+    const renderImage = async (type, pageList, index) => {
+        try {
+            const isAnswer = type === 'answer';
+            const wrapper = document.getElementById(`${type}-wrapper`);
+            const info = document.getElementById(`${type}-page-info`);
+            const prevBtn = document.getElementById(`${type}-prev`);
+            const nextBtn = document.getElementById(`${type}-next`);
 
-        resetImage(type);
+            resetImage(type);
 
-        if (!pageList || pageList.length === 0) {
-            if(isAnswer) {
-                document.getElementById('answer-placeholder').style.display = 'block';
-                document.getElementById('answer-placeholder').textContent = '該当する解答用紙がありません';
-                document.getElementById('answer-bg-img').style.display = 'none';
-            } else {
-                wrapper.innerHTML = '<p style="color:#888; padding:20px;">該当する問題用紙がありません</p>';
+            if (!pageList || pageList.length === 0) {
+                if(isAnswer) {
+                    document.getElementById('answer-placeholder').style.display = 'block';
+                    document.getElementById('answer-placeholder').textContent = '該当する解答用紙がありません';
+                    document.getElementById('answer-bg-img').style.display = 'none';
+                } else {
+                    wrapper.innerHTML = '<p style="color:#888; padding:20px;">該当する問題用紙がありません</p>';
+                }
+                info.textContent = '0 / 0';
+                prevBtn.disabled = true; nextBtn.disabled = true;
+                return;
             }
-            info.textContent = '0 / 0';
-            prevBtn.disabled = true; nextBtn.disabled = true;
-            return;
+
+            const file = pageList[index];
+            info.textContent = `${index + 1} / ${pageList.length}`;
+            prevBtn.disabled = (index === 0); nextBtn.disabled = (index === pageList.length - 1);
+
+            let fileId = file.fileId;
+            if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
+            else if (fileId.includes('/d/')) fileId = fileId.split('/d/')[1].split('/')[0];
+
+            // 高速読み込みURL
+            const directUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
+
+            if (isAnswer) {
+                const bgImg = document.getElementById('answer-bg-img');
+                const placeholder = document.getElementById('answer-placeholder');
+                
+                placeholder.style.display = 'block';
+                placeholder.innerHTML = '<span style="color:#007bff;">画像読込中...</span>';
+                bgImg.style.display = 'none';
+
+                bgImg.onload = () => {
+                    placeholder.style.display = 'none';
+                    bgImg.style.display = 'block';
+                    const cvs = boards.answer.canvas;
+                    cvs.width = bgImg.naturalWidth; cvs.height = bgImg.naturalHeight;
+                    cvs.style.width = bgImg.width + 'px'; cvs.style.height = bgImg.height + 'px';
+                };
+                
+                // 万が一Googleからブロックされた場合は安全なGAS経由に自動切り替え
+                bgImg.onerror = async () => {
+                    try {
+                        const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
+                        const json = await res.json();
+                        if (json.status === "success") {
+                            bgImg.src = json.dataUrl;
+                        } else {
+                            placeholder.innerHTML = `<span style="color:red;">画像読込エラー</span>`;
+                        }
+                    } catch (e) {
+                        placeholder.innerHTML = `<span style="color:red;">通信エラー</span>`;
+                    }
+                };
+                
+                bgImg.src = directUrl;
+
+            } else {
+                wrapper.innerHTML = '<p style="color:#007bff;">画像読込中...</p>';
+                const img = document.createElement('img');
+                
+                img.onload = () => {
+                    wrapper.innerHTML = '';
+                    wrapper.appendChild(img);
+                };
+                
+                // 万が一Googleからブロックされた場合は安全なGAS経由に自動切り替え
+                img.onerror = async () => {
+                    try {
+                        const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
+                        const json = await res.json();
+                        if (json.status === "success") {
+                            wrapper.innerHTML = '';
+                            const apiImg = document.createElement('img');
+                            apiImg.src = json.dataUrl;
+                            wrapper.appendChild(apiImg);
+                        } else {
+                            wrapper.innerHTML = `<p style="color:red;">画像読込エラー</p>`;
+                        }
+                    } catch (e) {
+                        wrapper.innerHTML = `<p style="color:red;">通信エラー</p>`;
+                    }
+                };
+
+                img.src = directUrl;
+            }
+        } catch (err) {
+            document.getElementById('status-message').textContent = "描画エラー: " + err.message;
         }
+    };
 
-        const file = pageList[index];
-        info.textContent = `${index + 1} / ${pageList.length}`;
-        prevBtn.disabled = (index === 0); nextBtn.disabled = (index === pageList.length - 1);
-
-        const directUrl = `https://drive.google.com/thumbnail?id=${file.fileId}&sz=w2000`;
-
-        if (isAnswer) {
-            const bgImg = document.getElementById('answer-bg-img');
-            bgImg.onload = () => {
-                document.getElementById('answer-placeholder').style.display = 'none';
-                bgImg.style.display = 'block';
-                const cvs = boards.answer.canvas;
-                cvs.width = bgImg.naturalWidth; cvs.height = bgImg.naturalHeight;
-                cvs.style.width = bgImg.width + 'px'; cvs.style.height = bgImg.height + 'px';
-            };
-            bgImg.src = directUrl;
-        } else {
-            wrapper.innerHTML = '';
-            const img = document.createElement('img');
-            img.onload = () => {
-                wrapper.innerHTML = '';
-                wrapper.appendChild(img);
-            };
-            img.src = directUrl;
-        }
+    const clearViewers = () => {
+        document.getElementById('problem-wrapper').innerHTML = '<p style="color:#888;">条件を選択してください</p>';
+        document.getElementById('answer-placeholder').style.display = 'block';
+        document.getElementById('answer-placeholder').textContent = '条件を選択してください';
+        document.getElementById('answer-bg-img').style.display = 'none';
+        document.getElementById('prob-page-info').textContent = '0 / 0';
+        document.getElementById('ans-page-info').textContent = '0 / 0';
+        document.getElementById('prob-prev').disabled = true;
+        document.getElementById('prob-next').disabled = true;
+        document.getElementById('ans-prev').disabled = true;
+        document.getElementById('ans-next').disabled = true;
     };
 
     const changePage = (type, direction) => {
