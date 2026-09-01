@@ -49,7 +49,7 @@
         .transform-wrapper img { display: block; pointer-events: none; background-color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
         
         .drawing-canvas { position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; }
-        .drawing-canvas.mode-pan { pointer-events: none; }
+        .drawing-canvas.mode-pan { pointer-events: none !important; }
 
         .controls-overlay { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 4px; background: rgba(255, 255, 255, 0.9); padding: 2px 6px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.2); z-index: 20; }
         
@@ -74,8 +74,8 @@
         .modal-content { background: white; padding: 16px; border-radius: 8px; width: 90%; max-width: 450px; display: flex; flex-direction: column; gap: 10px; }
         .modal-content select, .modal-content input { padding: 6px; width: 100%; }
         
-        #ai-modal-content { max-width: 750px; width: 95%; max-height: 90vh; overflow-y: auto; }
-        #ai-result-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5; background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #ddd; min-height: 100px; }
+        #ai-modal-content { max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto; }
+        #ai-result-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; background: #f8f9fa; padding: 14px; border-radius: 6px; border: 1px solid #ddd; min-height: 120px; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -145,7 +145,7 @@
         <div class="pane-right-top" id="pane-right-top">
             <div class="card-header">
                 <h2>解答用紙 (答案)</h2>
-                <button class="btn-warning btn-icon" onclick="gradeWithAI()">✨ AI自動採点</button>
+                <button class="btn-warning btn-icon" onclick="gradeWithAI()">✨ AI自動採点・総合分析</button>
             </div>
             <div class="toolbar">
                 <button id="ans-draw-mode-btn" onclick="setWindowMode('answer', 'draw')" class="btn-mode btn-icon active">✍️ 書込</button>
@@ -240,10 +240,10 @@
 
 <div class="modal" id="ai-modal">
     <div class="modal-content" id="ai-modal-content">
-        <h3 style="margin-top:0;">🤖 AI自動採点・解説</h3>
+        <h3 style="margin-top:0;">🤖 AI自動採点・総合学習診断</h3>
         <div id="ai-loading" style="display:none; text-align:center; padding: 20px;">
             <div class="loader"></div>
-            <p style="color:#007bff; font-weight:bold; margin-top:12px;">AIが解答を解析・採点中です...</p>
+            <p style="color:#007bff; font-weight:bold; margin-top:12px;">答案・問題の着眼点・メモの途中式を総合分析中...</p>
         </div>
         <div id="ai-result-text">ここにAIの採点結果と解説が表示されます。</div>
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
@@ -266,7 +266,7 @@
         memo: { scale: 1, x: 0, y: 0, imgW: 2000, imgH: 3000, mode: 'draw' }
     };
 
-    // ペンの色はすべて「黒（#111111）」に統一
+    // ペンの色は黒（#111111）に統一
     const boards = {
         problem: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 3, color: '#111111' },
         answer: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4, color: '#111111' },
@@ -294,7 +294,7 @@
         else document.exitFullscreen();
     };
 
-    // ===== 動作モード（書込 vs 移動）の切り替え =====
+    // ===== 書込 vs 移動 モード切替 =====
     const setWindowMode = (type, mode) => {
         viewStates[type].mode = mode;
         const prefix = type === 'problem' ? 'prob' : type === 'answer' ? 'ans' : 'memo';
@@ -316,16 +316,15 @@
         }
     };
 
-    // ペン・消しゴム切替
     const setDrawTool = (target, isPen) => {
         boards[target].isPen = isPen;
-        setWindowMode(target, 'draw'); // ペンや消しゴムを押したら自動で書込モードにする
+        setWindowMode(target, 'draw');
         const prefix = target === 'problem' ? 'prob' : target === 'answer' ? 'ans' : 'memo';
         document.getElementById(`${prefix}-pen-btn`).style.backgroundColor = isPen ? '#007bff' : '#6c757d';
         document.getElementById(`${prefix}-erase-btn`).style.backgroundColor = isPen ? '#6c757d' : '#007bff';
     };
 
-    // ===== 境界線（スプリッター）のドラッグリサイズ機能 =====
+    // ===== スプリッター（ドラッグリサイズ） =====
     const initSplitters = () => {
         const splitH = document.getElementById('splitter-h');
         const paneLeft = document.getElementById('pane-left');
@@ -389,7 +388,7 @@
         window.addEventListener('touchend', stopDrag);
     };
 
-    // ===== データ読み込み・分類 =====
+    // ===== データ読み込み =====
     const fetchImagesFromCloud = async () => {
         try {
             document.getElementById('status-message').textContent = 'データ読込中...';
@@ -701,14 +700,14 @@
         applyTransform(type);
     };
 
-    // ===== タッチ・描画・移動イベント処理 =====
+    // ===== 高速・高追従ペン描画 ＆ モード完全排他制御 =====
     const initTouchAndDraw = (type) => {
         const container = document.getElementById(`${type}-container`);
         const state = viewStates[type];
         const cvs = document.getElementById(`${type}-canvas`);
         
         boards[type].canvas = cvs;
-        boards[type].ctx = cvs.getContext('2d');
+        boards[type].ctx = cvs.getContext('2d', { desynchronized: true });
 
         // マウスホイールズーム
         container.addEventListener('wheel', (e) => {
@@ -718,13 +717,22 @@
             applyZoom(type, zoomDelta, e.clientX - rect.left, e.clientY - rect.top);
         }, { passive: false });
 
-        const getCanvasPos = (clientX, clientY) => {
-            const rect = cvs.getBoundingClientRect();
-            const scale = cvs.width / rect.width;
-            return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
+        let cachedRect = null;
+        let cachedScale = 1;
+
+        const updateCachedRect = () => {
+            cachedRect = cvs.getBoundingClientRect();
+            cachedScale = cvs.width / cachedRect.width;
         };
 
-        // マウス操作（ドラッグ移動 or 描画）
+        const getCanvasPos = (clientX, clientY) => {
+            return {
+                x: (clientX - cachedRect.left) * cachedScale,
+                y: (clientY - cachedRect.top) * cachedScale
+            };
+        };
+
+        // --- マウス操作 ---
         let isMousePanning = false, startMouseX = 0, startMouseY = 0;
 
         container.addEventListener('mousedown', (e) => {
@@ -733,6 +741,7 @@
                 startMouseX = e.clientX - state.x;
                 startMouseY = e.clientY - state.y;
             } else {
+                updateCachedRect();
                 const b = boards[type];
                 b.isDrawing = true;
                 b.ctx.beginPath();
@@ -742,11 +751,11 @@
         });
 
         window.addEventListener('mousemove', (e) => {
-            if (isMousePanning) {
+            if (isMousePanning && state.mode === 'pan') {
                 state.x = e.clientX - startMouseX;
                 state.y = e.clientY - startMouseY;
                 applyTransform(type);
-            } else if (boards[type].isDrawing) {
+            } else if (boards[type].isDrawing && state.mode === 'draw') {
                 const b = boards[type];
                 const pos = getCanvasPos(e.clientX, e.clientY);
                 b.ctx.lineTo(pos.x, pos.y);
@@ -764,39 +773,43 @@
             boards[type].isDrawing = false;
         });
 
-        // タッチ操作（1本指書込 or 1本指移動 / 2本指ピンチ移動）
-        let touchAction = null; // 'draw' | 'pan' | 'pinch'
+        // --- タッチ操作（Pointer Events による超高速描画＆完全排他） ---
+        let touchAction = null;
         let initialDist = 0, startTouchX = 0, startTouchY = 0;
 
         container.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                if (state.mode === 'draw') {
+            if (state.mode === 'draw') {
+                // 書込モード時：タッチによる移動を完全ブロックして即描画
+                if (e.touches.length === 1) {
                     touchAction = 'draw';
+                    updateCachedRect();
                     const b = boards[type];
                     b.isDrawing = true;
                     b.ctx.beginPath();
                     const pos = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
                     b.ctx.moveTo(pos.x, pos.y);
-                } else {
+                }
+            } else {
+                // 移動モード時：描画を一切受付ず、移動・ピンチのみ実行
+                if (e.touches.length === 1) {
                     touchAction = 'pan';
                     startTouchX = e.touches[0].clientX - state.x;
                     startTouchY = e.touches[0].clientY - state.y;
+                } else if (e.touches.length >= 2) {
+                    touchAction = 'pinch';
+                    initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    startTouchX = midX - state.x;
+                    startTouchY = midY - state.y;
                 }
-            } else if (e.touches.length >= 2) {
-                touchAction = 'pinch';
-                boards[type].isDrawing = false;
-                initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                startTouchX = midX - state.x;
-                startTouchY = midY - state.y;
             }
         }, { passive: false });
 
         container.addEventListener('touchmove', (e) => {
             e.preventDefault();
 
-            if (touchAction === 'draw' && e.touches.length === 1) {
+            if (state.mode === 'draw' && touchAction === 'draw' && e.touches.length === 1) {
                 const b = boards[type];
                 if (!b.isDrawing) return;
                 const pos = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
@@ -807,25 +820,27 @@
                 b.ctx.lineCap = 'round';
                 b.ctx.lineJoin = 'round';
                 b.ctx.stroke();
-            } else if (touchAction === 'pan' && e.touches.length === 1) {
-                state.x = e.touches[0].clientX - startTouchX;
-                state.y = e.touches[0].clientY - startTouchY;
-                applyTransform(type);
-            } else if (touchAction === 'pinch' && e.touches.length >= 2) {
-                const currentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                const rect = container.getBoundingClientRect();
+            } else if (state.mode === 'pan') {
+                if (touchAction === 'pan' && e.touches.length === 1) {
+                    state.x = e.touches[0].clientX - startTouchX;
+                    state.y = e.touches[0].clientY - startTouchY;
+                    applyTransform(type);
+                } else if (touchAction === 'pinch' && e.touches.length >= 2) {
+                    const currentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    const rect = container.getBoundingClientRect();
 
-                const zoomFactor = (currentDist / initialDist) - 1;
-                if (Math.abs(zoomFactor) > 0.01) {
-                    applyZoom(type, zoomFactor * 0.4, midX - rect.left, midY - rect.top);
-                    initialDist = currentDist;
+                    const zoomFactor = (currentDist / initialDist) - 1;
+                    if (Math.abs(zoomFactor) > 0.01) {
+                        applyZoom(type, zoomFactor * 0.4, midX - rect.left, midY - rect.top);
+                        initialDist = currentDist;
+                    }
+
+                    state.x = midX - startTouchX;
+                    state.y = midY - startTouchY;
+                    applyTransform(type);
                 }
-
-                state.x = midX - startTouchX;
-                state.y = midY - startTouchY;
-                applyTransform(type);
             }
         }, { passive: false });
 
@@ -839,7 +854,6 @@
         });
     };
 
-    // ===== 描画クリア・太さ設定 =====
     const clearCanvas = (target) => {
         const b = boards[target];
         if (b && b.ctx && b.canvas) {
@@ -851,7 +865,7 @@
         boards[target].width = parseInt(val);
     };
 
-    // ===== タイマー ＆ モーダル・記録 =====
+    // ===== タイマー =====
     const toggleTimer = () => {
         const btn = document.getElementById('timer-start-btn');
         if (isTimerRunning) {
@@ -918,10 +932,11 @@
     };
     const closeAiModal = () => { document.getElementById('ai-modal').style.display = 'none'; };
 
+    // ===== 答案＋問題用紙＋メモ用紙の3点統合 AI自動採点・総合分析 =====
     const gradeWithAI = async () => {
-        const bgImg = document.getElementById('answer-bg-img');
-        const drawCanvas = boards.answer.canvas;
-        if (!bgImg.src || bgImg.style.display === 'none') {
+        const ansImg = document.getElementById('answer-bg-img');
+        const ansCvs = boards.answer.canvas;
+        if (!ansImg.src || ansImg.style.display === 'none') {
             alert("解答用紙が読み込まれていません。");
             return;
         }
@@ -929,30 +944,52 @@
         openAiModal();
 
         try {
-            let base64Raw = "";
+            // 3つの領域（問題用紙・解答用紙・メモ用紙）を横並び1枚の統合画像に結合
+            const probImg = document.getElementById('problem-bg-img');
+            const probCvs = boards.problem.canvas;
+            const memoCvs = boards.memo.canvas;
 
-            try {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = bgImg.naturalWidth || drawCanvas.width;
-                tempCanvas.height = bgImg.naturalHeight || drawCanvas.height;
-                const tCtx = tempCanvas.getContext('2d');
-                tCtx.drawImage(bgImg, 0, 0);
-                tCtx.drawImage(drawCanvas, 0, 0);
-                const dataUrl = tempCanvas.toDataURL('image/png');
-                base64Raw = dataUrl.split(',')[1];
-            } catch (corsErr) {
-                const data = structuredData[currentPref][currentSubject][currentYear];
-                const file = data.ansPages[currentAnsIndex];
-                let fileId = file.fileId;
-                if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
-                else if (fileId.includes('/d/')) fileId = fileId.split('/d/')[1].split('/')[0];
+            const unitW = 1200;
+            const unitH = 1600;
+            const compositeCanvas = document.createElement('canvas');
+            compositeCanvas.width = unitW * 3;
+            compositeCanvas.height = unitH;
+            const cCtx = compositeCanvas.getContext('2d');
 
-                const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
-                const json = await res.json();
-                base64Raw = json.dataUrl.split(',')[1];
+            // 背景を白に設定
+            cCtx.fillStyle = '#ffffff';
+            cCtx.fillRect(0, 0, compositeCanvas.width, compositeCanvas.height);
+
+            // 1. 問題用紙（左側）
+            if (probImg && probImg.style.display !== 'none') {
+                cCtx.drawImage(probImg, 0, 0, unitW, unitH);
+                if (probCvs) cCtx.drawImage(probCvs, 0, 0, unitW, unitH);
             }
 
-            const payload = { action: "gradeAI", image: base64Raw };
+            // 2. 解答用紙（中央）
+            cCtx.drawImage(ansImg, unitW, 0, unitW, unitH);
+            if (ansCvs) cCtx.drawImage(ansCvs, unitW, 0, unitW, unitH);
+
+            // 3. 途中計算・メモ用紙（右側）
+            if (memoCvs) {
+                cCtx.drawImage(memoCvs, unitW * 2, 0, unitW, unitH);
+            }
+
+            // セクションヘッダーラベルの描画
+            cCtx.fillStyle = '#007bff';
+            cCtx.font = 'bold 28px sans-serif';
+            cCtx.fillText('【問題用紙】', 30, 45);
+            cCtx.fillText('【生徒の答案用紙】', unitW + 30, 45);
+            cCtx.fillText('【途中計算・メモ】', unitW * 2 + 30, 45);
+
+            let base64Raw = compositeCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+
+            const payload = {
+                action: "gradeAI",
+                image: base64Raw,
+                promptContext: "左側に『問題用紙』、中央に『生徒の解答用紙（答案）』、右側に『途中計算・メモ用紙』を結合した画像です。解答の正誤採点を行い、各大問の途中計算やメモでの思考プロセス、計算ミス・着眼点の良し悪しも含めて総合的な解説とアドバイスを出力してください。"
+            };
+
             const response = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
             const data = await response.json();
             
