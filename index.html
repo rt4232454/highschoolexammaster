@@ -67,15 +67,15 @@
     <div class="top-bar">
         <div class="selector-group">
             <label>都道府県</label>
-            <select id="pref-select" onchange="onPrefChange()" disabled><option value="">選択</option></select>
+            <select id="pref-select" onchange="onPrefChange()"><option value="">選択</option></select>
         </div>
         <div class="selector-group">
             <label>教科</label>
-            <select id="subject-select" onchange="onSubjectChange()" disabled><option value="">選択</option></select>
+            <select id="subject-select" onchange="onSubjectChange()"><option value="">選択</option></select>
         </div>
         <div class="selector-group">
             <label>年度</label>
-            <select id="year-select" onchange="onYearChange()" disabled><option value="">選択</option></select>
+            <select id="year-select" onchange="onYearChange()"><option value="">選択</option></select>
         </div>
         <div id="status-message">データ読込中...</div>
 
@@ -84,10 +84,11 @@
             <button id="timer-start-btn" onclick="toggleTimer()">開始</button>
             <button onclick="resetTimer()" class="btn-secondary">リセット</button>
         </div>
-        <button class="btn-success" onclick="openLogModal()" id="finish-btn" disabled>演習終了・結果保存</button>
+        <button class="btn-success" onclick="openLogModal()" id="finish-btn">演習終了・結果保存</button>
     </div>
 
     <div class="workspace">
+        <!-- 左ペイン：問題用紙 -->
         <div class="pane-left">
             <div class="card-header">
                 <h2>問題用紙</h2>
@@ -110,7 +111,9 @@
             </div>
         </div>
 
+        <!-- 右ペイン：解答とメモ -->
         <div class="pane-right">
+            <!-- 右上：解答用紙 -->
             <div class="pane-right-top">
                 <div class="card-header">
                     <h2>解答用紙 (答案)</h2>
@@ -147,6 +150,7 @@
                 </div>
             </div>
 
+            <!-- 右下：途中計算・メモ用紙 -->
             <div class="pane-right-bottom">
                 <div class="card-header">
                     <h2>途中計算・メモ用紙</h2>
@@ -263,28 +267,21 @@
         location.reload();
     };
 
-    // 結合文字列（ファイル名＋ID）を分離するパーサー
+    // ファイル名とファイルIDの頑健なパース処理
     const processLoadedFiles = (files) => {
         structuredData = {};
         files.forEach(file => {
-            let rawStr = (file.name || "") + (file.url || "");
-            let fileName = "";
-            let fileId = "";
+            let fullStr = (file.name || "") + " " + (file.url || "");
+            
+            // ファイル名 (.png または .jpg) の抽出
+            let nameMatch = fullStr.match(/([^\s\/]+\.(?:png|jpg))/i);
+            let fileName = nameMatch ? nameMatch[1] : (file.name || "");
 
-            if (rawStr.includes('.png')) {
-                const parts = rawStr.split('.png');
-                fileName = parts[0] + '.png';
-                fileId = parts[1] ? parts[1].trim() : (file.url || "");
-            } else if (rawStr.includes('.jpg')) {
-                const parts = rawStr.split('.jpg');
-                fileName = parts[0] + '.jpg';
-                fileId = parts[1] ? parts[1].trim() : (file.url || "");
-            } else {
-                fileName = file.name || "";
-                fileId = file.url || "";
-            }
+            // GoogleドライブのファイルID（28文字以上の英数-_文字列）の抽出
+            let idMatch = fullStr.match(/([a-zA-Z0-9_-]{28,35})/);
+            let fileId = idMatch ? idMatch[1] : (file.url || "");
 
-            if (!fileId && file.url) fileId = file.url;
+            if (!fileName || !fileId) return;
 
             let pref = "長野県", subject = "", year = "";
 
@@ -314,7 +311,7 @@
             }
         });
 
-        // ページ番号ソート
+        // ページ順ソート
         Object.keys(structuredData).forEach(p => {
             Object.keys(structuredData[p]).forEach(s => {
                 Object.keys(structuredData[p][s]).forEach(y => {
@@ -333,31 +330,32 @@
 
     const initPrefSelect = () => {
         const sel = document.getElementById('pref-select');
-        sel.innerHTML = '<option value="">選択</option>';
-        Object.keys(structuredData).forEach(p => {
+        sel.innerHTML = '';
+        const prefs = Object.keys(structuredData);
+        if (prefs.length === 0) return;
+
+        prefs.forEach(p => {
             const opt = document.createElement('option'); opt.value = p; opt.textContent = p; sel.appendChild(opt);
         });
-        sel.disabled = false;
         
-        if (Object.keys(structuredData).length > 0) {
-            sel.value = Object.keys(structuredData)[0];
-            onPrefChange();
-        }
+        currentPref = prefs[0];
+        sel.value = currentPref;
+        onPrefChange();
     };
 
     const onPrefChange = () => {
         currentPref = document.getElementById('pref-select').value;
         const sub = document.getElementById('subject-select');
-        sub.innerHTML = '<option value="">選択</option>'; sub.disabled = true;
-        document.getElementById('year-select').innerHTML = '<option value="">選択</option>'; document.getElementById('year-select').disabled = true;
+        sub.innerHTML = '';
         
         if (currentPref && structuredData[currentPref]) {
-            sub.disabled = false;
-            Object.keys(structuredData[currentPref]).forEach(s => {
+            const subjects = Object.keys(structuredData[currentPref]);
+            subjects.forEach(s => {
                 const opt = document.createElement('option'); opt.value = s; opt.textContent = s; sub.appendChild(opt);
             });
-            if (Object.keys(structuredData[currentPref]).length > 0) {
-                sub.value = Object.keys(structuredData[currentPref])[0];
+            if (subjects.length > 0) {
+                currentSubject = subjects[0];
+                sub.value = currentSubject;
                 onSubjectChange();
             }
         }
@@ -366,14 +364,16 @@
     const onSubjectChange = () => {
         currentSubject = document.getElementById('subject-select').value;
         const yr = document.getElementById('year-select');
-        yr.innerHTML = '<option value="">選択</option>'; yr.disabled = true;
-        if (currentSubject && structuredData[currentPref][currentSubject]) {
-            yr.disabled = false;
-            Object.keys(structuredData[currentPref][currentSubject]).sort().reverse().forEach(y => {
+        yr.innerHTML = '';
+        
+        if (currentSubject && structuredData[currentPref] && structuredData[currentPref][currentSubject]) {
+            const years = Object.keys(structuredData[currentPref][currentSubject]).sort().reverse();
+            years.forEach(y => {
                 const opt = document.createElement('option'); opt.value = y; opt.textContent = y; yr.appendChild(opt);
             });
-            if (Object.keys(structuredData[currentPref][currentSubject]).length > 0) {
-                yr.value = Object.keys(structuredData[currentPref][currentSubject])[0];
+            if (years.length > 0) {
+                currentYear = years[0];
+                yr.value = currentYear;
                 onYearChange();
             }
         }
@@ -381,14 +381,13 @@
 
     const onYearChange = () => {
         currentYear = document.getElementById('year-select').value;
-        currentProbIndex = 0; currentAnsIndex = 0;
-        document.getElementById('finish-btn').disabled = !currentYear;
+        currentProbIndex = 0;
+        currentAnsIndex = 0;
         updateViewers();
     };
 
     const updateViewers = () => {
         if (!currentYear || !structuredData[currentPref] || !structuredData[currentPref][currentSubject] || !structuredData[currentPref][currentSubject][currentYear]) {
-            clearViewers();
             return;
         }
         const data = structuredData[currentPref][currentSubject][currentYear];
@@ -396,7 +395,7 @@
         renderImage('answer', data.ansPages, currentAnsIndex);
     };
 
-    const renderImage = async (type, pageList, index) => {
+    const renderImage = (type, pageList, index) => {
         const isAnswer = type === 'answer';
         const wrapper = document.getElementById(`${type}-wrapper`);
         const info = document.getElementById(`${type}-page-info`);
@@ -422,12 +421,7 @@
         info.textContent = `${index + 1} / ${pageList.length}`;
         prevBtn.disabled = (index === 0); nextBtn.disabled = (index === pageList.length - 1);
 
-        let fileId = file.fileId;
-        if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
-        else if (fileId.includes('/d/')) fileId = fileId.split('/d/')[1].split('/')[0];
-
-        // Googleドライブの画像URL
-        const directUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
+        const directUrl = `https://drive.google.com/thumbnail?id=${file.fileId}&sz=w2000`;
 
         if (isAnswer) {
             const bgImg = document.getElementById('answer-bg-img');
@@ -448,19 +442,6 @@
             };
             img.src = directUrl;
         }
-    };
-
-    const clearViewers = () => {
-        document.getElementById('problem-wrapper').innerHTML = '<p style="color:#888;">条件を選択してください</p>';
-        document.getElementById('answer-placeholder').style.display = 'block';
-        document.getElementById('answer-placeholder').textContent = '条件を選択してください';
-        document.getElementById('answer-bg-img').style.display = 'none';
-        document.getElementById('prob-page-info').textContent = '0 / 0';
-        document.getElementById('ans-page-info').textContent = '0 / 0';
-        document.getElementById('prob-prev').disabled = true;
-        document.getElementById('prob-next').disabled = true;
-        document.getElementById('ans-prev').disabled = true;
-        document.getElementById('ans-next').disabled = true;
     };
 
     const changePage = (type, direction) => {
@@ -604,7 +585,6 @@
                 throw new Error(data.message || "採点処理に失敗しました。");
             }
         } catch (error) {
-            console.error(error);
             document.getElementById('ai-loading').style.display = 'none';
             document.getElementById('ai-result-text').style.display = 'block';
             document.getElementById('ai-result-text').innerHTML = `<span style="color:red;">AIとの通信に失敗しました。<br>${error.message}</span>`;
