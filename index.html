@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>過去問カイゼン学習システム（高機能スプリット版）</title>
+    <title>過去問カイゼン学習システム（マップ操作・問題選択版）</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -15,6 +15,7 @@
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
+            user-select: none;
         }
         /* 上部コントロールバー */
         .controls {
@@ -27,20 +28,26 @@
             gap: 12px;
             align-items: center;
             flex-shrink: 0;
+            flex-wrap: wrap;
         }
-        button {
+        select, button {
             padding: 6px 12px;
             font-size: 13px;
             cursor: pointer;
-            border: none;
+            border: 1px solid #ccc;
             border-radius: 4px;
+            background-color: #fff;
+            color: #333;
+            transition: all 0.2s;
+        }
+        button {
             background-color: #007bff;
             color: white;
-            transition: background 0.2s;
+            border: none;
         }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
-        button.active { background-color: #28a745; } /* ツール選択時 */
+        button.active { background-color: #28a745; }
         .clear-btn { background-color: #dc3545; }
         .clear-btn:hover { background-color: #c82333; }
         
@@ -82,10 +89,7 @@
         }
 
         /* 左側：問題エリア */
-        .left-pane {
-            flex: 1;
-            overflow: auto; /* 独立スクロール */
-        }
+        .left-pane { flex: 1; }
 
         /* 右側：解答・メモエリア（上下分割） */
         .right-pane {
@@ -98,9 +102,9 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow: auto; /* 独立スクロール */
             position: relative;
             min-height: 100px;
+            overflow: hidden;
         }
 
         /* 上下分割の境界バー（リサイズ用） */
@@ -113,19 +117,32 @@
         }
         .splitter-h:hover { background: #007bff; }
 
-        /* キャンバスを内包するコンテナ */
-        .canvas-wrapper {
+        /* マップ操作用ビューポート（スクロールバーを隠して地図のように移動させる） */
+        .map-viewport {
+            flex: 1;
             position: relative;
-            margin: auto; /* 中央寄せ or スクロール用 */
+            overflow: hidden;
+            background: #e9ecef;
+            cursor: grab;
+        }
+        .map-viewport:active {
+            cursor: grabbing;
+        }
+
+        /* キャンバスラッパー（Transformで拡大・縮小・移動を制御） */
+        .canvas-transform-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
             background: #fff;
-            transform-origin: top left;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         .bg-canvas { display: block; }
         .draw-canvas {
             position: absolute;
             top: 0;
             left: 0;
-            cursor: crosshair;
             touch-action: none;
         }
     </style>
@@ -134,10 +151,15 @@
 
     <div class="controls">
         <span id="status-message">データ読込中...</span>
+        
+        <!-- 問題選択セレクトボックス -->
+        <label>問題選択: <select id="pdf-select" disabled><option value="">-- 読み込み中 --</option></select></label>
+
+        <div style="border-left: 1px solid #ccc; height: 20px;"></div>
         <button id="prev-btn" disabled>前のページ</button>
         <span><span id="page-num">0</span> / <span id="page-count">0</span></span>
         <button id="next-btn" disabled>次のページ</button>
-        <div style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></div>
+        <div style="border-left: 1px solid #ccc; height: 20px;"></div>
         <button id="pen-btn" class="active">ペン</button>
         <button id="eraser-btn">消しゴム</button>
         <button class="clear-btn" id="clear-current-btn">この画面の書き込みを消去</button>
@@ -145,13 +167,12 @@
 
     <div class="main-container">
         <!-- 左側：問題エリア -->
-        <div class="pane left-pane" id="left-pane">
+        <div class="pane left-pane">
             <div class="pane-header">
-                <span>【左】問題用紙（書き込み・スクロール可能）</span>
-                <span>ズーム: <button onclick="zoomPane('left', 0.1)">+</button><button onclick="zoomPane('left', -0.1)">-</button></span>
+                <span>【左】問題用紙（ホイールでズーム / ドラッグで移動）</span>
             </div>
-            <div style="flex:1; overflow:auto; position:relative;" id="left-scroll">
-                <div class="canvas-wrapper" id="left-wrapper">
+            <div class="map-viewport" id="viewport-left">
+                <div class="canvas-transform-container" id="container-left">
                     <canvas id="bg-canvas" class="bg-canvas"></canvas>
                     <canvas id="draw-canvas-left" class="draw-canvas"></canvas>
                 </div>
@@ -165,10 +186,10 @@
                 <div class="pane-header">
                     <span>【右上】答案用紙・記述欄</span>
                 </div>
-                <div style="flex:1; overflow:auto; position:relative;" id="top-scroll">
-                    <div class="canvas-wrapper" id="top-wrapper" style="width: 600px; height: 300px; background: #fffdf0;">
-                        <!-- 方眼風の背景を引くためのキャンバスまたはメモエリア -->
-                        <canvas id="draw-canvas-top" class="draw-canvas" width="600" height="300"></canvas>
+                <div class="map-viewport" id="viewport-top">
+                    <div class="canvas-transform-container" id="container-top" style="width: 1200px; height: 800px; background: #fffdf0;">
+                        <canvas id="bg-canvas-top" class="bg-canvas" width="1200" height="800" style="display:none;"></canvas>
+                        <canvas id="draw-canvas-top" class="draw-canvas" width="1200" height="800"></canvas>
                     </div>
                 </div>
             </div>
@@ -179,11 +200,11 @@
             <!-- 右下：メモ・計算用紙エリア -->
             <div class="sub-pane" id="bottom-sub-pane">
                 <div class="pane-header">
-                    <span>【右下】メモ・途中計算用紙（方眼）</span>
+                    <span>【右下】メモ・途中計算用紙（方眼風）</span>
                 </div>
-                <div style="flex:1; overflow:auto; position:relative;" id="bottom-scroll">
-                    <div class="canvas-wrapper" id="bottom-wrapper" style="width: 600px; height: 500px; background: #fdfdfd;">
-                        <canvas id="draw-canvas-bottom" class="draw-canvas" width="600" height="500"></canvas>
+                <div class="map-viewport" id="viewport-bottom">
+                    <div class="canvas-transform-container" id="container-bottom" style="width: 1600px; height: 1200px; background: #fdfdfd;">
+                        <canvas id="draw-canvas-bottom" class="draw-canvas" width="1600" height="1200"></canvas>
                     </div>
                 </div>
             </div>
@@ -193,9 +214,12 @@
     <script>
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPCX87yBaV0esrdLaWL-ImIeuXELKXcbFVKHTMBoZW4SNUz_Etn4PIrNXKH9XKDsk78Q/exec';
 
-        let imageFiles = [];
+        let allFiles = [];      // GASから取得した全ファイル一覧
+        let groupedPDFs = {};   // PDF名ごとにグループ化されたデータ
+        let currentPdfName = '';
+        let currentPages = [];  // 選択中のPDFのページ画像配列
         let currentIndex = 0;
-        let currentTool = 'pen'; // 'pen' or 'eraser'
+        let currentTool = 'pen';
 
         // ツール切り替え
         document.getElementById('pen-btn').addEventListener('click', () => {
@@ -209,26 +233,71 @@
             document.getElementById('pen-btn').classList.remove('active');
         });
 
-        // データの取得
+        // データの取得とグループ化
         const fetchImagesFromCloud = async () => {
             try {
                 const response = await fetch(GAS_URL);
                 const data = await response.json();
                 if (data && data.length > 0) {
-                    imageFiles = data;
-                    document.getElementById('status-message').textContent = '接続完了';
+                    allFiles = data;
+                    
+                    // ファイル名（例: "英語_2023_長野県_問題_2023eigo_page_01.png"）からPDF単位にグループ化する
+                    // 命名規則: [PDF名]_page_XX.png を想定してパース
+                    groupedPDFs = {};
+                    allFiles.forEach(file => {
+                        // "_page_" で分割してプレフィックスをPDF名とする
+                        const parts = file.name.split(/_page_\d+\.png/);
+                        const pdfName = parts[0] || "未分類の問題";
+                        if (!groupedPDFs[pdfName]) {
+                            groupedPDFs[pdfName] = [];
+                        }
+                        groupedPDFs[pdfName].push(file);
+                    });
+
+                    // セレクトボックスに選択肢を追加
+                    const select = document.getElementById('pdf-select');
+                    select.innerHTML = '';
+                    Object.keys(groupedPDFs).forEach(pdfName => {
+                        const opt = document.createElement('option');
+                        opt.value = pdfName;
+                        opt.textContent = pdfName;
+                        select.appendChild(opt);
+                    });
+                    select.disabled = false;
+
+                    document.getElementById('status-message').textContent = '準備完了';
                     document.getElementById('status-message').style.color = '#28a745';
-                    document.getElementById('page-count').textContent = imageFiles.length;
-                    document.getElementById('prev-btn').disabled = false;
-                    document.getElementById('next-btn').disabled = false;
-                    renderImage(0);
+
+                    // 最初のPDFをデフォルト選択
+                    const firstPdf = Object.keys(groupedPDFs)[0];
+                    loadPdfGroup(firstPdf);
                 } else {
-                    document.getElementById('status-message').textContent = '画像なし';
+                    document.getElementById('status-message').textContent = '画像がありません';
                 }
             } catch (e) {
+                console.error(e);
                 document.getElementById('status-message').textContent = '通信エラー';
             }
         };
+
+        // 特定のPDFグループをロード
+        const loadPdfGroup = (pdfName) => {
+            currentPdfName = pdfName;
+            currentPages = groupedPDFs[pdfName];
+            // ページ名順にソート
+            currentPages.sort((a, b) => a.name.localeCompare(b.name));
+            currentIndex = 0;
+            
+            document.getElementById('page-count').textContent = currentPages.length;
+            document.getElementById('prev-btn').disabled = false;
+            document.getElementById('next-btn').disabled = false;
+            
+            renderImage(currentIndex);
+        };
+
+        document.getElementById('pdf-select').addEventListener('change', (e) => {
+            loadPdfGroup(e.target.value);
+        });
 
         // 画像の描画（左側問題エリア）
         const bgCanvas = document.getElementById('bg-canvas');
@@ -237,7 +306,7 @@
         const ctxLeft = drawLeft.getContext('2d');
 
         const renderImage = (index) => {
-            if (index < 0 || index >= imageFiles.length) return;
+            if (index < 0 || index >= currentPages.length) return;
             const img = new Image();
             img.onload = () => {
                 bgCanvas.width = img.width;
@@ -245,36 +314,112 @@
                 drawLeft.width = img.width;
                 drawLeft.height = img.height;
                 
-                document.getElementById('left-wrapper').style.width = img.width + 'px';
-                document.getElementById('left-wrapper').style.height = img.height + 'px';
+                document.getElementById('container-left').style.width = img.width + 'px';
+                document.getElementById('container-left').style.height = img.height + 'px';
 
                 bgCtx.drawImage(img, 0, 0);
                 ctxLeft.clearRect(0, 0, drawLeft.width, drawLeft.height);
                 document.getElementById('page-num').textContent = index + 1;
+                
+                // ビューポート中央に初期配置するなどの調整があればここで可能
             };
-            img.src = imageFiles[index].url;
+            img.src = currentPages[index].url;
         };
 
         document.getElementById('prev-btn').addEventListener('click', () => { if(currentIndex>0) renderImage(--currentIndex); });
-        document.getElementById('next-btn').addEventListener('click', () => { if(currentIndex<imageFiles.length-1) renderImage(++currentIndex); });
+        document.getElementById('next-btn').addEventListener('click', () => { if(currentIndex<currentPages.length-1) renderImage(++currentIndex); });
 
-        // --- 共通手書き・消しゴムエンジン ---
-        const initCanvasDrawing = (canvas) => {
+        // --- Googleマップライクな操作（ズーム＆パン）エンジン ---
+        const initMapInteraction = (viewportId, containerId) => {
+            const viewport = document.getElementById(viewportId);
+            const container = document.getElementById(containerId);
+
+            let scale = 1;
+            let posX = 0;
+            let posY = 0;
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+
+            const updateTransform = () => {
+                container.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+            };
+
+            // マウスホイールでの拡大・縮小（Googleマップ風：カーソル位置基準）
+            viewport.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const zoomFactor = 1.1;
+                const rect = viewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const prevScale = scale;
+                if (e.deltaY < 0) {
+                    scale *= zoomFactor;
+                } else {
+                    scale /= zoomFactor;
+                }
+                scale = Math.max(0.2, Math.min(scale, 10)); // 制限：0.2倍〜10倍
+
+                // マウス位置を基準にズームする計算
+                posX = mouseX - (mouseX - posX) * (scale / prevScale);
+                posY = mouseY - (mouseY - posY) * (scale / prevScale);
+
+                updateTransform();
+            }, { passive: false });
+
+            // ドラッグによる画面移動（パン操作）
+            viewport.addEventListener('mousedown', (e) => {
+                // キャンバス上の描画操作と競合しないよう、中クリックまたはスペース+ドラッグ、
+                // あるいは「背景部分やビューポート直接」のドラッグでパンさせる
+                isDragging = true;
+                startX = e.clientX - posX;
+                startY = e.clientY - posY;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                posX = e.clientX - startX;
+                posY = e.clientY - startY;
+                updateTransform();
+            });
+
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        };
+
+        // 3つのペインすべてにマップ操作を適用
+        initMapInteraction('viewport-left', 'container-left');
+        initMapInteraction('viewport-top', 'container-top');
+        initMapInteraction('viewport-bottom', 'container-bottom');
+
+
+        // --- 共通手書き・消しゴムエンジン（スケーリング対応） ---
+        const initCanvasDrawing = (canvas, containerId) => {
             const ctx = canvas.getContext('2d');
+            const container = document.getElementById(containerId);
             let isDrawing = false;
             let lastX = 0, lastY = 0;
 
             const getPos = (e) => {
+                // コンテナのCSS変形（scale）を考慮した正しい座標計算
                 const rect = canvas.getBoundingClientRect();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                // canvasのピクセルサイズと現在の画面上の表示サイズの比率を計算
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+
                 return {
-                    x: (clientX - rect.left) * (canvas.width / rect.width),
-                    y: (clientY - rect.top) * (canvas.height / rect.height)
+                    x: (clientX - rect.left) * scaleX,
+                    y: (clientY - rect.top) * scaleY
                 };
             };
 
             const start = (e) => {
+                // ペンツール使用時のみ描画開始（ドラッグ移動と分けるため、必要に応じて調整）
                 isDrawing = true;
                 const pos = getPos(e);
                 lastX = pos.x;
@@ -289,10 +434,10 @@
                 ctx.save();
                 if (currentTool === 'eraser') {
                     ctx.globalCompositeOperation = 'destination-out';
-                    ctx.lineWidth = 20; // 消しゴムの太さ
+                    ctx.lineWidth = 25;
                 } else {
                     ctx.globalCompositeOperation = 'source-over';
-                    ctx.strokeStyle = '#d9534f'; // ペンの色（赤）
+                    ctx.strokeStyle = '#d9534f';
                     ctx.lineWidth = 3;
                 }
                 ctx.lineCap = 'round';
@@ -310,47 +455,46 @@
 
             const stop = () => { isDrawing = false; };
 
-            canvas.addEventListener('mousedown', start);
-            canvas.addEventListener('mousemove', draw);
+            // マウスイベントを登録（※マップ移動とペン描画の切り分けのため、Shiftキー押下中または特定の操作にすることも可能ですが、直感的な手書き優先にしています）
+            canvas.addEventListener('mousedown', (e) => {
+                start(e);
+            });
+            canvas.addEventListener('mousemove', (e) => {
+                draw(e);
+            });
             canvas.addEventListener('mouseup', stop);
             canvas.addEventListener('mouseout', stop);
-            canvas.addEventListener('touchstart', start, {passive: false});
-            canvas.addEventListener('touchmove', draw, {passive: false});
+            
+            canvas.addEventListener('touchstart', (e) => { start(e); }, {passive: false});
+            canvas.addEventListener('touchmove', (e) => { draw(e); }, {passive: false});
             canvas.addEventListener('touchend', stop);
         };
 
-        // 3つのキャンすべてに手書き・消しゴムを適用
-        initCanvasDrawing(drawLeft);
-        initCanvasDrawing(document.getElementById('draw-canvas-top'));
-        initCanvasDrawing(document.getElementById('draw-canvas-bottom'));
+        initCanvasDrawing(drawLeft, 'container-left');
+        initCanvasDrawing(document.getElementById('draw-canvas-top'), 'container-top');
+        initCanvasDrawing(document.getElementById('draw-canvas-bottom'), 'container-bottom');
 
-        // 現在のページの書き込みクリア
+        // 現在の画面の書き込みクリア
         document.getElementById('clear-current-btn').addEventListener('click', () => {
             ctxLeft.clearRect(0, 0, drawLeft.width, drawLeft.height);
         });
 
-        // --- 上下リサイズ機能の実装 ---
+        // --- 上下リサイズ機能 ---
         const splitter = document.getElementById('splitter-h');
         const topPane = document.getElementById('top-sub-pane');
         let isResizing = false;
 
-        splitter.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            document.body.style.cursor = 'row-resize';
-        });
+        splitter.addEventListener('mousedown', () => { isResizing = true; document.body.style.cursor = 'row-resize'; });
         window.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
-            const rightPaneRect = document.getElementById('right-pane').getBoundingClientRect();
-            const newTopHeight = e.clientY - rightPaneRect.top;
-            if (newTopHeight > 50 && newTopHeight < rightPaneRect.height - 50) {
+            const rightRect = document.getElementById('right-pane').getBoundingClientRect();
+            const newH = e.clientY - rightRect.top;
+            if (newH > 50 && newH < rightRect.height - 50) {
                 topPane.style.flex = 'none';
-                topPane.style.height = newTopHeight + 'px';
+                topPane.style.height = newH + 'px';
             }
         });
-        window.addEventListener('mouseup', () => {
-            isResizing = false;
-            document.body.style.cursor = 'default';
-        });
+        window.addEventListener('mouseup', () => { isResizing = false; document.body.style.cursor = 'default'; });
 
         window.onload = fetchImagesFromCloud;
     </script>
