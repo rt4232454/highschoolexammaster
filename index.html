@@ -698,22 +698,18 @@
             placeholder.textContent = '画像読込中...';
             bgImg.style.display = 'none';
 
-            // 画像オブジェクトの新規作成（キャッシュ競合・未発火を完全防止）
-            const newImg = new Image();
-            newImg.id = `${type}-bg-img`;
-
             const onImageLoaded = () => {
                 placeholder.style.display = 'none';
-                newImg.style.display = 'block';
+                bgImg.style.display = 'block';
                 
-                const nw = newImg.naturalWidth || 1200;
-                const nh = newImg.naturalHeight || 1600;
+                const nw = bgImg.naturalWidth || 1200;
+                const nh = bgImg.naturalHeight || 1600;
 
                 viewStates[type].imgW = nw;
                 viewStates[type].imgH = nh;
 
-                newImg.style.width = nw + 'px';
-                newImg.style.height = nh + 'px';
+                bgImg.style.width = nw + 'px';
+                bgImg.style.height = nh + 'px';
                 wrapper.style.width = nw + 'px';
                 wrapper.style.height = nh + 'px';
 
@@ -733,26 +729,30 @@
                 }
             };
 
-            newImg.onload = onImageLoaded;
+            bgImg.onload = onImageLoaded;
 
-            newImg.onerror = async () => {
-                try {
-                    const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
-                    const json = await res.json();
-                    if (json.status === "success") {
-                        newImg.src = json.dataUrl;
-                    } else {
-                        placeholder.innerHTML = `<span style="color:red;">画像読込エラー</span>`;
+            bgImg.onerror = () => {
+                // サムネイル読み込みエラー時は直接プレビューURLにフォールバック
+                bgImg.onerror = async () => {
+                    try {
+                        const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
+                        const json = await res.json();
+                        if (json.status === "success") {
+                            bgImg.src = json.dataUrl;
+                        } else {
+                            placeholder.innerHTML = `<span style="color:red;">画像読込エラー</span>`;
+                        }
+                    } catch (e) {
+                        placeholder.innerHTML = `<span style="color:red;">通信エラー</span>`;
                     }
-                } catch (e) {
-                    placeholder.innerHTML = `<span style="color:red;">通信エラー</span>`;
-                }
+                };
+                bgImg.src = `https://lh3.googleusercontent.com/d/${fileId}=w2000`;
             };
 
-            bgImg.parentNode.replaceChild(newImg, bgImg);
-            newImg.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
+            // 画像読み込み開始
+            bgImg.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
 
-            if (newImg.complete && newImg.naturalWidth > 0) {
+            if (bgImg.complete && bgImg.naturalWidth > 0) {
                 onImageLoaded();
             }
         } catch (err) {
