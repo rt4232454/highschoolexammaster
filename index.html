@@ -42,18 +42,26 @@
         .card-header h2 { font-size: 0.9rem; margin: 0; color: #34495e; }
 
         .view-container { flex-grow: 1; background: #444; border-radius: 4px; overflow: hidden; position: relative; user-select: none; width: 100%; height: 100%; }
+        .view-container.mode-pan { cursor: grab; }
+        .view-container.mode-pan:active { cursor: grabbing; }
+
         .transform-wrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
         .transform-wrapper img { display: block; pointer-events: none; background-color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
         
         .drawing-canvas { position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; }
+        .drawing-canvas.mode-pan { pointer-events: none; }
 
         .controls-overlay { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 4px; background: rgba(255, 255, 255, 0.9); padding: 2px 6px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.2); z-index: 20; }
         
         .toolbar { display: flex; gap: 4px; align-items: center; font-size: 0.75rem; margin-bottom: 3px; flex-wrap: wrap; flex-shrink: 0; }
         
-        button { padding: 3px 8px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        button { padding: 3px 8px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: normal; }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        
+        .btn-mode { font-weight: bold; background-color: #6c757d; }
+        .btn-mode.active { background-color: #ff9800 !important; color: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #ff9800; }
+        
         .btn-success { background-color: #28a745; }
         .btn-warning { background-color: #ffc107; color: #333; font-weight: bold; }
         .btn-danger { background-color: #dc3545; }
@@ -101,10 +109,12 @@
         <div class="card-header">
             <h2>問題用紙</h2>
             <div class="toolbar" style="margin-bottom:0;">
-                <button id="prob-pen-btn" onclick="setDrawMode('problem', true)" class="btn-icon" style="background:#007bff;">✏️ ペン</button>
-                <button id="prob-erase-btn" onclick="setDrawMode('problem', false)" class="btn-icon btn-secondary">消しゴム</button>
+                <button id="prob-draw-mode-btn" onclick="setWindowMode('problem', 'draw')" class="btn-mode btn-icon active">✍️ 書込</button>
+                <button id="prob-pan-mode-btn" onclick="setWindowMode('problem', 'pan')" class="btn-mode btn-icon">🖐️ 移動</button>
+                <button id="prob-pen-btn" onclick="setDrawTool('problem', true)" class="btn-icon" style="background:#007bff;">ペン</button>
+                <button id="prob-erase-btn" onclick="setDrawTool('problem', false)" class="btn-icon btn-secondary">消しゴム</button>
                 <button onclick="fitWidth('problem')" class="btn-secondary btn-icon">幅フィット</button>
-                <button onclick="clearCanvas('problem')" class="btn-danger btn-icon">書き込み消去</button>
+                <button onclick="clearCanvas('problem')" class="btn-danger btn-icon">消去</button>
             </div>
         </div>
         <div class="view-container" id="problem-container">
@@ -138,8 +148,10 @@
                 <button class="btn-warning btn-icon" onclick="gradeWithAI()">✨ AI自動採点</button>
             </div>
             <div class="toolbar">
-                <button id="ans-pen-btn" onclick="setDrawMode('answer', true)" class="btn-icon" style="background:#007bff;">✏️ ペン</button>
-                <button id="ans-erase-btn" onclick="setDrawMode('answer', false)" class="btn-icon btn-secondary">消しゴム</button>
+                <button id="ans-draw-mode-btn" onclick="setWindowMode('answer', 'draw')" class="btn-mode btn-icon active">✍️ 書込</button>
+                <button id="ans-pan-mode-btn" onclick="setWindowMode('answer', 'pan')" class="btn-mode btn-icon">🖐️ 移動</button>
+                <button id="ans-pen-btn" onclick="setDrawTool('answer', true)" class="btn-icon" style="background:#007bff;">ペン</button>
+                <button id="ans-erase-btn" onclick="setDrawTool('answer', false)" class="btn-icon btn-secondary">消しゴム</button>
                 <label>太さ:</label>
                 <select id="ans-width" onchange="changeLineWidth('answer', this.value)">
                     <option value="2">細</option>
@@ -147,7 +159,7 @@
                     <option value="8">太</option>
                 </select>
                 <button onclick="fitWidth('answer')" class="btn-secondary btn-icon">幅フィット</button>
-                <button onclick="clearCanvas('answer')" class="btn-danger btn-icon" style="margin-left:auto;">手書き消去</button>
+                <button onclick="clearCanvas('answer')" class="btn-danger btn-icon" style="margin-left:auto;">消去</button>
             </div>
             
             <div class="view-container" id="answer-container">
@@ -177,8 +189,10 @@
             <div class="card-header">
                 <h2>途中計算・メモ用紙</h2>
                 <div class="toolbar" style="margin-bottom:0;">
-                    <button id="memo-pen-btn" onclick="setDrawMode('memo', true)" class="btn-icon" style="background:#007bff;">✏️ ペン</button>
-                    <button id="memo-erase-btn" onclick="setDrawMode('memo', false)" class="btn-icon btn-secondary">消しゴム</button>
+                    <button id="memo-draw-mode-btn" onclick="setWindowMode('memo', 'draw')" class="btn-mode btn-icon active">✍️ 書込</button>
+                    <button id="memo-pan-mode-btn" onclick="setWindowMode('memo', 'pan')" class="btn-mode btn-icon">🖐️ 移動</button>
+                    <button id="memo-pen-btn" onclick="setDrawTool('memo', true)" class="btn-icon" style="background:#007bff;">ペン</button>
+                    <button id="memo-erase-btn" onclick="setDrawTool('memo', false)" class="btn-icon btn-secondary">消しゴム</button>
                     <button onclick="fitWidth('memo')" class="btn-secondary btn-icon">幅フィット</button>
                     <button onclick="clearCanvas('memo')" class="btn-danger btn-icon">全消去</button>
                 </div>
@@ -247,15 +261,16 @@
     let currentProbIndex = 0, currentAnsIndex = 0;
 
     const viewStates = {
-        problem: { scale: 1, x: 0, y: 0, imgW: 1000, imgH: 1400 },
-        answer: { scale: 1, x: 0, y: 0, imgW: 1000, imgH: 1400 },
-        memo: { scale: 1, x: 0, y: 0, imgW: 2000, imgH: 3000 }
+        problem: { scale: 1, x: 0, y: 0, imgW: 1000, imgH: 1400, mode: 'draw' },
+        answer: { scale: 1, x: 0, y: 0, imgW: 1000, imgH: 1400, mode: 'draw' },
+        memo: { scale: 1, x: 0, y: 0, imgW: 2000, imgH: 3000, mode: 'draw' }
     };
 
+    // ペンの色はすべて「黒（#111111）」に統一
     const boards = {
-        problem: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 3, color: '#0056b3' },
-        answer: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4, color: '#e74c3c' },
-        memo: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 3, color: '#2c3e50' }
+        problem: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 3, color: '#111111' },
+        answer: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4, color: '#111111' },
+        memo: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 3, color: '#111111' }
     };
     let timerInterval = null, secondsElapsed = 0, isTimerRunning = false;
 
@@ -277,6 +292,37 @@
     const toggleFullScreen = () => {
         if (!document.fullscreenElement) document.documentElement.requestFullscreen();
         else document.exitFullscreen();
+    };
+
+    // ===== 動作モード（書込 vs 移動）の切り替え =====
+    const setWindowMode = (type, mode) => {
+        viewStates[type].mode = mode;
+        const prefix = type === 'problem' ? 'prob' : type === 'answer' ? 'ans' : 'memo';
+        const drawBtn = document.getElementById(`${prefix}-draw-mode-btn`);
+        const panBtn = document.getElementById(`${prefix}-pan-mode-btn`);
+        const container = document.getElementById(`${type}-container`);
+        const canvas = boards[type].canvas;
+
+        if (mode === 'draw') {
+            drawBtn.classList.add('active');
+            panBtn.classList.remove('active');
+            container.classList.remove('mode-pan');
+            if (canvas) canvas.classList.remove('mode-pan');
+        } else {
+            panBtn.classList.add('active');
+            drawBtn.classList.remove('active');
+            container.classList.add('mode-pan');
+            if (canvas) canvas.classList.add('mode-pan');
+        }
+    };
+
+    // ペン・消しゴム切替
+    const setDrawTool = (target, isPen) => {
+        boards[target].isPen = isPen;
+        setWindowMode(target, 'draw'); // ペンや消しゴムを押したら自動で書込モードにする
+        const prefix = target === 'problem' ? 'prob' : target === 'answer' ? 'ans' : 'memo';
+        document.getElementById(`${prefix}-pen-btn`).style.backgroundColor = isPen ? '#007bff' : '#6c757d';
+        document.getElementById(`${prefix}-erase-btn`).style.backgroundColor = isPen ? '#6c757d' : '#007bff';
     };
 
     // ===== 境界線（スプリッター）のドラッグリサイズ機能 =====
@@ -546,7 +592,6 @@
                     cvs.style.height = nh + 'px';
                 }
                 
-                // 確実にレンダリング完了後に幅フィットを実行
                 setTimeout(() => fitWidth(type), 50);
             };
 
@@ -609,7 +654,6 @@
         }
     };
 
-    // 横幅いっぱいにフィット
     const fitWidth = (type) => {
         const container = document.getElementById(`${type}-container`);
         if (!container) return;
@@ -631,7 +675,6 @@
             }
         }
 
-        // 横幅を100%ピッタリに合わせる
         state.scale = cw / imgW;
         state.x = 0;
         state.y = 0;
@@ -658,7 +701,7 @@
         applyTransform(type);
     };
 
-    // ===== Googleマップ風マルチタッチ（ピンチ＆パン）＋ 1本指記入 =====
+    // ===== タッチ・描画・移動イベント処理 =====
     const initTouchAndDraw = (type) => {
         const container = document.getElementById(`${type}-container`);
         const state = viewStates[type];
@@ -681,44 +724,66 @@
             return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
         };
 
-        // マウス描画
-        cvs.addEventListener('mousedown', (e) => {
-            const b = boards[type];
-            b.isDrawing = true;
-            b.ctx.beginPath();
-            const pos = getCanvasPos(e.clientX, e.clientY);
-            b.ctx.moveTo(pos.x, pos.y);
+        // マウス操作（ドラッグ移動 or 描画）
+        let isMousePanning = false, startMouseX = 0, startMouseY = 0;
+
+        container.addEventListener('mousedown', (e) => {
+            if (state.mode === 'pan') {
+                isMousePanning = true;
+                startMouseX = e.clientX - state.x;
+                startMouseY = e.clientY - state.y;
+            } else {
+                const b = boards[type];
+                b.isDrawing = true;
+                b.ctx.beginPath();
+                const pos = getCanvasPos(e.clientX, e.clientY);
+                b.ctx.moveTo(pos.x, pos.y);
+            }
         });
 
         window.addEventListener('mousemove', (e) => {
-            const b = boards[type];
-            if (!b.isDrawing) return;
-            const pos = getCanvasPos(e.clientX, e.clientY);
-            b.ctx.lineTo(pos.x, pos.y);
-            b.ctx.globalCompositeOperation = b.isPen ? "source-over" : "destination-out";
-            b.ctx.strokeStyle = b.color || '#e74c3c';
-            b.ctx.lineWidth = b.isPen ? b.width : b.width * 6;
-            b.ctx.lineCap = 'round';
-            b.ctx.lineJoin = 'round';
-            b.ctx.stroke();
+            if (isMousePanning) {
+                state.x = e.clientX - startMouseX;
+                state.y = e.clientY - startMouseY;
+                applyTransform(type);
+            } else if (boards[type].isDrawing) {
+                const b = boards[type];
+                const pos = getCanvasPos(e.clientX, e.clientY);
+                b.ctx.lineTo(pos.x, pos.y);
+                b.ctx.globalCompositeOperation = b.isPen ? "source-over" : "destination-out";
+                b.ctx.strokeStyle = b.color;
+                b.ctx.lineWidth = b.isPen ? b.width : b.width * 6;
+                b.ctx.lineCap = 'round';
+                b.ctx.lineJoin = 'round';
+                b.ctx.stroke();
+            }
         });
 
-        window.addEventListener('mouseup', () => { boards[type].isDrawing = false; });
+        window.addEventListener('mouseup', () => {
+            isMousePanning = false;
+            boards[type].isDrawing = false;
+        });
 
-        // タブレット用マルチタッチ
-        let touchMode = null; // 'draw' | 'pinch'
+        // タッチ操作（1本指書込 or 1本指移動 / 2本指ピンチ移動）
+        let touchAction = null; // 'draw' | 'pan' | 'pinch'
         let initialDist = 0, startTouchX = 0, startTouchY = 0;
 
         container.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
-                touchMode = 'draw';
-                const b = boards[type];
-                b.isDrawing = true;
-                b.ctx.beginPath();
-                const pos = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
-                b.ctx.moveTo(pos.x, pos.y);
+                if (state.mode === 'draw') {
+                    touchAction = 'draw';
+                    const b = boards[type];
+                    b.isDrawing = true;
+                    b.ctx.beginPath();
+                    const pos = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+                    b.ctx.moveTo(pos.x, pos.y);
+                } else {
+                    touchAction = 'pan';
+                    startTouchX = e.touches[0].clientX - state.x;
+                    startTouchY = e.touches[0].clientY - state.y;
+                }
             } else if (e.touches.length >= 2) {
-                touchMode = 'pinch';
+                touchAction = 'pinch';
                 boards[type].isDrawing = false;
                 initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
@@ -731,18 +796,22 @@
         container.addEventListener('touchmove', (e) => {
             e.preventDefault();
 
-            if (touchMode === 'draw' && e.touches.length === 1) {
+            if (touchAction === 'draw' && e.touches.length === 1) {
                 const b = boards[type];
                 if (!b.isDrawing) return;
                 const pos = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
                 b.ctx.lineTo(pos.x, pos.y);
                 b.ctx.globalCompositeOperation = b.isPen ? "source-over" : "destination-out";
-                b.ctx.strokeStyle = b.color || '#e74c3c';
+                b.ctx.strokeStyle = b.color;
                 b.ctx.lineWidth = b.isPen ? b.width : b.width * 6;
                 b.ctx.lineCap = 'round';
                 b.ctx.lineJoin = 'round';
                 b.ctx.stroke();
-            } else if (touchMode === 'pinch' && e.touches.length >= 2) {
+            } else if (touchAction === 'pan' && e.touches.length === 1) {
+                state.x = e.touches[0].clientX - startTouchX;
+                state.y = e.touches[0].clientY - startTouchY;
+                applyTransform(type);
+            } else if (touchAction === 'pinch' && e.touches.length >= 2) {
                 const currentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
                 const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
@@ -762,26 +831,20 @@
 
         container.addEventListener('touchend', (e) => {
             if (e.touches.length === 0) {
-                touchMode = null;
+                touchAction = null;
                 boards[type].isDrawing = false;
-            } else if (e.touches.length === 1 && touchMode === 'pinch') {
-                touchMode = null;
+            } else if (e.touches.length === 1 && touchAction === 'pinch') {
+                touchAction = null;
             }
         });
     };
 
-    // ===== 描画ツール設定 =====
+    // ===== 描画クリア・太さ設定 =====
     const clearCanvas = (target) => {
         const b = boards[target];
         if (b && b.ctx && b.canvas) {
             b.ctx.clearRect(0, 0, b.canvas.width, b.canvas.height);
         }
-    };
-
-    const setDrawMode = (target, isPen) => {
-        boards[target].isPen = isPen;
-        document.getElementById(`${target === 'problem' ? 'prob' : target === 'answer' ? 'ans' : 'memo'}-pen-btn`).style.backgroundColor = isPen ? '#007bff' : '#6c757d';
-        document.getElementById(`${target === 'problem' ? 'prob' : target === 'answer' ? 'ans' : 'memo'}-erase-btn`).style.backgroundColor = isPen ? '#6c757d' : '#007bff';
     };
 
     const changeLineWidth = (target, val) => {
@@ -868,7 +931,6 @@
         try {
             let base64Raw = "";
 
-            // CanvasからBase64抽出（CORS制限時はGAS経由で再取得）
             try {
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = bgImg.naturalWidth || drawCanvas.width;
