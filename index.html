@@ -21,13 +21,24 @@
 
         #status-message { font-size: 0.8rem; font-weight: bold; color: #007bff; }
 
-        .workspace { display: flex; gap: 6px; flex-grow: 1; overflow: hidden; height: calc(100vh - 55px); }
-        .pane-left { flex: 1.2; display: flex; flex-direction: column; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 6px; }
-        .pane-right { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-        .pane-right-top { flex: 1.3; display: flex; flex-direction: column; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 6px; position: relative; }
-        .pane-right-bottom { flex: 0.7; display: flex; flex-direction: column; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 6px; position: relative; }
+        /* ワークスペースとスプリッター */
+        .workspace { display: flex; flex-grow: 1; overflow: hidden; height: calc(100vh - 55px); position: relative; width: 100%; }
         
-        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #eaeaea; padding-bottom: 3px; margin-bottom: 3px; }
+        .pane-left { width: 50%; min-width: 200px; display: flex; flex-direction: column; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 6px; }
+        .pane-right { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+        
+        .splitter-h { width: 8px; cursor: col-resize; background-color: transparent; position: relative; flex-shrink: 0; }
+        .splitter-h::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: #ccd1d9; border-radius: 1px; }
+        .splitter-h:hover::after, .splitter-h.active::after { background: #007bff; width: 4px; left: 2px; }
+
+        .pane-right-top { height: 60%; min-height: 100px; display: flex; flex-direction: column; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 6px; position: relative; }
+        .pane-right-bottom { flex: 1; min-height: 100px; display: flex; flex-direction: column; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 6px; position: relative; }
+        
+        .splitter-v { height: 8px; cursor: row-resize; background-color: transparent; position: relative; flex-shrink: 0; }
+        .splitter-v::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 2px; background: #ccd1d9; border-radius: 1px; }
+        .splitter-v:hover::after, .splitter-v.active::after { background: #007bff; height: 4px; top: 2px; }
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #eaeaea; padding-bottom: 3px; margin-bottom: 3px; flex-shrink: 0; }
         .card-header h2 { font-size: 0.9rem; margin: 0; color: #34495e; }
 
         .view-container { flex-grow: 1; background: #555; border-radius: 4px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; user-select: none; }
@@ -38,20 +49,18 @@
 
         .controls-overlay { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 4px; background: rgba(255, 255, 255, 0.9); padding: 2px 6px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.2); z-index: 20; }
         
-        .toolbar { display: flex; gap: 4px; align-items: center; font-size: 0.75rem; margin-bottom: 3px; flex-wrap: wrap; }
+        .toolbar { display: flex; gap: 4px; align-items: center; font-size: 0.75rem; margin-bottom: 3px; flex-wrap: wrap; flex-shrink: 0; }
         
         button { padding: 3px 8px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
-        .btn-mode { font-weight: bold; }
-        .btn-mode.active { background-color: #ff9800 !important; color: #fff; }
         .btn-success { background-color: #28a745; }
         .btn-warning { background-color: #ffc107; color: #333; font-weight: bold; }
         .btn-danger { background-color: #dc3545; }
         .btn-secondary { background-color: #6c757d; }
         .btn-icon { padding: 2px 6px; font-size: 0.75rem; }
         
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 3px; font-size: 0.8rem; font-weight: bold; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 3px; font-size: 0.8rem; font-weight: bold; flex-shrink: 0; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; padding: 16px; border-radius: 8px; width: 90%; max-width: 450px; display: flex; flex-direction: column; gap: 10px; }
@@ -86,20 +95,23 @@
     </div>
 </div>
 
-<div class="workspace">
+<div class="workspace" id="workspace">
     <!-- 問題用紙 -->
-    <div class="pane-left">
+    <div class="pane-left" id="pane-left">
         <div class="card-header">
             <h2>問題用紙</h2>
-            <div>
+            <div class="toolbar" style="margin-bottom:0;">
+                <button id="prob-pen-btn" onclick="setDrawMode('problem', true)" class="btn-icon" style="background:#007bff;">✏️ ペン</button>
+                <button id="prob-erase-btn" onclick="setDrawMode('problem', false)" class="btn-icon btn-secondary">消しゴム</button>
                 <button onclick="fitWidth('problem')" class="btn-secondary btn-icon">幅フィット</button>
-                <button onclick="clearCacheAndReload()" class="btn-secondary btn-icon">再読込</button>
+                <button onclick="clearCanvas('problem')" class="btn-danger btn-icon">書き込み消去</button>
             </div>
         </div>
         <div class="view-container" id="problem-container">
             <div class="transform-wrapper" id="problem-wrapper">
                 <p id="problem-placeholder" style="color: #ccc; padding:20px;">条件を選択してください</p>
                 <img id="problem-bg-img" style="display:none;" crossorigin="anonymous">
+                <canvas id="problem-canvas" class="drawing-canvas"></canvas>
             </div>
             <div class="controls-overlay">
                 <button class="btn-icon" onclick="zoomCenter('problem', 0.2)">＋</button>
@@ -114,10 +126,13 @@
         </div>
     </div>
 
+    <!-- 左右の分割境界線 -->
+    <div class="splitter-h" id="splitter-h"></div>
+
     <!-- 右側：解答用紙 ＆ メモ -->
-    <div class="pane-right">
+    <div class="pane-right" id="pane-right">
         <!-- 解答用紙 -->
-        <div class="pane-right-top">
+        <div class="pane-right-top" id="pane-right-top">
             <div class="card-header">
                 <h2>解答用紙 (答案)</h2>
                 <button class="btn-warning btn-icon" onclick="gradeWithAI()">✨ AI自動採点</button>
@@ -154,8 +169,11 @@
             </div>
         </div>
 
+        <!-- 上下の分割境界線 -->
+        <div class="splitter-v" id="splitter-v"></div>
+
         <!-- メモ・計算用紙 -->
-        <div class="pane-right-bottom">
+        <div class="pane-right-bottom" id="pane-right-bottom">
             <div class="card-header">
                 <h2>途中計算・メモ用紙</h2>
                 <div class="toolbar" style="margin-bottom:0;">
@@ -167,7 +185,7 @@
             </div>
             <div class="view-container" id="memo-container" style="background:#fff;">
                 <div class="transform-wrapper" id="memo-wrapper">
-                    <canvas id="memo-canvas" class="drawing-canvas" width="2400" height="3000" style="background:#ffffff;"></canvas>
+                    <canvas id="memo-canvas" class="drawing-canvas" width="2000" height="3000" style="background:#ffffff;"></canvas>
                 </div>
                 <div class="controls-overlay">
                     <button class="btn-icon" onclick="zoomCenter('memo', 0.2)">＋</button>
@@ -228,20 +246,21 @@
     let currentPref = "", currentSubject = "", currentYear = "";
     let currentProbIndex = 0, currentAnsIndex = 0;
 
-    // ビュー状態管理（ズーム・スクロール・サイズ）
     const viewStates = {
         problem: { scale: 1, x: 0, y: 0, imgW: 1000, imgH: 1400 },
         answer: { scale: 1, x: 0, y: 0, imgW: 1000, imgH: 1400 },
-        memo: { scale: 1, x: 0, y: 0, imgW: 2400, imgH: 3000 }
+        memo: { scale: 1, x: 0, y: 0, imgW: 2000, imgH: 3000 }
     };
 
     const boards = {
-        answer: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4 },
-        memo: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4 }
+        problem: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 3, color: '#0056b3' },
+        answer: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4, color: '#e74c3c' },
+        memo: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 3, color: '#2c3e50' }
     };
     let timerInterval = null, secondsElapsed = 0, isTimerRunning = false;
 
     window.onload = () => {
+        initSplitters();
         initTouchAndDraw('problem');
         initTouchAndDraw('answer');
         initTouchAndDraw('memo');
@@ -254,6 +273,60 @@
         else document.exitFullscreen();
     };
 
+    // ===== 境界線（スプリッター）のドラッグリサイズ機能 =====
+    const initSplitters = () => {
+        const splitH = document.getElementById('splitter-h');
+        const paneLeft = document.getElementById('pane-left');
+        const workspace = document.getElementById('workspace');
+
+        let isDraggingH = false;
+        splitH.addEventListener('mousedown', () => { isDraggingH = true; splitH.classList.add('active'); });
+        splitH.addEventListener('touchstart', () => { isDraggingH = true; splitH.classList.add('active'); }, { passive: true });
+
+        const splitV = document.getElementById('splitter-v');
+        const paneRightTop = document.getElementById('pane-right-top');
+        const paneRight = document.getElementById('pane-right');
+
+        let isDraggingV = false;
+        splitV.addEventListener('mousedown', () => { isDraggingV = true; splitV.classList.add('active'); });
+        splitV.addEventListener('touchstart', () => { isDraggingV = true; splitV.classList.add('active'); }, { passive: true });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDraggingH) {
+                const rect = workspace.getBoundingClientRect();
+                const newWidth = Math.max(150, Math.min(rect.width - 150, e.clientX - rect.left));
+                paneLeft.style.width = `${newWidth}px`;
+            }
+            if (isDraggingV) {
+                const rect = paneRight.getBoundingClientRect();
+                const newHeight = Math.max(80, Math.min(rect.height - 80, e.clientY - rect.top));
+                paneRightTop.style.height = `${newHeight}px`;
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length !== 1) return;
+            if (isDraggingH) {
+                const rect = workspace.getBoundingClientRect();
+                const newWidth = Math.max(150, Math.min(rect.width - 150, e.touches[0].clientX - rect.left));
+                paneLeft.style.width = `${newWidth}px`;
+            }
+            if (isDraggingV) {
+                const rect = paneRight.getBoundingClientRect();
+                const newHeight = Math.max(80, Math.min(rect.height - 80, e.touches[0].clientY - rect.top));
+                paneRightTop.style.height = `${newHeight}px`;
+            }
+        }, { passive: true });
+
+        const stopDrag = () => {
+            if (isDraggingH) { isDraggingH = false; splitH.classList.remove('active'); }
+            if (isDraggingV) { isDraggingV = false; splitV.classList.remove('active'); }
+        };
+        window.addEventListener('mouseup', stopDrag);
+        window.addEventListener('touchend', stopDrag);
+    };
+
+    // ===== データ読み込み・分類 =====
     const fetchImagesFromCloud = async () => {
         try {
             document.getElementById('status-message').textContent = 'データ読込中...';
@@ -280,7 +353,6 @@
         location.reload();
     };
 
-    // ファイル分類ロジック（ブランク解答用紙の優先抽出）
     const processLoadedFiles = (files) => {
         structuredData = {};
         let validFileCount = 0;
@@ -309,21 +381,17 @@
 
             const item = { name: fileName, fileId: fileId };
 
-            // 解答用紙（ブランク）の判定
-            // 正答・模範解答・解説などの文字が含まれるものは除外し、純粋な解答用紙を抽出
             const isAnswerSheet = (fileName.includes('解答用紙') || fileName.includes('答案用紙') || fileName.toLowerCase().includes('ans_sheet')) 
                                   && !fileName.includes('模範') && !fileName.includes('正答') && !fileName.includes('解説');
 
             if (isAnswerSheet) {
                 structuredData[pref][subject][year].ansPages.push(item);
             } else if (!fileName.includes('模範解答') && !fileName.includes('正答')) {
-                // 問題用紙
                 structuredData[pref][subject][year].pages.push(item);
             }
             validFileCount++;
         });
 
-        // ソート
         Object.keys(structuredData).forEach(p => {
             Object.keys(structuredData[p]).forEach(s => {
                 Object.keys(structuredData[p][s]).forEach(y => {
@@ -443,8 +511,8 @@
                 viewStates[type].imgW = bgImg.naturalWidth;
                 viewStates[type].imgH = bgImg.naturalHeight;
 
-                if (isAnswer) {
-                    const cvs = boards.answer.canvas;
+                const cvs = boards[type].canvas;
+                if (cvs) {
                     cvs.width = bgImg.naturalWidth;
                     cvs.height = bgImg.naturalHeight;
                     cvs.style.width = bgImg.naturalWidth + 'px';
@@ -489,6 +557,7 @@
         const data = structuredData[currentPref][currentSubject][currentYear];
         if (type === 'problem') {
             currentProbIndex += direction;
+            clearCanvas('problem');
             renderImage('problem', data.pages, currentProbIndex);
         } else {
             currentAnsIndex += direction;
@@ -504,7 +573,6 @@
         wrapper.style.transform = `translate3d(${state.x}px, ${state.y}px, 0) scale(${state.scale})`;
     };
 
-    // 初期表示：横幅いっぱいにフィット
     const fitWidth = (type) => {
         const container = document.getElementById(`${type}-container`);
         const state = viewStates[type];
@@ -515,7 +583,7 @@
 
         state.scale = scale;
         state.x = 4;
-        state.y = 4; // 上部揃えで自然に読めるように配置
+        state.y = 4;
         applyTransform(type);
     };
 
@@ -541,14 +609,10 @@
     const initTouchAndDraw = (type) => {
         const container = document.getElementById(`${type}-container`);
         const state = viewStates[type];
-        const hasCanvas = (type === 'answer' || type === 'memo');
-
-        let cvs = null;
-        if (hasCanvas) {
-            cvs = document.getElementById(`${type}-canvas`);
-            boards[type].canvas = cvs;
-            boards[type].ctx = cvs.getContext('2d');
-        }
+        const cvs = document.getElementById(`${type}-canvas`);
+        
+        boards[type].canvas = cvs;
+        boards[type].ctx = cvs.getContext('2d');
 
         // マウスホイールズーム
         container.addEventListener('wheel', (e) => {
@@ -558,78 +622,51 @@
             applyZoom(type, zoomDelta, e.clientX - rect.left, e.clientY - rect.top);
         }, { passive: false });
 
-        // マウスドラッグ操作（問題用紙のみ）
-        let isMouseDown = false, startMouseX = 0, startMouseY = 0;
-        if (!hasCanvas) {
-            container.addEventListener('mousedown', (e) => {
-                isMouseDown = true;
-                startMouseX = e.clientX - state.x;
-                startMouseY = e.clientY - state.y;
-            });
-            window.addEventListener('mousemove', (e) => {
-                if (!isMouseDown) return;
-                state.x = e.clientX - startMouseX;
-                state.y = e.clientY - startMouseY;
-                applyTransform(type);
-            });
-            window.addEventListener('mouseup', () => { isMouseDown = false; });
-        }
+        const getCanvasPos = (clientX, clientY) => {
+            const rect = cvs.getBoundingClientRect();
+            const scale = cvs.width / rect.width;
+            return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
+        };
 
-        // マウス描画（キャンバス）
-        if (hasCanvas) {
-            const getCanvasPos = (clientX, clientY) => {
-                const rect = cvs.getBoundingClientRect();
-                const scale = cvs.width / rect.width;
-                return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
-            };
+        // マウス描画
+        cvs.addEventListener('mousedown', (e) => {
+            const b = boards[type];
+            b.isDrawing = true;
+            b.ctx.beginPath();
+            const pos = getCanvasPos(e.clientX, e.clientY);
+            b.ctx.moveTo(pos.x, pos.y);
+        });
 
-            cvs.addEventListener('mousedown', (e) => {
-                const b = boards[type];
-                b.isDrawing = true;
-                b.ctx.beginPath();
-                const pos = getCanvasPos(e.clientX, e.clientY);
-                b.ctx.moveTo(pos.x, pos.y);
-            });
+        window.addEventListener('mousemove', (e) => {
+            const b = boards[type];
+            if (!b.isDrawing) return;
+            const pos = getCanvasPos(e.clientX, e.clientY);
+            b.ctx.lineTo(pos.x, pos.y);
+            b.ctx.globalCompositeOperation = b.isPen ? "source-over" : "destination-out";
+            b.ctx.strokeStyle = b.color || '#e74c3c';
+            b.ctx.lineWidth = b.isPen ? b.width : b.width * 6;
+            b.ctx.lineCap = 'round';
+            b.ctx.lineJoin = 'round';
+            b.ctx.stroke();
+        });
 
-            window.addEventListener('mousemove', (e) => {
-                const b = boards[type];
-                if (!b.isDrawing) return;
-                const pos = getCanvasPos(e.clientX, e.clientY);
-                b.ctx.lineTo(pos.x, pos.y);
-                b.ctx.globalCompositeOperation = b.isPen ? "source-over" : "destination-out";
-                b.ctx.strokeStyle = '#e74c3c';
-                b.ctx.lineWidth = b.isPen ? b.width : b.width * 6;
-                b.ctx.lineCap = 'round';
-                b.ctx.lineJoin = 'round';
-                b.ctx.stroke();
-            });
+        window.addEventListener('mouseup', () => { boards[type].isDrawing = false; });
 
-            window.addEventListener('mouseup', () => { boards[type].isDrawing = false; });
-        }
-
-        // ===== タブレット用マルチタッチ処理 =====
+        // タブレット用マルチタッチ
         let touchMode = null; // 'draw' | 'pinch'
         let initialDist = 0, startTouchX = 0, startTouchY = 0;
 
         container.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1 && hasCanvas) {
-                // 1本指：手書き描画
+            if (e.touches.length === 1) {
                 touchMode = 'draw';
                 const b = boards[type];
                 b.isDrawing = true;
                 b.ctx.beginPath();
-                const rect = cvs.getBoundingClientRect();
-                const scale = cvs.width / rect.width;
-                b.ctx.moveTo((e.touches[0].clientX - rect.left) * scale, (e.touches[0].clientY - rect.top) * scale);
-            } else if (e.touches.length === 1 && !hasCanvas) {
-                // 1本指（問題用紙）：パン移動
-                touchMode = 'pan';
-                startTouchX = e.touches[0].clientX - state.x;
-                startTouchY = e.touches[0].clientY - state.y;
+                const pos = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+                b.ctx.moveTo(pos.x, pos.y);
             } else if (e.touches.length >= 2) {
-                // 2本指：Googleマップ風 ピンチズーム＆移動
                 touchMode = 'pinch';
-                if (hasCanvas) boards[type].isDrawing = false; // 描画をキャンセル
+                boards[type].isDrawing = false;
                 initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
                 const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
@@ -641,36 +678,29 @@
         container.addEventListener('touchmove', (e) => {
             e.preventDefault();
 
-            if (touchMode === 'draw' && e.touches.length === 1 && hasCanvas) {
+            if (touchMode === 'draw' && e.touches.length === 1) {
                 const b = boards[type];
                 if (!b.isDrawing) return;
-                const rect = cvs.getBoundingClientRect();
-                const scale = cvs.width / rect.width;
-                b.ctx.lineTo((e.touches[0].clientX - rect.left) * scale, (e.touches[0].clientY - rect.top) * scale);
+                const pos = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+                b.ctx.lineTo(pos.x, pos.y);
                 b.ctx.globalCompositeOperation = b.isPen ? "source-over" : "destination-out";
-                b.ctx.strokeStyle = '#e74c3c';
+                b.ctx.strokeStyle = b.color || '#e74c3c';
                 b.ctx.lineWidth = b.isPen ? b.width : b.width * 6;
                 b.ctx.lineCap = 'round';
                 b.ctx.lineJoin = 'round';
                 b.ctx.stroke();
-            } else if (touchMode === 'pan' && e.touches.length === 1 && !hasCanvas) {
-                state.x = e.touches[0].clientX - startTouchX;
-                state.y = e.touches[0].clientY - startTouchY;
-                applyTransform(type);
             } else if (touchMode === 'pinch' && e.touches.length >= 2) {
                 const currentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
                 const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
                 const rect = container.getBoundingClientRect();
 
-                // 拡大率の更新
                 const zoomFactor = (currentDist / initialDist) - 1;
                 if (Math.abs(zoomFactor) > 0.01) {
                     applyZoom(type, zoomFactor * 0.4, midX - rect.left, midY - rect.top);
                     initialDist = currentDist;
                 }
 
-                // 中心位置のパン移動
                 state.x = midX - startTouchX;
                 state.y = midY - startTouchY;
                 applyTransform(type);
@@ -680,7 +710,7 @@
         container.addEventListener('touchend', (e) => {
             if (e.touches.length === 0) {
                 touchMode = null;
-                if (hasCanvas) boards[type].isDrawing = false;
+                boards[type].isDrawing = false;
             } else if (e.touches.length === 1 && touchMode === 'pinch') {
                 touchMode = null;
             }
@@ -695,8 +725,8 @@
 
     const setDrawMode = (target, isPen) => {
         boards[target].isPen = isPen;
-        document.getElementById(`${target}-pen-btn`).style.backgroundColor = isPen ? '#007bff' : '#6c757d';
-        document.getElementById(`${target}-erase-btn`).style.backgroundColor = isPen ? '#6c757d' : '#007bff';
+        document.getElementById(`${target === 'problem' ? 'prob' : target === 'answer' ? 'ans' : 'memo'}-pen-btn`).style.backgroundColor = isPen ? '#007bff' : '#6c757d';
+        document.getElementById(`${target === 'problem' ? 'prob' : target === 'answer' ? 'ans' : 'memo'}-erase-btn`).style.backgroundColor = isPen ? '#6c757d' : '#007bff';
     };
 
     const changeLineWidth = (target, val) => {
