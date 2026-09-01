@@ -9,19 +9,16 @@
         body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 10px; background-color: #f4f6f9; color: #333; height: 100vh; display: flex; flex-direction: column; }
         h1 { font-size: 1.2rem; margin: 0 0 10px 0; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; }
         
-        /* トップコントロールバー */
         .top-bar { background: #fff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 10px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
         .selector-group { display: flex; flex-direction: column; gap: 4px; }
         label { font-size: 0.8rem; font-weight: bold; color: #555; }
         select, input[type="text"] { padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 100px; }
         
-        /* タイマー */
         .timer-panel { display: flex; align-items: center; gap: 10px; background: #eef2f7; padding: 4px 10px; border-radius: 6px; margin-left: auto; }
         .timer-display { font-family: monospace; font-size: 1.2rem; font-weight: bold; color: #2c3e50; min-width: 60px; }
 
         #status-message { font-size: 0.85rem; font-weight: bold; color: #007bff; }
 
-        /* ワークスペース（左右分割レイアウト） */
         .workspace { display: flex; gap: 10px; flex-grow: 1; overflow: hidden; }
         .pane-left { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 10px; }
         .pane-right { flex: 1; display: flex; flex-direction: column; gap: 10px; }
@@ -30,17 +27,14 @@
         .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eaeaea; padding-bottom: 4px; margin-bottom: 8px; }
         .card-header h2 { font-size: 1rem; margin: 0; color: #34495e; }
 
-        /* 画像＆キャンバスコンテナ */
         .view-container { flex-grow: 1; background: #fafafa; border: 1px dashed #ddd; border-radius: 4px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; }
         .transform-wrapper { position: absolute; transform-origin: center center; transition: transform 0.05s ease-out; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
         .transform-wrapper img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
         .drawing-canvas { position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; touch-action: none; }
         .controls-overlay { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; background: rgba(255, 255, 255, 0.9); padding: 4px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 20; }
         
-        /* ツールバー */
         .toolbar { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; margin-bottom: 5px; }
         
-        /* ボタン類 */
         button { padding: 4px 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
@@ -52,7 +46,6 @@
         
         .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 8px; }
 
-        /* モーダル */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 450px; display: flex; flex-direction: column; gap: 12px; }
         .modal-content select, .modal-content input { padding: 8px; width: 100%; }
@@ -140,7 +133,7 @@
                 
                 <div class="view-container" id="answer-container" onwheel="handleZoom(event, 'answer')">
                     <div class="transform-wrapper" id="answer-wrapper">
-                        <img id="answer-bg-img" style="display:none;">
+                        <img id="answer-bg-img" style="display:none;" crossorigin="anonymous">
                         <canvas id="answer-canvas" class="drawing-canvas"></canvas>
                         <p id="answer-placeholder" style="color: #888;">条件を選択してください</p>
                     </div>
@@ -226,7 +219,6 @@
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwPKqU_Tg0Jv9k51pLyue3R7aOSWZ1IXRxXWhZ-7JbKlhLrIbajlzjq5EbfVNt5rarmGw/exec";
 
-    // 状態管理
     let allFiles = [];
     let structuredData = {};
     let currentPref = "", currentSubject = "", currentYear = "";
@@ -249,7 +241,6 @@
         else document.exitFullscreen();
     };
 
-    // データ取得
     const fetchImagesFromCloud = async () => {
         try {
             document.getElementById('status-message').textContent = 'データ読込中...';
@@ -269,7 +260,7 @@
                 document.getElementById('status-message').textContent = '準備完了';
             }
         } catch (e) {
-            document.getElementById('status-message').textContent = '通信エラー';
+            document.getElementById('status-message').textContent = 'GAS接続エラー(権限を確認してください)';
         }
     };
 
@@ -353,6 +344,7 @@
         renderImage('answer', data.ansPages, currentAnsIndex);
     };
 
+    // 高速・直接画像読み込み（フォールバック付き）
     const renderImage = async (type, pageList, index) => {
         const isAnswer = type === 'answer';
         const wrapper = document.getElementById(`${type}-wrapper`);
@@ -376,35 +368,58 @@
         info.textContent = `${index + 1} / ${pageList.length}`;
         prevBtn.disabled = (index === 0); nextBtn.disabled = (index === pageList.length - 1);
 
-        try {
-            let fileId = file.url;
-            if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
-            else if (fileId.includes('/d/')) fileId = fileId.split('/d/')[1].split('/')[0];
-            
-            const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
-            const json = await res.json();
-            
-            if (json.status === "success") {
-                if (isAnswer) {
-                    const bgImg = document.getElementById('answer-bg-img');
-                    bgImg.onload = () => {
-                        document.getElementById('answer-placeholder').style.display = 'none';
-                        bgImg.style.display = 'block';
-                        const cvs = boards.answer.canvas;
-                        cvs.width = bgImg.naturalWidth; cvs.height = bgImg.naturalHeight;
-                        cvs.style.width = bgImg.width + 'px'; cvs.style.height = bgImg.height + 'px';
-                    };
-                    bgImg.src = json.dataUrl;
-                } else {
-                    wrapper.innerHTML = '';
-                    const apiImg = document.createElement('img');
-                    apiImg.src = json.dataUrl;
-                    wrapper.appendChild(apiImg);
+        let fileId = file.url;
+        if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
+        else if (fileId.includes('/d/')) fileId = fileId.split('/d/')[1].split('/')[0];
+
+        // 高速サムネイル直リンクで即時表示
+        const directUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+
+        if (isAnswer) {
+            const bgImg = document.getElementById('answer-bg-img');
+            bgImg.onload = () => {
+                document.getElementById('answer-placeholder').style.display = 'none';
+                bgImg.style.display = 'block';
+                const cvs = boards.answer.canvas;
+                cvs.width = bgImg.naturalWidth; cvs.height = bgImg.naturalHeight;
+                cvs.style.width = bgImg.width + 'px'; cvs.style.height = bgImg.height + 'px';
+            };
+            bgImg.onerror = async () => {
+                // 直リンク失敗時はGAS経由で取得
+                try {
+                    const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
+                    const json = await res.json();
+                    if(json.status === "success") bgImg.src = json.dataUrl;
+                    else document.getElementById('answer-placeholder').innerHTML = `<span style="color:red;">画像権限エラー<br>Googleドライブのフォルダ共有を「リンクを知っている全員」にしてください</span>`;
+                } catch(e) {
+                    document.getElementById('answer-placeholder').innerHTML = `<span style="color:red;">GAS通信エラー</span>`;
                 }
-            }
-        } catch(err) {
-            if(isAnswer) document.getElementById('answer-placeholder').textContent = 'エラー';
-            else wrapper.innerHTML = '<p style="color:#dc3545;">エラー</p>';
+            };
+            bgImg.src = directUrl;
+        } else {
+            wrapper.innerHTML = '';
+            const img = document.createElement('img');
+            img.onload = () => {
+                wrapper.innerHTML = '';
+                wrapper.appendChild(img);
+            };
+            img.onerror = async () => {
+                try {
+                    const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
+                    const json = await res.json();
+                    if(json.status === "success") {
+                        wrapper.innerHTML = '';
+                        const apiImg = document.createElement('img');
+                        apiImg.src = json.dataUrl;
+                        wrapper.appendChild(apiImg);
+                    } else {
+                        wrapper.innerHTML = `<p style="color:red; padding:10px;">画像権限エラー<br>Googleドライブのフォルダ共有を「リンクを知っている全員」にしてください</p>`;
+                    }
+                } catch(e) {
+                    wrapper.innerHTML = `<p style="color:red; padding:10px;">GAS通信エラー</p>`;
+                }
+            };
+            img.src = directUrl;
         }
     };
 
@@ -420,7 +435,6 @@
         }
     };
 
-    // キャンバス
     const initCanvas = (target) => {
         const cvs = document.getElementById(`${target}-canvas`);
         boards[target].canvas = cvs;
@@ -465,13 +479,11 @@
     };
     const changeLineWidth = (target, val) => { boards[target].width = parseInt(val); };
 
-    // ズーム
     const zoomImage = (type, delta) => { viewStates[type].scale = Math.max(0.5, Math.min(4, viewStates[type].scale + delta)); applyTransform(type); };
     const handleZoom = (event, type) => { if(event.ctrlKey) { event.preventDefault(); zoomImage(type, event.deltaY < 0 ? 0.15 : -0.15); } };
     const resetImage = (type) => { viewStates[type] = { scale: 1, x: 0, y: 0 }; applyTransform(type); };
     const applyTransform = (type) => { document.getElementById(`${type}-wrapper`).style.transform = `scale(${viewStates[type].scale})`; };
 
-    // タイマー
     const toggleTimer = () => {
         const btn = document.getElementById('timer-start-btn');
         if (isTimerRunning) { clearInterval(timerInterval); isTimerRunning = false; btn.textContent = '再開'; btn.style.backgroundColor = '#007bff'; }
@@ -480,7 +492,6 @@
     const resetTimer = () => { clearInterval(timerInterval); isTimerRunning = false; secondsElapsed = 0; updateTimerDisplay(); document.getElementById('timer-start-btn').textContent = '開始'; document.getElementById('timer-start-btn').style.backgroundColor = '#007bff'; };
     const updateTimerDisplay = () => { document.getElementById('timer-display').textContent = `${String(Math.floor(secondsElapsed / 60)).padStart(2, '0')}:${String(secondsElapsed % 60).padStart(2, '0')}`; };
 
-    // ログ送信
     const openLogModal = () => {
         if (isTimerRunning) toggleTimer();
         document.getElementById('modal-time-display').textContent = `${String(Math.floor(secondsElapsed / 60)).padStart(2, '0')}分 ${String(secondsElapsed % 60).padStart(2, '0')}秒`;
@@ -500,7 +511,6 @@
         } catch (e) { alert('送信失敗'); }
     };
 
-    // AI採点モーダル制御
     const openAiModal = () => {
         document.getElementById('ai-modal').style.display = 'flex';
         document.getElementById('ai-loading').style.display = 'block';
@@ -509,7 +519,6 @@
     };
     const closeAiModal = () => { document.getElementById('ai-modal').style.display = 'none'; };
 
-    // GAS経由でのGemini自動採点
     const gradeWithAI = async () => {
         const bgImg = document.getElementById('answer-bg-img');
         const drawCanvas = boards.answer.canvas;
