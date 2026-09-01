@@ -1,1353 +1,220 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>高校受験 AI学習システム</title>
-  
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>過去問リプレイ＆カイゼン学習システム（クラウド連携版）</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .controls {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            z-index: 10;
+        }
+        button {
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .clear-btn { background-color: #dc3545; }
+        .clear-btn:hover { background-color: #c82333; }
+        
+        #status-message {
+            font-weight: bold;
+            color: #d9534f;
+            margin-right: 15px;
+        }
 
-  <style>
-    :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #1e293b;
-      --border: #e2e8f0;
-      --timer-green: #10b981;
-      --timer-yellow: #f59e0b;
-      --timer-red: #ef4444;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-    }
-
-    header {
-      background-color: var(--card-bg);
-      border-bottom: 1px solid var(--border);
-      padding: 6px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-shrink: 0;
-      height: 54px;
-      position: relative;
-    }
-    header h1 { font-size: 1.05rem; font-weight: 700; color: #0f172a; }
-
-    .header-center-timer {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .timer-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
-      border-radius: 9999px;
-      font-size: 0.95rem;
-      font-weight: 700;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      background: #ecfdf5;
-      color: #065f46;
-      border: 1px solid #a7f3d0;
-      transition: all 0.3s;
-    }
-    .timer-badge.warning {
-      background: #fffbeb;
-      color: #92400e;
-      border-color: #fde68a;
-    }
-    .timer-badge.danger {
-      background: #fef2f2;
-      color: #991b1b;
-      border-color: #fecaca;
-      animation: pulse 1s infinite;
-    }
-    .timer-badge.overtime {
-      background: #f1f5f9;
-      color: #475569;
-      border-color: #cbd5e1;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-
-    .timer-progress-track {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 3px;
-      background: #e2e8f0;
-    }
-    .timer-progress-fill {
-      height: 100%;
-      width: 100%;
-      background: var(--timer-green);
-      transition: width 1s linear, background-color 0.5s;
-    }
-
-    .header-right-tools {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .user-pill {
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: var(--primary);
-      padding: 4px 12px;
-      border-radius: 9999px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .btn-stock {
-      background: #fdf4ff;
-      border: 1px solid #f0abfc;
-      color: #a21caf;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .btn-stock:hover { background: #fae8ff; }
-
-    .main-container {
-      display: grid;
-      grid-template-columns: 1fr 1.15fr;
-      flex: 1;
-      gap: 12px;
-      padding: 12px;
-      overflow: hidden;
-      height: calc(100vh - 54px);
-    }
-
-    .card-pane {
-      background: var(--card-bg);
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      overflow: hidden;
-    }
-
-    .card-header {
-      padding: 8px 14px;
-      background: #f1f5f9;
-      border-bottom: 1px solid var(--border);
-      font-weight: 600;
-      font-size: 0.9rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-shrink: 0;
-      gap: 8px;
-    }
-
-    .problem-scroll-body {
-      padding: 16px;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      flex: 1;
-    }
-
-    .origin-badge {
-      display: inline-block;
-      background: #e0e7ff;
-      color: #3730a3;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-    .dialogue-box {
-      background: #f8fafc;
-      border-left: 4px solid var(--primary);
-      padding: 12px;
-      border-radius: 4px;
-      font-size: 0.95rem;
-      line-height: 1.8;
-      margin-bottom: 16px;
-    }
-
-    /* ★ 図形エリアのズーム・スクロール用スタイル */
-    .svg-scroll-wrapper {
-      width: 100%;
-      overflow: auto;
-      background: #ffffff;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 16px;
-      min-height: 240px;
-      position: relative;
-    }
-    .svg-container {
-      width: 340px;
-      height: 240px;
-      position: relative;
-      transform-origin: 0 0;
-    }
-    svg { width: 100%; height: 100%; }
-
-    .svg-draw-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid var(--border);
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: bold;
-      color: var(--primary);
-      cursor: pointer;
-      z-index: 20;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      transition: all 0.2s;
-    }
-    .svg-draw-btn.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-
-    .question-list { list-style: none; }
-    .question-item {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 8px;
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-
-    .canvas-scroll-container {
-      position: relative;
-      flex: 1;
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
-      background-color: #cbd5e1;
-    }
-    .canvas-zoom-container {
-      transform-origin: 0 0;
-      display: inline-block;
-      min-width: 100%;
-    }
-    .canvas-inner-wrapper {
-      position: relative;
-      width: 100%;
-      height: 4000px;
-      background-color: #ffffff;
-      background-image: 
-        linear-gradient(to right, #f1f5f9 1px, transparent 1px),
-        linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
-      background-size: 24px 24px;
-    }
-    canvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      cursor: crosshair;
-    }
-
-    .canvas-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .tool-group { display: inline-flex; background: #e2e8f0; border-radius: 6px; padding: 2px; gap: 2px; }
-    .tool-btn {
-      padding: 4px 8px; border-radius: 4px; border: none; background: transparent;
-      font-size: 0.8rem; font-weight: 600; cursor: pointer; color: #475569;
-    }
-    .tool-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-    .btn {
-      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
-      background: white; font-size: 0.8rem; font-weight: 600; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 4px;
-    }
-    .btn:hover { background: #f8fafc; }
-    .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
-    .btn-danger { color: #dc2626; }
-
-    .modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;
-    }
-    .modal-content {
-      background: white; width: 90%; max-width: 520px; border-radius: 12px;
-      padding: 20px; max-height: 85vh; overflow-y: auto;
-    }
-    .user-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px; }
-    .user-btn {
-      padding: 14px; border: 2px solid var(--border); border-radius: 8px;
-      background: white; font-size: 0.95rem; font-weight: 700; cursor: pointer;
-    }
-    .user-btn:hover { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
-
-    .score-banner { padding: 14px; border-radius: 8px; text-align: center; margin-bottom: 14px; }
-    .score-banner.cleared { background: #dcfce7; color: #166534; }
-    .score-banner.stepdown { background: #ffedd5; color: #9a3412; }
-    .score-num { font-size: 1.8rem; font-weight: 800; }
-    
-    .time-report-badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      margin-top: 6px;
-      background: rgba(255,255,255,0.7);
-    }
-
-    .tag-chip {
-      display: inline-block; background: #fee2e2; color: #991b1b;
-      padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; margin-right: 4px;
-    }
-    .feedback-text {
-      background: #f8fafc; padding: 10px; border-radius: 6px;
-      font-size: 0.85rem; line-height: 1.6; margin-top: 10px; border: 1px solid var(--border);
-    }
-
-    .stock-dashboard { background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 16px; }
-    .stock-stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.95rem; }
-    .stock-progress-bg { background: #e2e8f0; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 8px; }
-    .stock-progress-bar { background: #10b981; height: 100%; width: 0%; transition: width 0.5s ease-out; }
-    .stock-status-text { font-size: 0.8rem; color: #64748b; margin-top: 6px; }
-
-    .loading-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255,255,255,0.85); z-index: 2000; justify-content: center; align-items: center;
-      flex-direction: column; gap: 14px; font-weight: 600;
-    }
-    .spinner {
-      width: 40px; height: 40px; border: 4px solid #e2e8f0;
-      border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+        .canvas-container {
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            background: white;
+        }
+        #bg-canvas { display: block; }
+        #draw-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+            touch-action: none; 
+        }
+    </style>
 </head>
 <body>
 
-  <div class="modal-overlay" id="userSelectModal" style="display: flex;">
-    <div class="modal-content" style="text-align: center;">
-      <h2 style="font-size: 1.2rem; font-weight: 700;">学習者を選択してください</h2>
-      <p style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">全国公立高校入試マスターから対象問題を出題します</p>
-      <div class="user-grid">
-        <button class="user-btn" id="btn-user-nozomi">のぞみ</button>
-        <button class="user-btn" id="btn-user-yui">ゆい</button>
-        <button class="user-btn" id="btn-user-chiemi">ちえみ</button>
-        <button class="user-btn" id="btn-user-jun">じゅん</button>
-        <button class="user-btn" id="btn-user-yozo" style="grid-column: span 2;">ようぞう</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="stockStatusModal">
-    <div class="modal-content">
-      <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px;">📦 問題ストック管理・進捗状況</h2>
-      
-      <div class="stock-dashboard">
-        <div class="stock-stat-row">
-          <span>🟢 即時出題可能なプール残数:</span>
-          <strong id="dashUnusedCount">-- 問</strong>
-        </div>
-        
-        <hr style="border:none; border-top:1px dashed #cbd5e1; margin:14px 0;">
-        
-        <div id="dashTaskSection">
-          <div class="stock-stat-row">
-            <span>⚙️ バックグラウンド生成進捗:</span>
-            <strong id="dashTaskCount">-- / -- 問</strong>
-          </div>
-          <div class="stock-progress-bg">
-            <div class="stock-progress-bar" id="dashProgressBar"></div>
-          </div>
-          <div class="stock-status-text" id="dashTaskStatus">状態: --</div>
-        </div>
-      </div>
-
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size:0.75rem; color:#94a3b8;">※開いている間は自動更新されます</span>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn" onclick="closeStockModal()">閉じる</button>
-          <button class="btn btn-primary" id="requestStockBtn">新たに20問予約</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <header>
-    <h1>高校受験 AI学習システム</h1>
-    
-    <div class="header-center-timer">
-      <div class="timer-badge" id="timerDisplay">⏱️ 残り 10:00</div>
+    <div class="controls">
+        <span id="status-message">クラウドからデータを取得中...</span>
+        <button id="prev-btn" disabled>前のページ</button>
+        <span id="page-num">0</span> / <span id="page-count">0</span>
+        <button id="next-btn" disabled>次のページ</button>
+        <button class="clear-btn" id="clear-btn">書き込みを消去</button>
     </div>
 
-    <div class="header-right-tools">
-      <button class="btn-stock" onclick="openStockModal()">📦 ストック管理</button>
-      <div class="user-pill" id="currentUserPill">👤 ログイン中: <span id="currentUserName">未選択</span> ▾</div>
-    </div>
-    
-    <div class="timer-progress-track">
-      <div class="timer-progress-fill" id="timerProgressFill"></div>
-    </div>
-  </header>
-
-  <div class="main-container">
-    <div class="card-pane">
-      <div class="card-header">
-        <div>
-          <span id="problemTitle">問題を読み込み中...</span>
-          <span id="totalPointsText" style="font-size: 0.8rem; color: #64748b; margin-left:8px;"></span>
-        </div>
-        <!-- ★ 左側の図形ズームボタンを追加 -->
-        <div class="tool-group">
-          <button class="tool-btn" onclick="applySvgZoom(-0.2)">🔍−</button>
-          <button class="tool-btn" id="svgZoomResetBtn" onclick="resetSvgZoom()" style="font-size:0.75rem;">100%</button>
-          <button class="tool-btn" onclick="applySvgZoom(0.2)">🔍＋</button>
-        </div>
-      </div>
-      <div class="problem-scroll-body" id="problemScrollBody">
-        <div id="originBadgeContainer"></div>
-        <div class="dialogue-box" id="problemDialogue">読み込み中...</div>
-        
-        <!-- ★ 左側の図形エリア（ズーム＆スクロール対応ラッパー） -->
-        <div class="svg-scroll-wrapper" id="svgScrollWrapper" style="display:none;">
-          <div class="svg-container" id="svgContainer"></div>
-        </div>
-
-        <ul class="question-list" id="questionsList"></ul>
-      </div>
+    <div class="canvas-container" id="canvas-container">
+        <canvas id="bg-canvas"></canvas>
+        <canvas id="draw-canvas"></canvas>
     </div>
 
-    <div class="card-pane">
-      <div class="card-header">
-        <div class="tool-group">
-          <button class="tool-btn active" id="penToolBtn">✏️ ペン</button>
-          <button class="tool-btn" id="eraserToolBtn">🧹 消しゴム</button>
-        </div>
-        
-        <div class="tool-group">
-          <button class="tool-btn" id="zoomOutBtn">🔍−</button>
-          <button class="tool-btn" id="zoomResetBtn" style="font-size:0.75rem;">100%</button>
-          <button class="tool-btn" id="zoomInBtn">🔍＋</button>
-        </div>
-
-        <div class="canvas-tools">
-          <button class="btn btn-danger" id="clearBtn">全消去</button>
-          <button class="btn btn-primary" id="submitBtn">提出してAI採点</button>
-        </div>
-      </div>
-      <div class="canvas-scroll-container" id="canvasScrollContainer">
-        <div class="canvas-zoom-container" id="canvasZoomContainer">
-          <div class="canvas-inner-wrapper" id="canvasWrapper">
-            <canvas id="paintCanvas"></canvas>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="spinner"></div>
-    <p id="loadingMessage">ストックプールから最適な問題を読み込んでいます...</p>
-  </div>
-
-  <div class="modal-overlay" id="resultModal">
-    <div class="modal-content">
-      <div id="scoreBanner" class="score-banner">
-        <div style="font-size: 0.85rem; margin-bottom: 2px;">採点結果</div>
-        <div class="score-num"><span id="totalScore">0</span> / <span id="maxScore">15</span> 点</div>
-        <div id="timeReportBadge" class="time-report-badge">⏱️ 解答時間: 0分0秒 (目標内)</div>
-        <div id="clearStatusText" style="font-weight: 600; margin-top: 6px;"></div>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <strong style="font-size: 0.85rem;">検出された弱点タグ：</strong>
-        <div id="weaknessTagsContainer" style="margin-top: 4px;"></div>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <strong style="font-size: 0.85rem;">小問ごとの結果：</strong>
-        <div id="subScoresList" style="margin-top: 4px; font-size: 0.85rem;"></div>
-      </div>
-      <div class="feedback-text">
-        <strong>💡 AIからのフィードバックと全体講評：</strong>
-        <p id="aiFeedbackText" style="margin-top: 4px;"></p>
-      </div>
-      <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn" id="modalCloseBtn">閉じる</button>
-        <button class="btn btn-primary" id="nextActionBtn">次の対象問題を解く</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzKgZUilLg_HH14CvoRJr7nLEbHgxcu2aVJpEetWBS4vV6TP9_ROffNcrJRtT-Lco0d/exec";
-
-    let currentUser = { id: "", name: "" };
-    let currentQuestionData = null;
-    let currentDrawingMode = "pen";
-
-    // 右側（手書き）ズーム管理
-    let currentZoomScale = 1.0;
-    const MIN_ZOOM = 0.5;
-    const MAX_ZOOM = 3.0;
-
-    // ★ 左側（SVG図形）ズーム管理
-    let currentSvgZoom = 1.0;
-
-    let timerInterval = null;
-    let targetTimeSec = 600;
-    let elapsedSec = 0;
-    let isTimerRunning = false;
-
-    let stockPollInterval = null;
-
-    let svgCtx = null;
-    let isSvgDrawMode = false;
-    let isSvgDrawing = false;
-    let lastSvgX = 0;
-    let lastSvgY = 0;
-
-    let initialSvgPinchDist = 0;
-    let initialSvgZoomScale = 1.0;
-
-    function startTimer(limitMinutes = 10) {
-      clearInterval(timerInterval);
-      targetTimeSec = limitMinutes * 60;
-      elapsedSec = 0;
-      isTimerRunning = true;
-      updateTimerUI();
-
-      timerInterval = setInterval(() => {
-        elapsedSec++;
-        updateTimerUI();
-      }, 1000);
-    }
-
-    function stopTimer() {
-      clearInterval(timerInterval);
-      isTimerRunning = false;
-    }
-
-    function updateTimerUI() {
-      const remainingSec = targetTimeSec - elapsedSec;
-      const displayEl = document.getElementById('timerDisplay');
-      const progressFill = document.getElementById('timerProgressFill');
-
-      if (remainingSec >= 0) {
-        const m = Math.floor(remainingSec / 60);
-        const s = remainingSec % 60;
-        displayEl.textContent = `⏱️ 残り ${m}:${s < 10 ? '0' : ''}${s}`;
-
-        const pct = (remainingSec / targetTimeSec) * 100;
-        progressFill.style.width = `${pct}%`;
-
-        if (remainingSec <= 60) {
-          displayEl.className = 'timer-badge danger';
-          progressFill.style.backgroundColor = 'var(--timer-red)';
-        } else if (remainingSec <= 180) {
-          displayEl.className = 'timer-badge warning';
-          progressFill.style.backgroundColor = 'var(--timer-yellow)';
-        } else {
-          displayEl.className = 'timer-badge';
-          progressFill.style.backgroundColor = 'var(--timer-green)';
-        }
-      } else {
-        const overSec = Math.abs(remainingSec);
-        const m = Math.floor(overSec / 60);
-        const s = overSec % 60;
-        displayEl.textContent = `⏱️ 超過 +${m}:${s < 10 ? '0' : ''}${s}`;
-        displayEl.className = 'timer-badge overtime';
-        progressFill.style.width = '0%';
-      }
-    }
-
-    function cleanMathText(str) {
-      if (!str) return "";
-      return String(str)
-        .replace(/ext([A-Za-z0-9]+)/g, '$1')
-        .replace(/riangle([A-Za-z0-9]+)/g, '△$1')
-        .replace(/\\text\{([^}]+)\}/g, '$1')
-        .replace(/\\triangle/g, '△');
-    }
-
-    function selectUser(userId, userName) {
-      currentUser = { id: userId, name: userName };
-      localStorage.setItem("hs_study_user", JSON.stringify(currentUser));
-      document.getElementById("currentUserName").textContent = userName;
-      document.getElementById("userSelectModal").style.display = "none";
-      fetchNextTargetQuestion();
-    }
-
-    function openUserModal() {
-      document.getElementById("userSelectModal").style.display = "flex";
-    }
-
-    async function fetchNextTargetQuestion() {
-      stopTimer();
-      const loading = document.getElementById('loadingOverlay');
-      document.getElementById('loadingMessage').textContent = 'ストックプールから最適な問題を読み込んでいます...';
-      loading.style.display = 'flex';
-      document.getElementById('resultModal').style.display = 'none';
-      clearCanvas();
-      
-      resetSvgZoom();
-      isSvgDrawMode = false;
-
-      document.getElementById('canvasScrollContainer').scrollTop = 0;
-      document.getElementById('problemScrollBody').scrollTop = 0;
-
-      try {
-        const fetchUrl = GAS_ENDPOINT_URL + "?user_id=" + encodeURIComponent(currentUser.id) + "&t=" + Date.now();
-        const res = await fetch(fetchUrl);
-        const result = await res.json();
-        loading.style.display = 'none';
-
-        if (result.status === 'success' && result.data) {
-          currentQuestionData = result.data;
-          renderQuestionUI(currentQuestionData);
-          startTimer(10);
-        } else {
-          document.getElementById('problemTitle').textContent = '問題の取得に失敗しました';
-          document.getElementById('problemDialogue').textContent = result.message || '設定を確認してください。';
-        }
-      } catch (err) {
-        loading.style.display = 'none';
-        alert('通信に失敗しました: ' + err.toString());
-      }
-    }
-
-    function openStockModal() {
-      document.getElementById('stockStatusModal').style.display = 'flex';
-      fetchStockStatus();
-      stockPollInterval = setInterval(fetchStockStatus, 10000);
-    }
-
-    function closeStockModal() {
-      document.getElementById('stockStatusModal').style.display = 'none';
-      clearInterval(stockPollInterval);
-    }
-
-    async function fetchStockStatus() {
-      try {
-        const res = await fetch(`${GAS_ENDPOINT_URL}?action=check_status&t=${Date.now()}`);
-        const data = await res.json();
-        
-        document.getElementById('dashUnusedCount').textContent = `${data.unused_pool_count} 問`;
-        
-        const taskSec = document.getElementById('dashTaskSection');
-        const reqBtn = document.getElementById('requestStockBtn');
-
-        if (data.active_task) {
-          taskSec.style.display = 'block';
-          const t = data.active_task.target;
-          const c = data.active_task.current;
-          
-          document.getElementById('dashTaskCount').textContent = `${c} / ${t} 問`;
-          document.getElementById('dashProgressBar').style.width = `${(c / t) * 100}%`;
-          document.getElementById('dashTaskStatus').textContent = `状態: ${data.active_task.last_status}`;
-          
-          reqBtn.disabled = true;
-          reqBtn.textContent = '生成中...';
-          reqBtn.style.opacity = '0.5';
-          reqBtn.style.cursor = 'not-allowed';
-        } else {
-          taskSec.style.display = 'none';
-          reqBtn.disabled = false;
-          reqBtn.textContent = '新たに20問予約';
-          reqBtn.style.opacity = '1';
-          reqBtn.style.cursor = 'pointer';
-        }
-      } catch (e) {
-        console.warn('Status fetch failed', e);
-      }
-    }
-
-    document.getElementById('requestStockBtn').addEventListener('click', async () => {
-      if (!confirm("最高精度モデル（gemini-3.6-flash）で新たに20問の自律ストック予約を追加しますか？\n（画面を閉じてもバックグラウンドで数時間かけて安全に生成されます）")) return;
-      
-      const reqBtn = document.getElementById('requestStockBtn');
-      reqBtn.textContent = '予約登録中...';
-      reqBtn.disabled = true;
-      
-      try {
-        const queueRes = await fetch(`${GAS_ENDPOINT_URL}?action=queue_batch&count=20&t=${Date.now()}`);
-        const queueData = await queueRes.json();
-        alert(queueData.message);
-        fetchStockStatus();
-      } catch (e) {
-        alert('通信エラー: ' + e.toString());
-        reqBtn.textContent = '新たに20問予約';
-        reqBtn.disabled = false;
-      }
-    });
-
-    function renderQuestionUI(q) {
-      document.getElementById('problemTitle').textContent = q.title || "高校入試数学";
-      const badgeContainer = document.getElementById('originBadgeContainer');
-      badgeContainer.innerHTML = q.pref_ref ? `<span class="origin-badge">🏛️ 出典傾向: ${q.pref_ref}【${q.unit || ''}】</span>` : '';
-      
-      document.getElementById('problemDialogue').innerHTML = cleanMathText(q.context_text).replace(/\n/g, '<br>');
-
-      const subListEl = document.getElementById('questionsList');
-      subListEl.innerHTML = '';
-      const subQuestions = typeof q.sub_questions_json === 'string' ? JSON.parse(q.sub_questions_json) : q.sub_questions_json;
-      
-      let totalPts = 0;
-      if (Array.isArray(subQuestions)) {
-        subQuestions.forEach(function(sub) {
-          totalPts += sub.points;
-          const li = document.createElement('li');
-          li.className = 'question-item';
-          li.innerHTML = '<strong>(' + sub.q + ')</strong> ' + cleanMathText(sub.text) + ' <span style="color:#64748b; font-size:0.8rem;">（' + sub.points + '点）</span>';
-          subListEl.appendChild(li);
-        });
-      }
-      document.getElementById('totalPointsText').textContent = "配点：計" + (totalPts || 15) + "点";
-
-      const wrapper = document.getElementById('svgScrollWrapper');
-      if (q.has_visual) {
-        wrapper.style.display = 'block';
-        renderUniversalMathSvg(q.svg_config_json, q.context_text);
-      } else {
-        wrapper.style.display = 'none';
-      }
-
-      renderMath();
-    }
-
-    /* ★ 左側 SVG ズーム関数群 */
-    function applySvgZoom(delta) {
-      applySvgZoomScale(currentSvgZoom + delta);
-    }
-    function applySvgZoomScale(scale) {
-      currentSvgZoom = Math.min(Math.max(scale, 0.5), 3.0);
-      document.getElementById('svgContainer').style.transform = `scale(${currentSvgZoom})`;
-      document.getElementById('svgZoomResetBtn').textContent = `${Math.round(currentSvgZoom * 100)}%`;
-    }
-    function resetSvgZoom() {
-      currentSvgZoom = 1.0;
-      document.getElementById('svgContainer').style.transform = `scale(1)`;
-      document.getElementById('svgZoomResetBtn').textContent = `100%`;
-    }
-
-    function renderUniversalMathSvg(rawConfig, contextText) {
-      const container = document.getElementById('svgContainer');
-      const width = 340;
-      const height = 240;
-
-      let cfg = {};
-      try {
-        cfg = typeof rawConfig === 'string' ? JSON.parse(rawConfig || '{}') : (rawConfig || {});
-      } catch (e) {
-        cfg = {};
-      }
-
-      if (!cfg.lines) cfg.lines = [];
-      if (!cfg.polygons) cfg.polygons = [];
-      if (!cfg.points) cfg.points = [];
-
-      const text = (contextText || '') + ' ' + (cfg.context_text || '');
-
-      if (cfg.type === 'speed_diagram' && cfg.lines.length === 0) {
-        if (text.includes('基本料') || text.includes('プラン')) {
-          cfg.viewport = { minX: 0, maxX: 160, minY: 0, maxY: 4500, xLabel: "時間(分)", yLabel: "料金(円)" };
-          cfg.lines.push({ points: [[0, 1000], [150, 4000]], color: '#2563eb', width: 2.5, label: 'Aプラン' });
-          cfg.lines.push({ points: [[0, 2500], [150, 3250]], color: '#dc2626', width: 2.5, label: 'Bプラン' });
-          cfg.points.push({ x: 100, y: 3000, guideLines: true, label: "" });
-        } else {
-          const pa = cfg.personA || {};
-          const pb = cfg.personB || {};
-          const maxT = Math.max(pa.time || 20, (pb.start || 0) + (pb.time || 20));
-          const maxD = Math.max(pa.dist || 1000, pb.dist || 1000);
-          cfg.viewport = { minX: 0, maxX: maxT * 1.1, minY: 0, maxY: maxD * 1.1, xLabel: "分", yLabel: "m" };
-          cfg.lines.push({ points: [[0, 0], [pa.time || maxT, pa.dist || maxD]], color: '#2563eb', width: 2.5, label: pa.name || 'A' });
-          if (pb.name) {
-            cfg.lines.push({ points: [[pb.start || 0, 0], [(pb.start || 0) + (pb.time || maxT), pb.dist || maxD]], color: '#dc2626', width: 2.5, label: pb.name || 'B' });
-          }
-        }
-      }
-
-      const isBrokenLineGraph = (cfg.type === 'water_tank_graph' || cfg.type === 'broken_line_graph' || text.includes('水深'));
-      if (isBrokenLineGraph && cfg.points.length > 0 && cfg.lines.length === 0) {
-        cfg.lines.push({
-          points: cfg.points.map(p => [p.x, p.y]),
-          color: '#2563eb',
-          width: 2.5
-        });
-        cfg.points.forEach(p => { p.guideLines = true; });
-      }
-
-      let autoPoints = [];
-      const coordRegex = /([A-Z])\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/g;
-      let match;
-      while ((match = coordRegex.exec(text)) !== null) {
-        autoPoints.push({
-          name: match[1],
-          x: parseFloat(match[2]),
-          y: parseFloat(match[3]),
-          label: `${match[1]}(${match[2]}, ${match[3]})`
-        });
-      }
-
-      if (cfg.pointA && cfg.pointB) {
-        cfg.points = [
-          { x: cfg.pointA.x, y: cfg.pointA.y, label: cfg.pointA.label || 'A' },
-          { x: cfg.pointB.x, y: cfg.pointB.y, label: cfg.pointB.label || 'B' }
-        ];
-      }
-
-      if ((!cfg.points || cfg.points.length === 0) && autoPoints.length > 0) {
-        cfg.points = autoPoints;
-      }
-
-      const isLinearTriangle = (cfg.type === 'linear_and_triangle' || (!isBrokenLineGraph && cfg.points.length >= 2 && cfg.lines.length === 0));
-      if (isLinearTriangle && cfg.points.length >= 2 && cfg.lines.length === 0) {
-        const p1 = cfg.points[0];
-        const p2 = cfg.points[1];
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const m = dx !== 0 ? dy / dx : 0;
-        const k = p1.y - m * p1.x;
-
-        const extMinX = Math.min(p1.x, p2.x) - 2;
-        const extMaxX = Math.max(p1.x, p2.x) + 2;
-        cfg.lines.push({
-          points: [[extMinX, m * extMinX + k], [extMaxX, m * extMaxX + k]],
-          color: '#dc2626', width: 2, label: 'ℓ'
-        });
-
-        if (cfg.polygons.length === 0) {
-          cfg.polygons.push({
-            points: [[0, 0], [p1.x, p1.y], [p2.x, p2.y]],
-            fill: 'rgba(37,99,235,0.08)', stroke: '#93c5fd', width: 1.2
-          });
-        }
-      }
-
-      let allX = [0];
-      let allY = [0];
-
-      cfg.lines.forEach(l => l.points && l.points.forEach(([x, y]) => { if(!isNaN(x)&&!isNaN(y)){ allX.push(x); allY.push(y); } }));
-      cfg.polygons.forEach(p => p.points && p.points.forEach(([x, y]) => { if(!isNaN(x)&&!isNaN(y)){ allX.push(x); allY.push(y); } }));
-      cfg.points.forEach(pt => { if(!isNaN(pt.x)&&!isNaN(pt.y)){ allX.push(pt.x); allY.push(pt.y); } });
-
-      let rawMinX = Math.min(...allX);
-      let rawMaxX = Math.max(...allX);
-      let rawMinY = Math.min(...allY);
-      let rawMaxY = Math.max(...allY);
-
-      if (cfg.viewport) {
-        if (cfg.viewport.minX !== undefined) rawMinX = Math.min(rawMinX, cfg.viewport.minX);
-        if (cfg.viewport.maxX !== undefined) rawMaxX = Math.max(rawMaxX, cfg.viewport.maxX);
-        if (cfg.viewport.minY !== undefined) rawMinY = Math.min(rawMinY, cfg.viewport.minY);
-        if (cfg.viewport.maxY !== undefined) rawMaxY = Math.max(rawMaxY, cfg.viewport.maxY);
-      }
-
-      const spanX = Math.max((rawMaxX - rawMinX), 6);
-      const spanY = Math.max((rawMaxY - rawMinY), 6);
-
-      const minX = rawMinX - spanX * 0.15;
-      const maxX = rawMaxX + spanX * 0.15;
-      const minY = rawMinY - spanY * 0.15;
-      const maxY = rawMaxY + spanY * 0.15;
-
-      const pad = { left: 50, right: 40, top: 40, bottom: 45 };
-
-      const toX = (x) => pad.left + ((x - minX) / (maxX - minX)) * (width - pad.left - pad.right);
-      const toY = (y) => height - pad.bottom - ((y - minY) / (maxY - minY)) * (height - pad.top - pad.bottom);
-
-      let svgElements = [];
-
-      const originX = toX(0);
-      const originY = toY(0);
-
-      const axisY = Math.max(pad.top, Math.min(height - pad.bottom, originY));
-      svgElements.push(`<line x1="${pad.left - 20}" y1="${axisY}" x2="${width - pad.right + 20}" y2="${axisY}" stroke="#64748b" stroke-width="1.5" />`);
-      svgElements.push(`<polygon points="${width - pad.right + 20},${axisY} ${width - pad.right + 12},${axisY - 3.5} ${width - pad.right + 12},${axisY + 3.5}" fill="#64748b" />`);
-      
-      const xLabelText = (cfg.viewport && cfg.viewport.xLabel) ? cfg.viewport.xLabel : 'x';
-      svgElements.push(`<text x="${width - pad.right + 20}" y="${axisY + 20}" font-size="11" fill="#64748b" text-anchor="end" paint-order="stroke" stroke="#ffffff" stroke-width="3">${xLabelText}</text>`);
-
-      const axisX = Math.max(pad.left, Math.min(width - pad.right, originX));
-      svgElements.push(`<line x1="${axisX}" y1="${height - pad.bottom + 20}" x2="${axisX}" y2="${pad.top - 20}" stroke="#64748b" stroke-width="1.5" />`);
-      svgElements.push(`<polygon points="${axisX},${pad.top - 20} ${axisX - 3.5},${pad.top - 12} ${axisX + 3.5},${pad.top - 12}" fill="#64748b" />`);
-      
-      const yLabelText = (cfg.viewport && cfg.viewport.yLabel) ? cfg.viewport.yLabel : 'y';
-      svgElements.push(`<text x="${axisX}" y="${pad.top - 24}" font-size="11" fill="#64748b" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="3">${yLabelText}</text>`);
-
-      svgElements.push(`<text x="${axisX - 14}" y="${axisY + 16}" font-size="11" fill="#64748b" paint-order="stroke" stroke="#ffffff" stroke-width="3">O</text>`);
-
-      cfg.polygons.forEach(poly => {
-        if (!poly.points || poly.points.length === 0) return;
-        const pts = poly.points.map(([x, y]) => `${toX(x)},${toY(y)}`).join(' ');
-        svgElements.push(`<polygon points="${pts}" fill="${poly.fill || 'rgba(37,99,235,0.08)'}" stroke="${poly.stroke || '#93c5fd'}" stroke-width="${poly.width || 1.2}" />`);
-      });
-
-      cfg.lines.forEach(line => {
-        if (!line.points || line.points.length === 0) return;
-        let d = '';
-        line.points.forEach(([x, y], idx) => {
-          d += (idx === 0 ? 'M ' : ' L ') + `${toX(x)} ${toY(y)}`;
-        });
-        const dash = line.dashed ? 'stroke-dasharray="4,4"' : '';
-        svgElements.push(`<path d="${d}" fill="none" stroke="${line.color || '#dc2626'}" stroke-width="${line.width || 2}" ${dash} stroke-linecap="round" stroke-linejoin="round" />`);
-        if (line.label && line.points.length > 0) {
-          const lastPt = line.points[line.points.length - 1];
-          svgElements.push(`<text x="${toX(lastPt[0]) + 4}" y="${toY(lastPt[1]) - 4}" font-size="11" font-weight="bold" fill="${line.color || '#dc2626'}" paint-order="stroke" stroke="#ffffff" stroke-width="3">${line.label}</text>`);
-        }
-      });
-
-      cfg.points.forEach(pt => {
-        const px = toX(pt.x);
-        const py = toY(pt.y);
-
-        if (pt.guideLines && (pt.x !== 0 || pt.y !== 0)) {
-          svgElements.push(`<line x1="${px}" y1="${py}" x2="${px}" y2="${axisY}" stroke="#cbd5e1" stroke-dasharray="3,3" stroke-width="1.2" />`);
-          svgElements.push(`<line x1="${axisX}" y1="${py}" x2="${px}" y2="${py}" stroke="#cbd5e1" stroke-dasharray="3,3" stroke-width="1.2" />`);
-          
-          if (Math.abs(pt.x) > 0.001) {
-            svgElements.push(`<text x="${px}" y="${axisY + 16}" font-size="10" font-weight="600" fill="#475569" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="3">${pt.x}</text>`);
-          }
-          if (Math.abs(pt.y) > 0.001) {
-            svgElements.push(`<text x="${axisX - 6}" y="${py + 4}" font-size="10" font-weight="600" fill="#475569" text-anchor="end" paint-order="stroke" stroke="#ffffff" stroke-width="3">${pt.y}</text>`);
-          }
-        }
-
-        svgElements.push(`<circle cx="${px}" cy="${py}" r="3.5" fill="${pt.color || '#0f172a'}" />`);
-        if (pt.label) {
-          svgElements.push(`<text x="${px + 6}" y="${py - 6}" font-size="11" font-weight="bold" fill="${pt.color || '#0f172a'}" paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${cleanMathText(pt.label)}</text>`);
-        }
-      });
-
-      container.innerHTML = `
-        <svg viewBox="0 0 ${width} ${height}" style="position:absolute; top:0; left:0; width:100%; height:100%; display:block;">${svgElements.join('')}</svg>
-        <canvas id="svgOverlayCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; pointer-events:none; touch-action:none;"></canvas>
-        <button id="svgDrawToggleBtn" class="svg-draw-btn" onclick="toggleSvgDrawMode()">✏️ 図に書き込む</button>
-      `;
-
-      initSvgCanvas();
-    }
-
-    window.toggleSvgDrawMode = function() {
-      isSvgDrawMode = !isSvgDrawMode;
-      const btn = document.getElementById('svgDrawToggleBtn');
-      const overlay = document.getElementById('svgOverlayCanvas');
-      if (isSvgDrawMode) {
-        btn.classList.add('active');
-        btn.textContent = '👆 スクロールに戻す';
-        overlay.style.pointerEvents = 'auto';
-      } else {
-        btn.classList.remove('active');
-        btn.textContent = '✏️ 図に書き込む';
-        overlay.style.pointerEvents = 'none';
-      }
-    };
-
-    function initSvgCanvas() {
-      const svgCanvas = document.getElementById('svgOverlayCanvas');
-      if (!svgCanvas) return;
-      
-      const width = 340;
-      const height = 240;
-      const dpr = window.devicePixelRatio || 1;
-      
-      svgCanvas.width = width * dpr;
-      svgCanvas.height = height * dpr;
-      
-      svgCtx = svgCanvas.getContext('2d', { willReadFrequently: true });
-      svgCtx.scale(dpr, dpr);
-
-      // ★ スケールを加味した座標計算
-      const getSvgPointerPos = (e) => {
-        const r = svgCanvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: (clientX - r.left) / currentSvgZoom, y: (clientY - r.top) / currentSvgZoom };
-      };
-
-      const startSvgDraw = (e) => {
-        if (e.type.includes('touch')) {
-          if (e.touches.length === 2) {
-            isSvgDrawing = false;
-            initialSvgPinchDist = getTouchDistance(e.touches);
-            initialSvgZoomScale = currentSvgZoom;
-            e.preventDefault();
-            return;
-          }
-          if (e.touches.length > 2) return;
-          e.preventDefault();
-        } else {
-          e.preventDefault();
-        }
-        isSvgDrawing = true;
-        const pos = getSvgPointerPos(e);
-        lastSvgX = pos.x; lastSvgY = pos.y;
-      };
-
-      const drawSvg = (e) => {
-        if (e.type.includes('touch')) {
-          if (e.touches.length === 2) {
-            e.preventDefault();
-            const currentDist = getTouchDistance(e.touches);
-            if (initialSvgPinchDist > 0 && Math.abs(currentDist - initialSvgPinchDist) > 10) {
-              const factor = currentDist / initialSvgPinchDist;
-              applySvgZoomScale(initialSvgZoomScale * factor);
+    <script>
+        // ★ 最新のGASのWebアプリURLを設定済み ★
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPCX87yBaV0esrdLaWL-ImIeuXELKXcbFVKHTMBoZW4SNUz_Etn4PIrNXKH9XKDsk78Q/exec';
+
+        const bgCanvas = document.getElementById('bg-canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        const drawCanvas = document.getElementById('draw-canvas');
+        const drawCtx = drawCanvas.getContext('2d');
+
+        let imageFiles = [];
+        let currentIndex = 0;
+
+        // --- GASから画像データを取得 ---
+        const fetchImagesFromCloud = async () => {
+            try {
+                const response = await fetch(GAS_URL);
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    imageFiles = data;
+                    document.getElementById('status-message').textContent = '取得完了';
+                    document.getElementById('status-message').style.color = '#5cb85c';
+                    document.getElementById('page-count').textContent = imageFiles.length;
+                    
+                    document.getElementById('prev-btn').disabled = false;
+                    document.getElementById('next-btn').disabled = false;
+                    
+                    renderImage(0);
+                } else {
+                    document.getElementById('status-message').textContent = 'フォルダに画像がありません';
+                }
+            } catch (error) {
+                console.error('データの取得に失敗しました:', error);
+                document.getElementById('status-message').textContent = '通信エラーが発生しました';
             }
-            return;
-          }
-          if (e.touches.length > 2 || !isSvgDrawing) return;
-          e.preventDefault();
-        } else {
-          if (!isSvgDrawing) return;
-          e.preventDefault();
-        }
-        const pos = getSvgPointerPos(e);
-        svgCtx.beginPath();
-        svgCtx.moveTo(lastSvgX, lastSvgY);
-        svgCtx.lineTo(pos.x, pos.y);
-        svgCtx.lineCap = 'round';
-        svgCtx.lineJoin = 'round';
-
-        if (currentDrawingMode === 'pen') {
-          svgCtx.globalCompositeOperation = 'source-over';
-          svgCtx.strokeStyle = '#dc2626';
-          svgCtx.lineWidth = 2.0;
-        } else {
-          svgCtx.globalCompositeOperation = 'destination-out';
-          svgCtx.lineWidth = 20;
-        }
-        svgCtx.stroke();
-        lastSvgX = pos.x; lastSvgY = pos.y;
-      };
-
-      const endSvgDraw = () => {
-        isSvgDrawing = false;
-        if(svgCtx) svgCtx.globalCompositeOperation = 'source-over';
-      };
-
-      svgCanvas.addEventListener('mousedown', startSvgDraw);
-      svgCanvas.addEventListener('mousemove', drawSvg);
-      window.addEventListener('mouseup', endSvgDraw);
-      svgCanvas.addEventListener('touchstart', startSvgDraw, { passive: false });
-      svgCanvas.addEventListener('touchmove', drawSvg, { passive: false });
-      window.addEventListener('touchend', endSvgDraw);
-    }
-
-    function renderMath() {
-      if (window.renderMathInElement) {
-        renderMathInElement(document.body, {
-          delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
-          throwOnError: false
-        });
-      }
-    }
-
-    const canvas = document.getElementById('paintCanvas');
-    const ctx = canvas.getContext('2d');
-    const wrapper = document.getElementById('canvasWrapper');
-    const zoomContainer = document.getElementById('canvasZoomContainer');
-    const scrollContainer = document.getElementById('canvasScrollContainer');
-    
-    let isDrawing = false, lastX = 0, lastY = 0;
-    let initialPinchDist = 0;
-    let initialZoomScale = 1.0;
-    let twoFingerStartY = 0, initialScrollTop = 0;
-
-    function applyZoom(scale) {
-      currentZoomScale = Math.min(Math.max(scale, MIN_ZOOM), MAX_ZOOM);
-      zoomContainer.style.transform = `scale(${currentZoomScale})`;
-      document.getElementById('zoomResetBtn').textContent = `${Math.round(currentZoomScale * 100)}%`;
-    }
-
-    function setDrawingMode(mode) {
-      currentDrawingMode = mode;
-      document.getElementById('penToolBtn').classList.toggle('active', mode === 'pen');
-      document.getElementById('eraserToolBtn').classList.toggle('active', mode === 'eraser');
-    }
-
-    function resizeCanvas() {
-      const rect = wrapper.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = (rect.width / currentZoomScale) * dpr;
-      canvas.height = (rect.height / currentZoomScale) * dpr;
-      ctx.scale(dpr, dpr);
-      clearCanvas();
-    }
-
-    function clearCanvas() {
-      const rect = wrapper.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width / currentZoomScale, rect.height / currentZoomScale);
-      
-      if (svgCtx) {
-        const svgCanvas = document.getElementById('svgOverlayCanvas');
-        if(svgCanvas) svgCtx.clearRect(0, 0, svgCanvas.width, svgCanvas.height);
-      }
-    }
-
-    function getPointerPos(e) {
-      const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return {
-        x: (clientX - rect.left) / currentZoomScale,
-        y: (clientY - rect.top) / currentZoomScale
-      };
-    }
-
-    function getTouchDistance(touches) {
-      const dx = touches[0].clientX - touches[1].clientX;
-      const dy = touches[0].clientY - touches[1].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    function startDraw(e) {
-      if (e.type.includes('touch')) {
-        if (e.touches.length === 2) {
-          isDrawing = false;
-          initialPinchDist = getTouchDistance(e.touches);
-          initialZoomScale = currentZoomScale;
-          twoFingerStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-          initialScrollTop = scrollContainer.scrollTop;
-          e.preventDefault();
-          return;
-        }
-        if (e.touches.length > 2) {
-          isDrawing = false;
-          return;
-        }
-        e.preventDefault();
-      } else {
-        e.preventDefault();
-      }
-
-      isDrawing = true;
-      const pos = getPointerPos(e);
-      lastX = pos.x; lastY = pos.y;
-    }
-
-    function draw(e) {
-      if (e.type.includes('touch')) {
-        if (e.touches.length === 2) {
-          e.preventDefault();
-          const currentDist = getTouchDistance(e.touches);
-          if (initialPinchDist > 0 && Math.abs(currentDist - initialPinchDist) > 10) {
-            const factor = currentDist / initialPinchDist;
-            applyZoom(initialZoomScale * factor);
-          }
-          const currentY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-          const deltaY = twoFingerStartY - currentY;
-          scrollContainer.scrollTop = initialScrollTop + deltaY;
-          return;
-        }
-        if (e.touches.length > 2 || !isDrawing) {
-          isDrawing = false;
-          return;
-        }
-        e.preventDefault();
-      } else {
-        if (!isDrawing) return;
-        e.preventDefault();
-      }
-
-      const pos = getPointerPos(e);
-      ctx.beginPath();
-      ctx.moveTo(lastX, lastY);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      if (currentDrawingMode === 'pen') {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 2.5;
-      } else {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth = 24;
-      }
-
-      ctx.stroke();
-      lastX = pos.x; lastY = pos.y;
-    }
-
-    function endDraw() {
-      isDrawing = false;
-      initialPinchDist = 0;
-      ctx.globalCompositeOperation = 'source-over';
-    }
-
-    canvas.addEventListener('mousedown', startDraw);
-    canvas.addEventListener('mousemove', draw);
-    window.addEventListener('mouseup', endDraw);
-    canvas.addEventListener('touchstart', startDraw, { passive: false });
-    canvas.addEventListener('touchmove', draw, { passive: false });
-    window.addEventListener('touchend', endDraw);
-
-    document.getElementById('zoomInBtn').addEventListener('click', () => applyZoom(currentZoomScale + 0.2));
-    document.getElementById('zoomOutBtn').addEventListener('click', () => applyZoom(currentZoomScale - 0.2));
-    document.getElementById('zoomResetBtn').addEventListener('click', () => applyZoom(1.0));
-
-    document.getElementById('clearBtn').addEventListener('click', clearCanvas);
-    document.getElementById('penToolBtn').addEventListener('click', () => setDrawingMode('pen'));
-    document.getElementById('eraserToolBtn').addEventListener('click', () => setDrawingMode('eraser'));
-    document.getElementById('nextActionBtn').addEventListener('click', fetchNextTargetQuestion);
-
-    document.getElementById('btn-user-nozomi').addEventListener('click', () => selectUser('user_nozomi', 'のぞみ'));
-    document.getElementById('btn-user-yui').addEventListener('click', () => selectUser('user_yui', 'ゆい'));
-    document.getElementById('btn-user-chiemi').addEventListener('click', () => selectUser('user_chiemi', 'ちえみ'));
-    document.getElementById('btn-user-jun').addEventListener('click', () => selectUser('user_jun', 'じゅん'));
-    document.getElementById('btn-user-yozo').addEventListener('click', () => selectUser('user_yozo', 'ようぞう'));
-
-    document.getElementById('submitBtn').addEventListener('click', async () => {
-      if (!currentQuestionData) return;
-      stopTimer();
-
-      const loading = document.getElementById('loadingOverlay');
-      document.getElementById('loadingMessage').textContent = '手書きノートと解答時間を解析・採点しています...';
-      loading.style.display = 'flex';
-
-      try {
-        const offscreenCanvas = document.createElement('canvas');
-        offscreenCanvas.width = canvas.width;
-        offscreenCanvas.height = canvas.height;
-        const offCtx = offscreenCanvas.getContext('2d');
-        offCtx.fillStyle = '#ffffff';
-        offCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        offCtx.drawImage(canvas, 0, 0);
-
-        const payload = {
-          user_id: currentUser.id,
-          user_name: currentUser.name,
-          question_id: currentQuestionData.question_id,
-          elapsed_time_sec: elapsedSec,
-          target_time_sec: targetTimeSec,
-          image_base64: offscreenCanvas.toDataURL('image/jpeg', 0.85)
         };
 
-        const response = await fetch(GAS_ENDPOINT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
+        // --- 画像表示機能 ---
+        const renderImage = (index) => {
+            if (index < 0 || index >= imageFiles.length) return;
+            
+            const imageData = imageFiles[index];
+            const img = new Image();
+            
+            img.onload = () => {
+                bgCanvas.width = img.width;
+                bgCanvas.height = img.height;
+                drawCanvas.width = img.width;
+                drawCanvas.height = img.height;
+
+                bgCtx.drawImage(img, 0, 0);
+                drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+                
+                drawCtx.strokeStyle = 'red';
+                drawCtx.lineWidth = 2;
+                drawCtx.lineCap = 'round';
+                drawCtx.lineJoin = 'round';
+
+                document.getElementById('page-num').textContent = index + 1;
+            };
+            
+            // Base64の文字列を直接画像ソースとして読み込む
+            img.src = imageData.url;
+        };
+
+        document.getElementById('prev-btn').addEventListener('click', () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderImage(currentIndex);
+            }
         });
-        const resData = await response.json();
-        loading.style.display = 'none';
 
-        if (resData.status === 'success') {
-          showResultModal(resData.data, payload);
-        } else {
-          alert('採点エラー:\n' + resData.message);
-        }
-      } catch (err) {
-        loading.style.display = 'none';
-        alert('通信エラー: ' + err.toString());
-      }
-    });
-
-    function showResultModal(data, payload) {
-      document.getElementById('totalScore').textContent = data.total_score;
-      document.getElementById('maxScore').textContent = data.max_score || 15;
-      const banner = document.getElementById('scoreBanner');
-      const statusText = document.getElementById('clearStatusText');
-      const timeBadge = document.getElementById('timeReportBadge');
-
-      const m = Math.floor(payload.elapsed_time_sec / 60);
-      const s = payload.elapsed_time_sec % 60;
-      const isWithinTime = payload.elapsed_time_sec <= payload.target_time_sec;
-
-      timeBadge.textContent = `⏱️ 解答時間: ${m}分${s}秒 (${isWithinTime ? '目標時間内クリア ⚡' : '目標時間超過 ⚠️'})`;
-      timeBadge.style.color = isWithinTime ? '#065f46' : '#991b1b';
-      
-      if (data.is_cleared) {
-        banner.className = 'score-banner cleared';
-        statusText.textContent = '🎉 合格基準達成！（次の全国入試類題へ進めます）';
-      } else {
-        banner.className = 'score-banner stepdown';
-        statusText.textContent = '⚠️ 復習が必要（基礎ステップダウン問題に挑戦）';
-      }
-
-      const tagContainer = document.getElementById('weaknessTagsContainer');
-      tagContainer.innerHTML = '';
-      if (data.detected_weakness_tags && data.detected_weakness_tags.length > 0) {
-        data.detected_weakness_tags.forEach(tag => {
-          const chip = document.createElement('span');
-          chip.className = 'tag-chip';
-          chip.textContent = '#' + tag;
-          tagContainer.appendChild(chip);
+        document.getElementById('next-btn').addEventListener('click', () => {
+            if (currentIndex < imageFiles.length - 1) {
+                currentIndex++;
+                renderImage(currentIndex);
+            }
         });
-      }
+        
+        // --- 手書き（ドロー）機能 ---
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
 
-      // ★ 不正解時の詳しい説明表示を強化
-      const subList = document.getElementById('subScoresList');
-      subList.innerHTML = '';
-      if (Array.isArray(data.scores)) {
-        data.scores.forEach(s => {
-          const item = document.createElement('div');
-          item.style.padding = '8px 12px';
-          item.style.margin = '6px 0';
-          item.style.borderRadius = '6px';
-          
-          item.style.border = s.is_correct ? '1px solid #a7f3d0' : '1px solid #fca5a5';
-          item.style.background = s.is_correct ? '#ecfdf5' : '#fef2f2';
+        const getCoordinates = (e) => {
+            const rect = drawCanvas.getBoundingClientRect();
+            const scaleX = drawCanvas.width / rect.width;
+            const scaleY = drawCanvas.height / rect.height;
 
-          let commentHtml = `<span style="color:#475569;">${cleanMathText(s.comment) || ''}</span>`;
-          if (!s.is_correct) {
-            commentHtml = `
-              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fca5a5;">
-                <strong style="color:#b91c1c; font-size:0.85rem;">💡 詳しい解説・解法ステップ：</strong><br>
-                <span style="color:#991b1b; display:inline-block; margin-top:4px;">${cleanMathText(s.comment) || ''}</span>
-              </div>
-            `;
-          }
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        };
 
-          item.innerHTML = `<strong>(${s.q})</strong> ${s.is_correct ? '⭕' : '❌'} 得点: ${s.score}/${s.max}点 <br> ${commentHtml}`;
-          subList.appendChild(item);
+        const startDrawing = (e) => {
+            isDrawing = true;
+            const coords = getCoordinates(e);
+            lastX = coords.x;
+            lastY = coords.y;
+        };
+
+        const draw = (e) => {
+            if (!isDrawing) return;
+            e.preventDefault(); 
+            const coords = getCoordinates(e);
+            
+            drawCtx.beginPath();
+            drawCtx.moveTo(lastX, lastY);
+            drawCtx.lineTo(coords.x, coords.y);
+            drawCtx.stroke();
+            
+            lastX = coords.x;
+            lastY = coords.y;
+        };
+
+        const stopDrawing = () => {
+            isDrawing = false;
+        };
+
+        drawCanvas.addEventListener('mousedown', startDrawing);
+        drawCanvas.addEventListener('mousemove', draw);
+        drawCanvas.addEventListener('mouseup', stopDrawing);
+        drawCanvas.addEventListener('mouseout', stopDrawing);
+
+        drawCanvas.addEventListener('touchstart', startDrawing, { passive: false });
+        drawCanvas.addEventListener('touchmove', draw, { passive: false });
+        drawCanvas.addEventListener('touchend', stopDrawing);
+        drawCanvas.addEventListener('touchcancel', stopDrawing);
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
         });
-      }
 
-      document.getElementById('aiFeedbackText').textContent = cleanMathText(data.ai_feedback);
-      document.getElementById('resultModal').style.display = 'flex';
-      renderMath();
-    }
-
-    document.getElementById('modalCloseBtn').addEventListener('click', () => {
-      document.getElementById('resultModal').style.display = 'none';
-    });
-
-    window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedUser = localStorage.getItem("hs_study_user");
-      if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        document.getElementById("currentUserName").textContent = currentUser.name;
-        document.getElementById("userSelectModal").style.display = "none";
-        fetchNextTargetQuestion();
-      }
-      resizeCanvas();
-    });
-  </script>
+        // 起動時に自動でデータを取得
+        window.onload = fetchImagesFromCloud;
+    </script>
 </body>
 </html>
