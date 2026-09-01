@@ -30,7 +30,7 @@
         /* 見直し促進アラートバナー */
         #review-banner { display: none; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 3px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; align-items: center; gap: 6px; animation: pulse 1.5s infinite; }
         #review-banner.danger { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        @keyframes pulse { 0% { transform: rotate(0deg); } 50% { opacity: 0.7; } 100% { opacity: 1; } }
 
         #status-message { font-size: 0.8rem; font-weight: bold; color: #007bff; }
 
@@ -70,7 +70,7 @@
         
         button { padding: 3px 8px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: normal; }
         button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        button:disabled { background-color: #cccccc !important; cursor: not-allowed !important; opacity: 0.6; }
         
         .btn-mode { font-weight: bold; background-color: #6c757d; }
         .btn-mode.active { background-color: #ff9800 !important; color: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #ff9800; }
@@ -538,8 +538,8 @@
         let validFileCount = 0;
 
         files.forEach(file => {
-            const fileName = String(file.name || "").trim();
-            const fileId = String(file.url || "").trim();
+            const fileName = String(file.name || file['ファイル名'] || "").trim();
+            const fileId = String(file.url || file['ファイルID'] || "").trim();
             if (!fileName || !fileId) return;
 
             let pref = "長野県", subject = "", year = "";
@@ -572,11 +572,12 @@
             validFileCount++;
         });
 
+        // 自然順（page_01, page_02, ... page_12）で数値ソート
         Object.keys(structuredData).forEach(p => {
             Object.keys(structuredData[p]).forEach(s => {
                 Object.keys(structuredData[p][s]).forEach(y => {
-                    structuredData[p][s][y].pages.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
-                    structuredData[p][s][y].ansPages.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+                    structuredData[p][s][y].pages.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                    structuredData[p][s][y].ansPages.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
                 });
             });
         });
@@ -657,7 +658,7 @@
     };
 
     // ページ描画 ＆ ロード完了ハンドラ
-    const renderImage = async (type, pageList, index) => {
+    const renderImage = (type, pageList, index) => {
         try {
             const isAnswer = type === 'answer';
             const prefix = isAnswer ? 'ans' : 'prob';
@@ -673,11 +674,11 @@
                 placeholder.textContent = isAnswer ? 'ブランク解答用紙がありません' : '問題用紙がありません';
                 bgImg.style.display = 'none';
                 info.textContent = '0 / 0';
-                prevBtn.disabled = true; nextBtn.disabled = true;
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
                 return;
             }
 
-            // インデックスの境界ガード
             if (index < 0) index = 0;
             if (index >= pageList.length) index = pageList.length - 1;
 
@@ -697,18 +698,22 @@
             placeholder.textContent = '画像読込中...';
             bgImg.style.display = 'none';
 
-            const onImageReady = () => {
+            // 画像オブジェクトの新規作成（キャッシュ競合・未発火を完全防止）
+            const newImg = new Image();
+            newImg.id = `${type}-bg-img`;
+
+            const onImageLoaded = () => {
                 placeholder.style.display = 'none';
-                bgImg.style.display = 'block';
+                newImg.style.display = 'block';
                 
-                const nw = bgImg.naturalWidth || 1200;
-                const nh = bgImg.naturalHeight || 1600;
+                const nw = newImg.naturalWidth || 1200;
+                const nh = newImg.naturalHeight || 1600;
 
                 viewStates[type].imgW = nw;
                 viewStates[type].imgH = nh;
 
-                bgImg.style.width = nw + 'px';
-                bgImg.style.height = nh + 'px';
+                newImg.style.width = nw + 'px';
+                newImg.style.height = nh + 'px';
                 wrapper.style.width = nw + 'px';
                 wrapper.style.height = nh + 'px';
 
@@ -722,21 +727,20 @@
                 
                 fitWidth(type);
 
-                // 画像が読み込まれたら自動的にカウントダウンを開始
                 if (isInitialLoadForCurrentExam) {
                     isInitialLoadForCurrentExam = false;
                     startTimer();
                 }
             };
 
-            bgImg.onload = onImageReady;
+            newImg.onload = onImageLoaded;
 
-            bgImg.onerror = async () => {
+            newImg.onerror = async () => {
                 try {
                     const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
                     const json = await res.json();
                     if (json.status === "success") {
-                        bgImg.src = json.dataUrl;
+                        newImg.src = json.dataUrl;
                     } else {
                         placeholder.innerHTML = `<span style="color:red;">画像読込エラー</span>`;
                     }
@@ -745,10 +749,11 @@
                 }
             };
 
-            // キャッシュを考慮した確実なsrc代入
-            bgImg.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
-            if (bgImg.complete && bgImg.naturalWidth > 0) {
-                onImageReady();
+            bgImg.parentNode.replaceChild(newImg, bgImg);
+            newImg.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
+
+            if (newImg.complete && newImg.naturalWidth > 0) {
+                onImageLoaded();
             }
         } catch (err) {
             document.getElementById('status-message').textContent = "描画エラー: " + err.message;
@@ -760,7 +765,8 @@
             const prefix = type === 'answer' ? 'ans' : 'prob';
             document.getElementById(`${type}-placeholder`).style.display = 'block';
             document.getElementById(`${type}-placeholder`).textContent = '条件を選択してください';
-            document.getElementById(`${type}-bg-img`).style.display = 'none';
+            const img = document.getElementById(`${type}-bg-img`);
+            if (img) img.style.display = 'none';
             document.getElementById(`${prefix}-page-info`).textContent = '0 / 0';
             document.getElementById(`${prefix}-prev`).disabled = true;
             document.getElementById(`${prefix}-next`).disabled = true;
@@ -769,22 +775,20 @@
 
     // ページ送り（次ページ・前ページ）
     const changePage = (type, direction) => {
-        const data = structuredData[currentPref][currentSubject][currentYear];
+        const data = structuredData[currentPref]?.[currentSubject]?.[currentYear];
         if (!data) return;
 
         if (type === 'problem') {
-            const newIndex = currentProbIndex + direction;
-            if (newIndex >= 0 && newIndex < data.pages.length) {
-                currentProbIndex = newIndex;
+            const targetIndex = currentProbIndex + direction;
+            if (targetIndex >= 0 && targetIndex < data.pages.length) {
                 clearCanvas('problem');
-                renderImage('problem', data.pages, currentProbIndex);
+                renderImage('problem', data.pages, targetIndex);
             }
         } else {
-            const newIndex = currentAnsIndex + direction;
-            if (newIndex >= 0 && newIndex < data.ansPages.length) {
-                currentAnsIndex = newIndex;
+            const targetIndex = currentAnsIndex + direction;
+            if (targetIndex >= 0 && targetIndex < data.ansPages.length) {
                 clearCanvas('answer');
-                renderImage('answer', data.ansPages, currentAnsIndex);
+                renderImage('answer', data.ansPages, targetIndex);
             }
         }
     };
