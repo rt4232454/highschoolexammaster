@@ -393,10 +393,12 @@
     const renderImage = async (type, pageList, index) => {
         try {
             const isAnswer = type === 'answer';
+            const prefix = isAnswer ? 'ans' : 'prob';
+
             const wrapper = document.getElementById(`${type}-wrapper`);
-            const info = document.getElementById(`${type}-page-info`);
-            const prevBtn = document.getElementById(`${type}-prev`);
-            const nextBtn = document.getElementById(`${type}-next`);
+            const info = document.getElementById(`${prefix}-page-info`);
+            const prevBtn = document.getElementById(`${prefix}-prev`);
+            const nextBtn = document.getElementById(`${prefix}-next`);
 
             resetImage(type);
 
