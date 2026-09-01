@@ -269,7 +269,7 @@
         location.reload();
     };
 
-    // ドライブの実際のファイル名に合わせたパーサー
+    // ドライブ実ファイル名対応の高速パーサー
     const processLoadedFiles = (files) => {
         structuredData = {};
         files.forEach(file => {
@@ -285,7 +285,7 @@
             const yearMatch = name.match(/20\d{2}/);
             if (yearMatch) year = yearMatch[0];
 
-            if (!subject || !year) return; // 不明なファイルはスキップ
+            if (!subject || !year) return;
 
             if (!structuredData[pref]) structuredData[pref] = {};
             if (!structuredData[pref][subject]) structuredData[pref][subject] = {};
@@ -293,20 +293,25 @@
                 structuredData[pref][subject][year] = { pages: [], ansPages: [] };
             }
 
-            // 「正答」「解答」「ans」が含まれていれば解答用紙、それ以外は問題用紙
-            if (name.includes('正答') || name.includes('解答') || name.toLowerCase().includes('ans')) {
+            // 「解答用紙」「正答」「正答・評価基準」「ans」は解答エリア、それ以外は問題エリア
+            if (name.includes('解答用紙') || name.includes('正答') || name.toLowerCase().includes('ans')) {
                 structuredData[pref][subject][year].ansPages.push(file);
             } else {
                 structuredData[pref][subject][year].pages.push(file);
             }
         });
 
-        // ページ番号順にソート（page_01, page_02...）
+        // ページ番号を自然順ソート（page_01, page_02...）
         Object.keys(structuredData).forEach(p => {
             Object.keys(structuredData[p]).forEach(s => {
                 Object.keys(structuredData[p][s]).forEach(y => {
                     structuredData[p][s][y].pages.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
-                    structuredData[p][s][y].ansPages.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+                    // 解答用紙は「解答用紙」を優先して先頭に配置
+                    structuredData[p][s][y].ansPages.sort((a,b) => {
+                        if (a.name.includes('解答用紙') && !b.name.includes('解答用紙')) return -1;
+                        if (!a.name.includes('解答用紙') && b.name.includes('解答用紙')) return 1;
+                        return a.name.localeCompare(b.name, undefined, {numeric: true});
+                    });
                 });
             });
         });
@@ -322,7 +327,6 @@
         });
         sel.disabled = false;
         
-        // 最初の都道府県を自動選択
         if (Object.keys(structuredData).length > 0) {
             sel.value = Object.keys(structuredData)[0];
             onPrefChange();
