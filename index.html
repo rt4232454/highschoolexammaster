@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>過去問カイゼン学習システム（黒ペン・答案連動・モード完全分離版）</title>
+    <title>過去問カイゼン学習システム（描画安定化版）</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -153,7 +153,7 @@
         }
         .splitter-h:hover { background: #007bff; }
 
-        /* スクロールビューポート（書き込みモード時はスクロール・移動をロックするクラスを付与可能） */
+        /* スクロールビューポート */
         .scrollable-viewport {
             flex: 1;
             position: relative;
@@ -162,7 +162,7 @@
             touch-action: pan-x pan-y;
         }
         .scrollable-viewport.locked {
-            overflow: hidden; /* 書き込みモード時はスクロール禁止で固定 */
+            overflow: hidden;
         }
 
         /* キャンバスラッパー */
@@ -179,6 +179,7 @@
             position: absolute;
             top: 0;
             left: 0;
+            touch-action: none; /* キャンバス上でのブラウザ既定のタッチ動作を完全にブロックして描画を安定化 */
         }
     </style>
 </head>
@@ -228,10 +229,10 @@
 
         <!-- 右側：解答・メモエリア -->
         <div class="pane right-pane" id="right-pane">
-            <!-- 右上：答案用紙エリア（問題と連動して背景画像を自動読み込み） -->
+            <!-- 右上：答案用紙エリア -->
             <div class="sub-pane" id="pane-top">
-                <div class="pane-header">
-                    <span>【右上】答案用紙・記述欄（自動連動）</span>
+                <div class="pane-header" id="ans-header">
+                    <span>【右上】答案用紙・記述欄</span>
                 </div>
                 <div class="scrollable-viewport locked" id="viewport-top">
                     <div class="canvas-transform-container" id="container-top">
@@ -264,12 +265,12 @@
         let allFiles = [];
         let groupedPDFs = {};
         let currentPdfName = '';
-        let currentPages = [];      // 問題ページのリスト
-        let currentAnsPages = [];   // 対応する答案用紙ページのリスト
+        let currentPages = [];      // 問題ページ
+        let currentAnsPages = [];   // 答案用紙ページ
         let currentIndex = 0;
         
-        let currentMode = 'draw';   // 'draw' (書き込み) または 'nav' (移動・拡大)
-        let currentTool = 'pen';    // 'pen' または 'eraser'
+        let currentMode = 'draw';   
+        let currentTool = 'pen';    
         let activePaneId = 'pane-left'; 
 
         // タイマー制御
@@ -327,7 +328,6 @@
         });
         updateTimerDisplay();
 
-        // モード切替（書き込み時はビューポートのロックを切り替え）
         const modeDrawBtn = document.getElementById('mode-draw-btn');
         const modeNavBtn = document.getElementById('mode-nav-btn');
         const viewports = document.querySelectorAll('.scrollable-viewport');
@@ -396,18 +396,14 @@
             }
         };
 
-        // PDFグループの読み込み（問題と答案用紙の振り分け）
         const loadPdfGroup = (pdfName) => {
             currentPdfName = pdfName;
             const files = groupedPDFs[pdfName];
             
-            // ファイル名に "ans" や "answer" が含まれるものは答案用紙、それ以外を問題用紙として分類
+            // 「ans」や「answer」を含むものを答案用紙、含まないものを問題用紙に明確に分離
             currentPages = files.filter(f => !f.name.toLowerCase().includes('ans') && !f.name.toLowerCase().includes('answer'));
             currentAnsPages = files.filter(f => f.name.toLowerCase().includes('ans') || f.name.toLowerCase().includes('answer'));
             
-            // もし専用の答案用紙ファイルがない場合は、問題ページと同じものをフォールバックとして使うか空にする
-            if (currentPages.length === 0) currentPages = files;
-
             currentPages.sort((a, b) => a.name.localeCompare(b.name));
             currentAnsPages.sort((a, b) => a.name.localeCompare(b.name));
             
@@ -423,7 +419,6 @@
             loadPdfGroup(e.target.value);
         });
 
-        // 描画関連の要素
         const bgCanvasLeft = document.getElementById('bg-canvas');
         const bgCtxLeft = bgCanvasLeft.getContext('2d');
         const drawLeft = document.getElementById('draw-canvas-left');
@@ -434,9 +429,6 @@
         const drawTop = document.getElementById('draw-canvas-top');
         const ctxTop = drawTop.getContext('2d');
 
-        const drawBottom = document.getElementById('draw-canvas-bottom');
-
-        // 問題ページと対応する答案ページを同時に描画する関数
         const renderPages = (index) => {
             if (index < 0 || index >= currentPages.length) return;
             
@@ -456,27 +448,51 @@
             };
             imgLeft.src = currentPages[index].url;
 
-            // 2. 右上（答案用紙）の描画（対応する答案があればそれを使用、なければ問題と同等のサイズの白紙または対応インデックスの画像）
-            const ansFile = currentAnsPages[index] || currentPages[index]; // 対応する答案がなければフォールバック
-            const imgTop = new Image();
-            imgTop.onload = () => {
-                bgCanvasTop.width = imgTop.width;
-                bgCanvasTop.height = imgTop.height;
-                drawTop.width = imgTop.width;
-                drawTop.height = imgTop.height;
-                document.getElementById('container-top').style.width = imgTop.width + 'px';
-                document.getElementById('container-top').style.height = imgTop.height + 'px';
+            // 2. 右上（答案用紙）の描画：専用の答案用紙があればそれを使い、なければ白紙の綺麗な答案スペースを動的生成
+            const ansFile = currentAnsPages[index];
+            if (ansFile) {
+                const imgTop = new Image();
+                imgTop.onload = () => {
+                    bgCanvasTop.width = imgTop.width;
+                    bgCanvasTop.height = imgTop.height;
+                    drawTop.width = imgTop.width;
+                    drawTop.height = imgTop.height;
+                    document.getElementById('container-top').style.width = imgTop.width + 'px';
+                    document.getElementById('container-top').style.height = imgTop.height + 'px';
 
-                bgCtxTop.drawImage(imgTop, 0, 0);
-                ctxTop.clearRect(0, 0, drawTop.width, drawTop.height);
-            };
-            imgTop.src = ansFile.url;
+                    bgCtxTop.drawImage(imgTop, 0, 0);
+                    ctxTop.clearRect(0, 0, drawTop.width, drawTop.height);
+                    document.getElementById('ans-header').innerHTML = '<span>【右上】答案用紙・記述欄（自動連動）</span>';
+                };
+                imgTop.src = ansFile.url;
+            } else {
+                // 専用答案ファイルがない場合は、使いやすい標準サイズの白紙答案エリアを用意
+                bgCanvasTop.width = 1200;
+                bgCanvasTop.height = 800;
+                drawTop.width = 1200;
+                drawTop.height = 800;
+                document.getElementById('container-top').style.width = '1200px';
+                document.getElementById('container-top').style.height = '800px';
+                bgCtxTop.fillStyle = '#fffdf0';
+                bgCtxTop.fillRect(0, 0, 1200, 800);
+                // うっすら横罫線を引く
+                bgCtxTop.strokeStyle = '#e0e0d0';
+                bgCtxTop.lineWidth = 1;
+                for(let y=50; y<800; y+=50) {
+                    bgCtxTop.beginPath();
+                    bgCtxTop.moveTo(0, y);
+                    bgCtxTop.lineTo(1200, y);
+                    bgCtxTop.stroke();
+                }
+                ctxTop.clearRect(0, 0, 1200, 800);
+                document.getElementById('ans-header').innerHTML = '<span>【右上】答案用紙（専用ファイルなしの為、白紙ノートを表示）</span>';
+            }
         };
 
         document.getElementById('prev-btn').addEventListener('click', () => { if(currentIndex>0) renderPages(--currentIndex); });
         document.getElementById('next-btn').addEventListener('click', () => { if(currentIndex<currentPages.length-1) renderPages(++currentIndex); });
 
-        // --- ワークスペース統合エンジン（書き込みモードと移動モードの完全分離） ---
+        // --- 描画の途切れを完全解消する堅牢なワークスペースエンジン ---
         const initWorkspace = (paneId, viewportId, containerId, canvasId) => {
             const pane = document.getElementById(paneId);
             const viewport = document.getElementById(viewportId);
@@ -484,30 +500,15 @@
             const canvas = document.getElementById(canvasId);
             const ctx = canvas.getContext('2d');
 
-            let scale = 1;
-            let pointers = new Map();
-            let startDist = 0;
-            let startScale = 1;
             let isDrawing = false;
             let lastX = 0, lastY = 0;
 
             pane.addEventListener('pointerdown', () => { setActivePane(paneId); });
 
-            // ホイールズーム（移動・拡大モード時のみ有効）
-            viewport.addEventListener('wheel', (e) => {
-                if (currentMode === 'nav' && e.ctrlKey) {
-                    e.preventDefault();
-                    setActivePane(paneId);
-                    const zoomFactor = 1.1;
-                    if (e.deltaY < 0) scale *= zoomFactor;
-                    else scale /= zoomFactor;
-                    scale = Math.max(0.2, Math.min(scale, 5));
-                    container.style.transform = `scale(${scale})`;
-                }
-            }, { passive: false });
-
-            const getCanvasPos = (clientX, clientY) => {
+            const getCanvasPos = (e) => {
                 const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
                 return {
                     x: (clientX - rect.left) * (canvas.width / rect.width),
                     y: (clientY - rect.top) * (canvas.height / rect.height)
@@ -516,56 +517,56 @@
 
             canvas.addEventListener('pointerdown', (e) => {
                 setActivePane(paneId);
-                
-                // 移動・拡大モード時は書き込みを行わない
-                if (currentMode === 'nav') return;
+                if (currentMode === 'nav') return; // 移動モード時は描画しない
 
-                pointers.set(e.pointerId, e);
-                if (currentMode === 'draw' && pointers.size === 1) {
-                    isDrawing = true;
-                    const pos = getCanvasPos(e.clientX, e.clientY);
-                    lastX = pos.x;
-                    lastY = pos.y;
-                }
+                isDrawing = true;
+                const pos = getCanvasPos(e);
+                lastX = pos.x;
+                lastY = pos.y;
+                
+                // イベントのキャプチャを確実に保持し、途切れを防ぐ
+                canvas.setPointerCapture(e.pointerId);
+                e.preventDefault();
             });
 
             canvas.addEventListener('pointermove', (e) => {
-                if (currentMode === 'nav') return; // 移動モード時は描画しない
-                if (!pointers.has(e.pointerId)) return;
-                pointers.set(e.pointerId, e);
+                if (currentMode === 'nav' || !isDrawing) return;
 
-                if (currentMode === 'draw' && isDrawing && pointers.size === 1) {
-                    const pos = getCanvasPos(e.clientX, e.clientY);
-                    ctx.save();
-                    if (currentTool === 'eraser') {
-                        ctx.globalCompositeOperation = 'destination-out';
-                        ctx.lineWidth = 25;
-                    } else {
-                        ctx.globalCompositeOperation = 'source-over';
-                        ctx.strokeStyle = '#000000'; // 黒ペンに変更
-                        ctx.lineWidth = 3;
-                    }
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-
-                    ctx.beginPath();
-                    ctx.moveTo(lastX, lastY);
-                    ctx.lineTo(pos.x, pos.y);
-                    ctx.stroke();
-                    ctx.restore();
-
-                    lastX = pos.x;
-                    lastY = pos.y;
+                const pos = getCanvasPos(e);
+                ctx.save();
+                if (currentTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.lineWidth = 30;
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = '#000000'; // 黒ペン
+                    ctx.lineWidth = 3;
                 }
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                ctx.restore();
+
+                lastX = pos.x;
+                lastY = pos.y;
+                e.preventDefault();
             });
 
-            const pointerUp = (e) => {
-                pointers.delete(e.pointerId);
-                if (pointers.size === 0) isDrawing = false;
+            const stopDrawing = (e) => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    try {
+                        canvas.releasePointerCapture(e.pointerId);
+                    } catch(err) {}
+                }
             };
 
-            canvas.addEventListener('pointerup', pointerUp);
-            canvas.addEventListener('pointercancel', pointerUp);
+            canvas.addEventListener('pointerup', stopDrawing);
+            canvas.addEventListener('pointercancel', stopDrawing);
         };
 
         initWorkspace('pane-left', 'viewport-left', 'container-left', 'draw-canvas-left');
