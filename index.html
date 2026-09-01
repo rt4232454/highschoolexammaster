@@ -8,7 +8,7 @@
         * { box-sizing: border-box; touch-action: none; }
         body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 4px; background-color: #eef2f5; color: #333; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        .header-bar { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 4px 10px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 4px; gap: 8px; flex-wrap: wrap; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 4px 10px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 4px; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
         .header-title { font-size: 1rem; font-weight: bold; color: #2c3e50; display: flex; align-items: center; gap: 8px; }
         
         .controls-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -41,9 +41,9 @@
         .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #eaeaea; padding-bottom: 3px; margin-bottom: 3px; flex-shrink: 0; }
         .card-header h2 { font-size: 0.9rem; margin: 0; color: #34495e; }
 
-        .view-container { flex-grow: 1; background: #555; border-radius: 4px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; user-select: none; }
-        .transform-wrapper { position: absolute; transform-origin: 0 0; }
-        .transform-wrapper img { display: block; pointer-events: none; max-width: none; max-height: none; box-shadow: 0 2px 8px rgba(0,0,0,0.3); background-color: #fff; }
+        .view-container { flex-grow: 1; background: #444; border-radius: 4px; overflow: hidden; position: relative; user-select: none; width: 100%; height: 100%; }
+        .transform-wrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
+        .transform-wrapper img { display: block; pointer-events: none; background-color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
         
         .drawing-canvas { position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; }
 
@@ -110,7 +110,7 @@
         <div class="view-container" id="problem-container">
             <div class="transform-wrapper" id="problem-wrapper">
                 <p id="problem-placeholder" style="color: #ccc; padding:20px;">条件を選択してください</p>
-                <img id="problem-bg-img" style="display:none;" crossorigin="anonymous">
+                <img id="problem-bg-img" style="display:none;">
                 <canvas id="problem-canvas" class="drawing-canvas"></canvas>
             </div>
             <div class="controls-overlay">
@@ -152,7 +152,7 @@
             
             <div class="view-container" id="answer-container">
                 <div class="transform-wrapper" id="answer-wrapper">
-                    <img id="answer-bg-img" style="display:none;" crossorigin="anonymous">
+                    <img id="answer-bg-img" style="display:none;">
                     <canvas id="answer-canvas" class="drawing-canvas"></canvas>
                     <p id="answer-placeholder" style="color: #ccc; padding:20px;">条件を選択してください</p>
                 </div>
@@ -268,6 +268,12 @@
         fetchImagesFromCloud();
     };
 
+    window.onresize = () => {
+        fitWidth('problem');
+        fitWidth('answer');
+        fitWidth('memo');
+    };
+
     const toggleFullScreen = () => {
         if (!document.fullscreenElement) document.documentElement.requestFullscreen();
         else document.exitFullscreen();
@@ -319,8 +325,19 @@
         }, { passive: true });
 
         const stopDrag = () => {
-            if (isDraggingH) { isDraggingH = false; splitH.classList.remove('active'); }
-            if (isDraggingV) { isDraggingV = false; splitV.classList.remove('active'); }
+            if (isDraggingH) { 
+                isDraggingH = false; 
+                splitH.classList.remove('active'); 
+                fitWidth('problem');
+                fitWidth('answer');
+                fitWidth('memo');
+            }
+            if (isDraggingV) { 
+                isDraggingV = false; 
+                splitV.classList.remove('active'); 
+                fitWidth('answer');
+                fitWidth('memo');
+            }
         };
         window.addEventListener('mouseup', stopDrag);
         window.addEventListener('touchend', stopDrag);
@@ -483,6 +500,7 @@
             const nextBtn = document.getElementById(`${prefix}-next`);
             const bgImg = document.getElementById(`${type}-bg-img`);
             const placeholder = document.getElementById(`${type}-placeholder`);
+            const wrapper = document.getElementById(`${type}-wrapper`);
 
             if (!pageList || pageList.length === 0) {
                 placeholder.style.display = 'block';
@@ -505,21 +523,34 @@
             placeholder.textContent = '画像読込中...';
             bgImg.style.display = 'none';
 
-            bgImg.onload = () => {
+            const onImageReady = () => {
                 placeholder.style.display = 'none';
                 bgImg.style.display = 'block';
-                viewStates[type].imgW = bgImg.naturalWidth;
-                viewStates[type].imgH = bgImg.naturalHeight;
+                
+                const nw = bgImg.naturalWidth || 1200;
+                const nh = bgImg.naturalHeight || 1600;
+
+                viewStates[type].imgW = nw;
+                viewStates[type].imgH = nh;
+
+                bgImg.style.width = nw + 'px';
+                bgImg.style.height = nh + 'px';
+                wrapper.style.width = nw + 'px';
+                wrapper.style.height = nh + 'px';
 
                 const cvs = boards[type].canvas;
                 if (cvs) {
-                    cvs.width = bgImg.naturalWidth;
-                    cvs.height = bgImg.naturalHeight;
-                    cvs.style.width = bgImg.naturalWidth + 'px';
-                    cvs.style.height = bgImg.naturalHeight + 'px';
+                    cvs.width = nw;
+                    cvs.height = nh;
+                    cvs.style.width = nw + 'px';
+                    cvs.style.height = nh + 'px';
                 }
-                fitWidth(type);
+                
+                // 確実にレンダリング完了後に幅フィットを実行
+                setTimeout(() => fitWidth(type), 50);
             };
+
+            bgImg.onload = onImageReady;
 
             bgImg.onerror = async () => {
                 try {
@@ -536,6 +567,9 @@
             };
 
             bgImg.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
+            if (bgImg.complete && bgImg.naturalWidth > 0) {
+                onImageReady();
+            }
         } catch (err) {
             document.getElementById('status-message').textContent = "描画エラー: " + err.message;
         }
@@ -570,34 +604,53 @@
     const applyTransform = (type) => {
         const state = viewStates[type];
         const wrapper = document.getElementById(`${type}-wrapper`);
-        wrapper.style.transform = `translate3d(${state.x}px, ${state.y}px, 0) scale(${state.scale})`;
+        if (wrapper) {
+            wrapper.style.transform = `translate3d(${state.x}px, ${state.y}px, 0) scale(${state.scale})`;
+        }
     };
 
+    // 横幅いっぱいにフィット
     const fitWidth = (type) => {
         const container = document.getElementById(`${type}-container`);
+        if (!container) return;
+
         const state = viewStates[type];
-        if (!state.imgW || !state.imgH) return;
+        const rect = container.getBoundingClientRect();
+        const cw = rect.width;
+        if (cw <= 0) return;
 
-        const cw = container.clientWidth;
-        const scale = (cw - 8) / state.imgW;
+        let imgW = state.imgW || 1200;
+        if (type === 'memo') {
+            imgW = 2000;
+        } else {
+            const img = document.getElementById(`${type}-bg-img`);
+            if (img && img.naturalWidth > 0) {
+                imgW = img.naturalWidth;
+                state.imgW = img.naturalWidth;
+                state.imgH = img.naturalHeight;
+            }
+        }
 
-        state.scale = scale;
-        state.x = 4;
-        state.y = 4;
+        // 横幅を100%ピッタリに合わせる
+        state.scale = cw / imgW;
+        state.x = 0;
+        state.y = 0;
         applyTransform(type);
     };
 
     const zoomCenter = (type, delta) => {
         const container = document.getElementById(`${type}-container`);
-        const cx = container.clientWidth / 2;
-        const cy = container.clientHeight / 2;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
         applyZoom(type, delta, cx, cy);
     };
 
     const applyZoom = (type, delta, cx, cy) => {
         const state = viewStates[type];
         const prevScale = state.scale;
-        let newScale = Math.max(0.15, Math.min(4.5, prevScale + delta));
+        let newScale = Math.max(0.15, Math.min(5.0, prevScale + delta));
 
         state.x = cx - (cx - state.x) * (newScale / prevScale);
         state.y = cy - (cy - state.y) * (newScale / prevScale);
@@ -720,7 +773,9 @@
     // ===== 描画ツール設定 =====
     const clearCanvas = (target) => {
         const b = boards[target];
-        b.ctx.clearRect(0, 0, b.canvas.width, b.canvas.height);
+        if (b && b.ctx && b.canvas) {
+            b.ctx.clearRect(0, 0, b.canvas.width, b.canvas.height);
+        }
     };
 
     const setDrawMode = (target, isPen) => {
@@ -808,19 +863,33 @@
             return;
         }
 
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = bgImg.naturalWidth;
-        tempCanvas.height = bgImg.naturalHeight;
-        const tCtx = tempCanvas.getContext('2d');
-        tCtx.drawImage(bgImg, 0, 0);
-        tCtx.drawImage(drawCanvas, 0, 0);
-        
-        const dataUrl = tempCanvas.toDataURL('image/png');
-        const base64Raw = dataUrl.split(',')[1];
-
         openAiModal();
 
         try {
+            let base64Raw = "";
+
+            // CanvasからBase64抽出（CORS制限時はGAS経由で再取得）
+            try {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = bgImg.naturalWidth || drawCanvas.width;
+                tempCanvas.height = bgImg.naturalHeight || drawCanvas.height;
+                const tCtx = tempCanvas.getContext('2d');
+                tCtx.drawImage(bgImg, 0, 0);
+                tCtx.drawImage(drawCanvas, 0, 0);
+                const dataUrl = tempCanvas.toDataURL('image/png');
+                base64Raw = dataUrl.split(',')[1];
+            } catch (corsErr) {
+                const data = structuredData[currentPref][currentSubject][currentYear];
+                const file = data.ansPages[currentAnsIndex];
+                let fileId = file.fileId;
+                if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
+                else if (fileId.includes('/d/')) fileId = fileId.split('/d/')[1].split('/')[0];
+
+                const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
+                const json = await res.json();
+                base64Raw = json.dataUrl.split(',')[1];
+            }
+
             const payload = { action: "gradeAI", image: base64Raw };
             const response = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
             const data = await response.json();
