@@ -16,8 +16,21 @@
         label { font-size: 0.75rem; font-weight: bold; color: #555; }
         select, input[type="text"] { padding: 3px 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.85rem; }
         
-        .timer-panel { display: flex; align-items: center; gap: 6px; background: #eef2f7; padding: 2px 8px; border-radius: 6px; }
-        .timer-display { font-family: monospace; font-size: 1.1rem; font-weight: bold; color: #2c3e50; min-width: 50px; }
+        /* タイマー ＆ プログレスバー */
+        .timer-panel { display: flex; align-items: center; gap: 8px; background: #eef2f7; padding: 3px 10px; border-radius: 6px; }
+        .timer-display-group { display: flex; flex-direction: column; gap: 2px; }
+        .timer-text-row { display: flex; align-items: baseline; gap: 6px; }
+        .timer-display { font-family: monospace; font-size: 1.15rem; font-weight: bold; color: #2c3e50; min-width: 55px; }
+        .timer-mode-label { font-size: 0.7rem; color: #666; font-weight: bold; }
+        
+        .progress-bar-container { width: 140px; height: 8px; background: #dcdfe6; border-radius: 4px; overflow: hidden; position: relative; }
+        .progress-bar-fill { height: 100%; width: 0%; background-color: #007bff; transition: width 0.3s ease, background-color 0.3s ease; }
+        .progress-bar-fill.warning { background-color: #dc3545 !important; }
+
+        /* 見直し促進アラートバナー */
+        #review-banner { display: none; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 3px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; align-items: center; gap: 6px; animation: pulse 1.5s infinite; }
+        #review-banner.danger { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
 
         #status-message { font-size: 0.8rem; font-weight: bold; color: #007bff; }
 
@@ -94,11 +107,34 @@
         <div class="selector-item"><label>年度</label><select id="year-select" onchange="onYearChange()"><option value="">選択</option></select></div>
         <div id="status-message">データ読込中...</div>
 
+        <!-- タイマー ＆ プログレスバー -->
         <div class="timer-panel">
-            <div class="timer-display" id="timer-display">00:00</div>
+            <div class="selector-item">
+                <label>制限時間</label>
+                <select id="exam-time-limit" onchange="onTimeLimitChange()">
+                    <option value="50" selected>50分 (本番)</option>
+                    <option value="45">45分</option>
+                    <option value="40">40分</option>
+                    <option value="30">30分</option>
+                    <option value="20">20分</option>
+                    <option value="10">10分</option>
+                </select>
+            </div>
+            <div class="timer-display-group">
+                <div class="timer-text-row">
+                    <span class="timer-mode-label">残り</span>
+                    <span class="timer-display" id="timer-display">50:00</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                </div>
+            </div>
             <button id="timer-start-btn" onclick="toggleTimer()">開始</button>
             <button onclick="resetTimer()" class="btn-secondary">リセット</button>
         </div>
+
+        <div id="review-banner">⚠️ 80%経過！ 見直し・解き残し確認を始めましょう</div>
+
         <button class="btn-success" onclick="openLogModal()" id="finish-btn">演習終了・記録</button>
     </div>
 </div>
@@ -215,7 +251,7 @@
 <div class="modal" id="log-modal">
     <div class="modal-content">
         <h3>演習結果の記録</h3>
-        <div><label>解答時間: <span id="modal-time-display" style="font-weight: bold;">00:00</span></label></div>
+        <div><label>実解答時間: <span id="modal-time-display" style="font-weight: bold;">00:00</span></label></div>
         <div>
             <label>正誤判定</label>
             <select id="modal-correct">
@@ -266,13 +302,18 @@
         memo: { scale: 1, x: 0, y: 0, imgW: 2000, imgH: 3000, mode: 'draw' }
     };
 
-    // ペンの色は黒（#111111）に統一
     const boards = {
         problem: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 3, color: '#111111' },
         answer: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4, color: '#111111' },
         memo: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 3, color: '#111111' }
     };
-    let timerInterval = null, secondsElapsed = 0, isTimerRunning = false;
+
+    // ===== タイマー ＆ プログレスバー管理 =====
+    let timerInterval = null;
+    let totalExamSeconds = 50 * 60; // 50分
+    let elapsedSeconds = 0;
+    let isTimerRunning = false;
+    let isInitialLoadForCurrentExam = true;
 
     window.onload = () => {
         initSplitters();
@@ -280,6 +321,7 @@
         initTouchAndDraw('answer');
         initTouchAndDraw('memo');
         setTimeout(() => fitWidth('memo'), 300);
+        updateTimerDisplay();
         fetchImagesFromCloud();
     };
 
@@ -292,6 +334,82 @@
     const toggleFullScreen = () => {
         if (!document.fullscreenElement) document.documentElement.requestFullscreen();
         else document.exitFullscreen();
+    };
+
+    // 制限時間変更
+    const onTimeLimitChange = () => {
+        const val = parseInt(document.getElementById('exam-time-limit').value);
+        totalExamSeconds = val * 60;
+        resetTimer();
+    };
+
+    const startTimer = () => {
+        if (!isTimerRunning) {
+            isTimerRunning = true;
+            const btn = document.getElementById('timer-start-btn');
+            btn.textContent = '停止';
+            btn.style.backgroundColor = '#ffc107';
+            timerInterval = setInterval(() => {
+                elapsedSeconds++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+    };
+
+    const pauseTimer = () => {
+        if (isTimerRunning) {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            const btn = document.getElementById('timer-start-btn');
+            btn.textContent = '再開';
+            btn.style.backgroundColor = '#007bff';
+        }
+    };
+
+    const toggleTimer = () => {
+        if (isTimerRunning) pauseTimer();
+        else startTimer();
+    };
+
+    const resetTimer = () => {
+        clearInterval(timerInterval);
+        isTimerRunning = false;
+        elapsedSeconds = 0;
+        updateTimerDisplay();
+        document.getElementById('timer-start-btn').textContent = '開始';
+        document.getElementById('timer-start-btn').style.backgroundColor = '#007bff';
+        document.getElementById('review-banner').style.display = 'none';
+        document.getElementById('progress-bar-fill').classList.remove('warning');
+    };
+
+    const updateTimerDisplay = () => {
+        const remainSeconds = Math.max(0, totalExamSeconds - elapsedSeconds);
+        const min = Math.floor(remainSeconds / 60);
+        const sec = remainSeconds % 60;
+        document.getElementById('timer-display').textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+
+        const progressRatio = Math.min(1.0, elapsedSeconds / totalExamSeconds);
+        const progressPercent = (progressRatio * 100).toFixed(1);
+        const fillBar = document.getElementById('progress-bar-fill');
+        fillBar.style.width = `${progressPercent}%`;
+
+        const banner = document.getElementById('review-banner');
+
+        if (progressRatio >= 0.8 && remainSeconds > 0) {
+            fillBar.classList.add('warning');
+            banner.style.display = 'flex';
+            banner.classList.remove('danger');
+            banner.textContent = '⚠️ 80%経過！ 見直し・解き残し確認を始めましょう';
+        } else if (remainSeconds <= 0 && totalExamSeconds > 0) {
+            fillBar.classList.add('warning');
+            banner.style.display = 'flex';
+            banner.classList.add('danger');
+            banner.textContent = '⏰ 時間終了！ 演習を終了して記録してください';
+            if (isTimerRunning) pauseTimer();
+        } else {
+            fillBar.classList.remove('warning');
+            banner.style.display = 'none';
+        }
     };
 
     // ===== 書込 vs 移動 モード切替 =====
@@ -519,6 +637,8 @@
         currentYear = document.getElementById('year-select').value;
         currentProbIndex = 0;
         currentAnsIndex = 0;
+        isInitialLoadForCurrentExam = true;
+        resetTimer();
         updateViewers();
     };
 
@@ -536,6 +656,7 @@
         }
     };
 
+    // ページ描画 ＆ ロード完了ハンドラ
     const renderImage = async (type, pageList, index) => {
         try {
             const isAnswer = type === 'answer';
@@ -556,9 +677,17 @@
                 return;
             }
 
+            // インデックスの境界ガード
+            if (index < 0) index = 0;
+            if (index >= pageList.length) index = pageList.length - 1;
+
+            if (isAnswer) currentAnsIndex = index;
+            else currentProbIndex = index;
+
             const file = pageList[index];
             info.textContent = `${index + 1} / ${pageList.length}`;
-            prevBtn.disabled = (index === 0); nextBtn.disabled = (index === pageList.length - 1);
+            prevBtn.disabled = (index === 0);
+            nextBtn.disabled = (index === pageList.length - 1);
 
             let fileId = file.fileId;
             if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
@@ -591,7 +720,13 @@
                     cvs.style.height = nh + 'px';
                 }
                 
-                setTimeout(() => fitWidth(type), 50);
+                fitWidth(type);
+
+                // 画像が読み込まれたら自動的にカウントダウンを開始
+                if (isInitialLoadForCurrentExam) {
+                    isInitialLoadForCurrentExam = false;
+                    startTimer();
+                }
             };
 
             bgImg.onload = onImageReady;
@@ -610,6 +745,7 @@
                 }
             };
 
+            // キャッシュを考慮した確実なsrc代入
             bgImg.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
             if (bgImg.complete && bgImg.naturalWidth > 0) {
                 onImageReady();
@@ -631,16 +767,25 @@
         });
     };
 
+    // ページ送り（次ページ・前ページ）
     const changePage = (type, direction) => {
         const data = structuredData[currentPref][currentSubject][currentYear];
+        if (!data) return;
+
         if (type === 'problem') {
-            currentProbIndex += direction;
-            clearCanvas('problem');
-            renderImage('problem', data.pages, currentProbIndex);
+            const newIndex = currentProbIndex + direction;
+            if (newIndex >= 0 && newIndex < data.pages.length) {
+                currentProbIndex = newIndex;
+                clearCanvas('problem');
+                renderImage('problem', data.pages, currentProbIndex);
+            }
         } else {
-            currentAnsIndex += direction;
-            clearCanvas('answer');
-            renderImage('answer', data.ansPages, currentAnsIndex);
+            const newIndex = currentAnsIndex + direction;
+            if (newIndex >= 0 && newIndex < data.ansPages.length) {
+                currentAnsIndex = newIndex;
+                clearCanvas('answer');
+                renderImage('answer', data.ansPages, currentAnsIndex);
+            }
         }
     };
 
@@ -700,7 +845,7 @@
         applyTransform(type);
     };
 
-    // ===== 高速・高追従ペン描画 ＆ モード完全排他制御 =====
+    // ===== 高速ペン描画 ＆ 排他制御 =====
     const initTouchAndDraw = (type) => {
         const container = document.getElementById(`${type}-container`);
         const state = viewStates[type];
@@ -709,7 +854,6 @@
         boards[type].canvas = cvs;
         boards[type].ctx = cvs.getContext('2d', { desynchronized: true });
 
-        // マウスホイールズーム
         container.addEventListener('wheel', (e) => {
             e.preventDefault();
             const rect = container.getBoundingClientRect();
@@ -732,7 +876,6 @@
             };
         };
 
-        // --- マウス操作 ---
         let isMousePanning = false, startMouseX = 0, startMouseY = 0;
 
         container.addEventListener('mousedown', (e) => {
@@ -773,13 +916,11 @@
             boards[type].isDrawing = false;
         });
 
-        // --- タッチ操作（Pointer Events による超高速描画＆完全排他） ---
         let touchAction = null;
         let initialDist = 0, startTouchX = 0, startTouchY = 0;
 
         container.addEventListener('touchstart', (e) => {
             if (state.mode === 'draw') {
-                // 書込モード時：タッチによる移動を完全ブロックして即描画
                 if (e.touches.length === 1) {
                     touchAction = 'draw';
                     updateCachedRect();
@@ -790,7 +931,6 @@
                     b.ctx.moveTo(pos.x, pos.y);
                 }
             } else {
-                // 移動モード時：描画を一切受付ず、移動・ピンチのみ実行
                 if (e.touches.length === 1) {
                     touchAction = 'pan';
                     startTouchX = e.touches[0].clientX - state.x;
@@ -865,41 +1005,12 @@
         boards[target].width = parseInt(val);
     };
 
-    // ===== タイマー =====
-    const toggleTimer = () => {
-        const btn = document.getElementById('timer-start-btn');
-        if (isTimerRunning) {
-            clearInterval(timerInterval);
-            isTimerRunning = false;
-            btn.textContent = '再開';
-            btn.style.backgroundColor = '#007bff';
-        } else {
-            isTimerRunning = true;
-            btn.textContent = '停止';
-            btn.style.backgroundColor = '#ffc107';
-            timerInterval = setInterval(() => {
-                secondsElapsed++;
-                updateTimerDisplay();
-            }, 1000);
-        }
-    };
-
-    const resetTimer = () => {
-        clearInterval(timerInterval);
-        isTimerRunning = false;
-        secondsElapsed = 0;
-        updateTimerDisplay();
-        document.getElementById('timer-start-btn').textContent = '開始';
-        document.getElementById('timer-start-btn').style.backgroundColor = '#007bff';
-    };
-
-    const updateTimerDisplay = () => {
-        document.getElementById('timer-display').textContent = `${String(Math.floor(secondsElapsed / 60)).padStart(2, '0')}:${String(secondsElapsed % 60).padStart(2, '0')}`;
-    };
-
+    // ===== 演習結果の保存・モーダル =====
     const openLogModal = () => {
-        if (isTimerRunning) toggleTimer();
-        document.getElementById('modal-time-display').textContent = `${String(Math.floor(secondsElapsed / 60)).padStart(2, '0')}分 ${String(secondsElapsed % 60).padStart(2, '0')}秒`;
+        pauseTimer();
+        const m = Math.floor(elapsedSeconds / 60);
+        const s = elapsedSeconds % 60;
+        document.getElementById('modal-time-display').textContent = `${String(m).padStart(2, '0')}分 ${String(s).padStart(2, '0')}秒`;
         document.getElementById('log-modal').style.display = 'flex';
     };
     const closeLogModal = () => { document.getElementById('log-modal').style.display = 'none'; };
@@ -909,7 +1020,7 @@
             action: "saveLog",
             examKey: `${currentPref}_${currentSubject}_${currentYear}`,
             pageNum: `page_${currentProbIndex + 1}`,
-            timeSec: secondsElapsed,
+            timeSec: elapsedSeconds,
             isCorrect: document.getElementById('modal-correct').value,
             unitTag: document.getElementById('modal-unit').value,
             reason: document.getElementById('modal-reason').value
@@ -944,7 +1055,6 @@
         openAiModal();
 
         try {
-            // 3つの領域（問題用紙・解答用紙・メモ用紙）を横並び1枚の統合画像に結合
             const probImg = document.getElementById('problem-bg-img');
             const probCvs = boards.problem.canvas;
             const memoCvs = boards.memo.canvas;
@@ -956,26 +1066,24 @@
             compositeCanvas.height = unitH;
             const cCtx = compositeCanvas.getContext('2d');
 
-            // 背景を白に設定
             cCtx.fillStyle = '#ffffff';
             cCtx.fillRect(0, 0, compositeCanvas.width, compositeCanvas.height);
 
-            // 1. 問題用紙（左側）
+            // 1. 問題用紙
             if (probImg && probImg.style.display !== 'none') {
                 cCtx.drawImage(probImg, 0, 0, unitW, unitH);
                 if (probCvs) cCtx.drawImage(probCvs, 0, 0, unitW, unitH);
             }
 
-            // 2. 解答用紙（中央）
+            // 2. 解答用紙
             cCtx.drawImage(ansImg, unitW, 0, unitW, unitH);
             if (ansCvs) cCtx.drawImage(ansCvs, unitW, 0, unitW, unitH);
 
-            // 3. 途中計算・メモ用紙（右側）
+            // 3. 途中計算・メモ用紙
             if (memoCvs) {
                 cCtx.drawImage(memoCvs, unitW * 2, 0, unitW, unitH);
             }
 
-            // セクションヘッダーラベルの描画
             cCtx.fillStyle = '#007bff';
             cCtx.font = 'bold 28px sans-serif';
             cCtx.fillText('【問題用紙】', 30, 45);
