@@ -3,31 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>過去問リプレイ＆カイゼン学習システム（クラウド連携版）</title>
+    <title>過去問カイゼン学習システム（高機能スプリット版）</title>
     <style>
+        * { box-sizing: border-box; }
         body {
             font-family: sans-serif;
-            background-color: #f0f2f5;
+            background-color: #eef2f5;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            height: 100vh;
+            overflow: hidden;
         }
+        /* 上部コントロールバー */
         .controls {
             background: white;
-            padding: 15px 20px;
-            border-radius: 8px;
+            padding: 8px 15px;
+            border-radius: 6px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            margin-bottom: 8px;
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
-            z-index: 10;
+            flex-shrink: 0;
         }
         button {
-            padding: 8px 16px;
-            font-size: 14px;
+            padding: 6px 12px;
+            font-size: 13px;
             cursor: pointer;
             border: none;
             border-radius: 4px;
@@ -37,183 +40,318 @@
         }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        button.active { background-color: #28a745; } /* ツール選択時 */
         .clear-btn { background-color: #dc3545; }
         .clear-btn:hover { background-color: #c82333; }
         
         #status-message {
             font-weight: bold;
             color: #d9534f;
-            margin-right: 15px;
+            font-size: 13px;
         }
 
-        .canvas-container {
-            position: relative;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            background: white;
+        /* メインの左右分割レイアウト */
+        .main-container {
+            display: flex;
+            flex: 1;
+            gap: 8px;
+            overflow: hidden;
         }
-        #bg-canvas { display: block; }
-        #draw-canvas {
+
+        .pane {
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .pane-header {
+            background: #f8f9fa;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #495057;
+            border-bottom: 1px solid #dee2e6;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 左側：問題エリア */
+        .left-pane {
+            flex: 1;
+            overflow: auto; /* 独立スクロール */
+        }
+
+        /* 右側：解答・メモエリア（上下分割） */
+        .right-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sub-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: auto; /* 独立スクロール */
+            position: relative;
+            min-height: 100px;
+        }
+
+        /* 上下分割の境界バー（リサイズ用） */
+        .splitter-h {
+            height: 6px;
+            background: #ced4da;
+            cursor: row-resize;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .splitter-h:hover { background: #007bff; }
+
+        /* キャンバスを内包するコンテナ */
+        .canvas-wrapper {
+            position: relative;
+            margin: auto; /* 中央寄せ or スクロール用 */
+            background: #fff;
+            transform-origin: top left;
+        }
+        .bg-canvas { display: block; }
+        .draw-canvas {
             position: absolute;
             top: 0;
             left: 0;
             cursor: crosshair;
-            touch-action: none; 
+            touch-action: none;
         }
     </style>
 </head>
 <body>
 
     <div class="controls">
-        <span id="status-message">クラウドからデータを取得中...</span>
+        <span id="status-message">データ読込中...</span>
         <button id="prev-btn" disabled>前のページ</button>
-        <span id="page-num">0</span> / <span id="page-count">0</span>
+        <span><span id="page-num">0</span> / <span id="page-count">0</span></span>
         <button id="next-btn" disabled>次のページ</button>
-        <button class="clear-btn" id="clear-btn">書き込みを消去</button>
+        <div style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></div>
+        <button id="pen-btn" class="active">ペン</button>
+        <button id="eraser-btn">消しゴム</button>
+        <button class="clear-btn" id="clear-current-btn">この画面の書き込みを消去</button>
     </div>
 
-    <div class="canvas-container" id="canvas-container">
-        <canvas id="bg-canvas"></canvas>
-        <canvas id="draw-canvas"></canvas>
+    <div class="main-container">
+        <!-- 左側：問題エリア -->
+        <div class="pane left-pane" id="left-pane">
+            <div class="pane-header">
+                <span>【左】問題用紙（書き込み・スクロール可能）</span>
+                <span>ズーム: <button onclick="zoomPane('left', 0.1)">+</button><button onclick="zoomPane('left', -0.1)">-</button></span>
+            </div>
+            <div style="flex:1; overflow:auto; position:relative;" id="left-scroll">
+                <div class="canvas-wrapper" id="left-wrapper">
+                    <canvas id="bg-canvas" class="bg-canvas"></canvas>
+                    <canvas id="draw-canvas-left" class="draw-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：解答・メモエリア -->
+        <div class="pane right-pane" id="right-pane">
+            <!-- 右上：答案用紙エリア -->
+            <div class="sub-pane" id="top-sub-pane">
+                <div class="pane-header">
+                    <span>【右上】答案用紙・記述欄</span>
+                </div>
+                <div style="flex:1; overflow:auto; position:relative;" id="top-scroll">
+                    <div class="canvas-wrapper" id="top-wrapper" style="width: 600px; height: 300px; background: #fffdf0;">
+                        <!-- 方眼風の背景を引くためのキャンバスまたはメモエリア -->
+                        <canvas id="draw-canvas-top" class="draw-canvas" width="600" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 上下リサイズバー -->
+            <div class="splitter-h" id="splitter-h"></div>
+
+            <!-- 右下：メモ・計算用紙エリア -->
+            <div class="sub-pane" id="bottom-sub-pane">
+                <div class="pane-header">
+                    <span>【右下】メモ・途中計算用紙（方眼）</span>
+                </div>
+                <div style="flex:1; overflow:auto; position:relative;" id="bottom-scroll">
+                    <div class="canvas-wrapper" id="bottom-wrapper" style="width: 600px; height: 500px; background: #fdfdfd;">
+                        <canvas id="draw-canvas-bottom" class="draw-canvas" width="600" height="500"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        // ★ 最新のGASのWebアプリURLを設定済み ★
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPCX87yBaV0esrdLaWL-ImIeuXELKXcbFVKHTMBoZW4SNUz_Etn4PIrNXKH9XKDsk78Q/exec';
-
-        const bgCanvas = document.getElementById('bg-canvas');
-        const bgCtx = bgCanvas.getContext('2d');
-        const drawCanvas = document.getElementById('draw-canvas');
-        const drawCtx = drawCanvas.getContext('2d');
 
         let imageFiles = [];
         let currentIndex = 0;
+        let currentTool = 'pen'; // 'pen' or 'eraser'
 
-        // --- GASから画像データを取得 ---
+        // ツール切り替え
+        document.getElementById('pen-btn').addEventListener('click', () => {
+            currentTool = 'pen';
+            document.getElementById('pen-btn').classList.add('active');
+            document.getElementById('eraser-btn').classList.remove('active');
+        });
+        document.getElementById('eraser-btn').addEventListener('click', () => {
+            currentTool = 'eraser';
+            document.getElementById('eraser-btn').classList.add('active');
+            document.getElementById('pen-btn').classList.remove('active');
+        });
+
+        // データの取得
         const fetchImagesFromCloud = async () => {
             try {
                 const response = await fetch(GAS_URL);
                 const data = await response.json();
-                
                 if (data && data.length > 0) {
                     imageFiles = data;
-                    document.getElementById('status-message').textContent = '取得完了';
-                    document.getElementById('status-message').style.color = '#5cb85c';
+                    document.getElementById('status-message').textContent = '接続完了';
+                    document.getElementById('status-message').style.color = '#28a745';
                     document.getElementById('page-count').textContent = imageFiles.length;
-                    
                     document.getElementById('prev-btn').disabled = false;
                     document.getElementById('next-btn').disabled = false;
-                    
                     renderImage(0);
                 } else {
-                    document.getElementById('status-message').textContent = 'フォルダに画像がありません';
+                    document.getElementById('status-message').textContent = '画像なし';
                 }
-            } catch (error) {
-                console.error('データの取得に失敗しました:', error);
-                document.getElementById('status-message').textContent = '通信エラーが発生しました';
+            } catch (e) {
+                document.getElementById('status-message').textContent = '通信エラー';
             }
         };
 
-        // --- 画像表示機能 ---
+        // 画像の描画（左側問題エリア）
+        const bgCanvas = document.getElementById('bg-canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        const drawLeft = document.getElementById('draw-canvas-left');
+        const ctxLeft = drawLeft.getContext('2d');
+
         const renderImage = (index) => {
             if (index < 0 || index >= imageFiles.length) return;
-            
-            const imageData = imageFiles[index];
             const img = new Image();
-            
             img.onload = () => {
                 bgCanvas.width = img.width;
                 bgCanvas.height = img.height;
-                drawCanvas.width = img.width;
-                drawCanvas.height = img.height;
+                drawLeft.width = img.width;
+                drawLeft.height = img.height;
+                
+                document.getElementById('left-wrapper').style.width = img.width + 'px';
+                document.getElementById('left-wrapper').style.height = img.height + 'px';
 
                 bgCtx.drawImage(img, 0, 0);
-                drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-                
-                drawCtx.strokeStyle = 'red';
-                drawCtx.lineWidth = 2;
-                drawCtx.lineCap = 'round';
-                drawCtx.lineJoin = 'round';
-
+                ctxLeft.clearRect(0, 0, drawLeft.width, drawLeft.height);
                 document.getElementById('page-num').textContent = index + 1;
             };
-            
-            // Base64の文字列を直接画像ソースとして読み込む
-            img.src = imageData.url;
+            img.src = imageFiles[index].url;
         };
 
-        document.getElementById('prev-btn').addEventListener('click', () => {
-            if (currentIndex > 0) {
-                currentIndex--;
-                renderImage(currentIndex);
-            }
-        });
+        document.getElementById('prev-btn').addEventListener('click', () => { if(currentIndex>0) renderImage(--currentIndex); });
+        document.getElementById('next-btn').addEventListener('click', () => { if(currentIndex<imageFiles.length-1) renderImage(++currentIndex); });
 
-        document.getElementById('next-btn').addEventListener('click', () => {
-            if (currentIndex < imageFiles.length - 1) {
-                currentIndex++;
-                renderImage(currentIndex);
-            }
-        });
-        
-        // --- 手書き（ドロー）機能 ---
-        let isDrawing = false;
-        let lastX = 0;
-        let lastY = 0;
+        // --- 共通手書き・消しゴムエンジン ---
+        const initCanvasDrawing = (canvas) => {
+            const ctx = canvas.getContext('2d');
+            let isDrawing = false;
+            let lastX = 0, lastY = 0;
 
-        const getCoordinates = (e) => {
-            const rect = drawCanvas.getBoundingClientRect();
-            const scaleX = drawCanvas.width / rect.width;
-            const scaleY = drawCanvas.height / rect.height;
-
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
+            const getPos = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return {
+                    x: (clientX - rect.left) * (canvas.width / rect.width),
+                    y: (clientY - rect.top) * (canvas.height / rect.height)
+                };
             };
+
+            const start = (e) => {
+                isDrawing = true;
+                const pos = getPos(e);
+                lastX = pos.x;
+                lastY = pos.y;
+            };
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                e.preventDefault();
+                const pos = getPos(e);
+
+                ctx.save();
+                if (currentTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.lineWidth = 20; // 消しゴムの太さ
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = '#d9534f'; // ペンの色（赤）
+                    ctx.lineWidth = 3;
+                }
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                ctx.restore();
+
+                lastX = pos.x;
+                lastY = pos.y;
+            };
+
+            const stop = () => { isDrawing = false; };
+
+            canvas.addEventListener('mousedown', start);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stop);
+            canvas.addEventListener('mouseout', stop);
+            canvas.addEventListener('touchstart', start, {passive: false});
+            canvas.addEventListener('touchmove', draw, {passive: false});
+            canvas.addEventListener('touchend', stop);
         };
 
-        const startDrawing = (e) => {
-            isDrawing = true;
-            const coords = getCoordinates(e);
-            lastX = coords.x;
-            lastY = coords.y;
-        };
+        // 3つのキャンすべてに手書き・消しゴムを適用
+        initCanvasDrawing(drawLeft);
+        initCanvasDrawing(document.getElementById('draw-canvas-top'));
+        initCanvasDrawing(document.getElementById('draw-canvas-bottom'));
 
-        const draw = (e) => {
-            if (!isDrawing) return;
-            e.preventDefault(); 
-            const coords = getCoordinates(e);
-            
-            drawCtx.beginPath();
-            drawCtx.moveTo(lastX, lastY);
-            drawCtx.lineTo(coords.x, coords.y);
-            drawCtx.stroke();
-            
-            lastX = coords.x;
-            lastY = coords.y;
-        };
-
-        const stopDrawing = () => {
-            isDrawing = false;
-        };
-
-        drawCanvas.addEventListener('mousedown', startDrawing);
-        drawCanvas.addEventListener('mousemove', draw);
-        drawCanvas.addEventListener('mouseup', stopDrawing);
-        drawCanvas.addEventListener('mouseout', stopDrawing);
-
-        drawCanvas.addEventListener('touchstart', startDrawing, { passive: false });
-        drawCanvas.addEventListener('touchmove', draw, { passive: false });
-        drawCanvas.addEventListener('touchend', stopDrawing);
-        drawCanvas.addEventListener('touchcancel', stopDrawing);
-
-        document.getElementById('clear-btn').addEventListener('click', () => {
-            drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        // 現在のページの書き込みクリア
+        document.getElementById('clear-current-btn').addEventListener('click', () => {
+            ctxLeft.clearRect(0, 0, drawLeft.width, drawLeft.height);
         });
 
-        // 起動時に自動でデータを取得
+        // --- 上下リサイズ機能の実装 ---
+        const splitter = document.getElementById('splitter-h');
+        const topPane = document.getElementById('top-sub-pane');
+        let isResizing = false;
+
+        splitter.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'row-resize';
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const rightPaneRect = document.getElementById('right-pane').getBoundingClientRect();
+            const newTopHeight = e.clientY - rightPaneRect.top;
+            if (newTopHeight > 50 && newTopHeight < rightPaneRect.height - 50) {
+                topPane.style.flex = 'none';
+                topPane.style.height = newTopHeight + 'px';
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            isResizing = false;
+            document.body.style.cursor = 'default';
+        });
+
         window.onload = fetchImagesFromCloud;
     </script>
 </body>
