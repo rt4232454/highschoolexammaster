@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>過去問カイゼン学習システム（タイマー＆自由スクロール版）</title>
+    <title>過去問カイゼン学習システム（黒ペン・答案連動・モード完全分離版）</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -153,13 +153,16 @@
         }
         .splitter-h:hover { background: #007bff; }
 
-        /* スクロールバー付きの独立ビューポート */
+        /* スクロールビューポート（書き込みモード時はスクロール・移動をロックするクラスを付与可能） */
         .scrollable-viewport {
             flex: 1;
             position: relative;
-            overflow: auto; /* スクロールバーを有効化 */
+            overflow: auto;
             background: #e9ecef;
-            touch-action: pan-x pan-y; /* タッチスクロールを許可 */
+            touch-action: pan-x pan-y;
+        }
+        .scrollable-viewport.locked {
+            overflow: hidden; /* 書き込みモード時はスクロール禁止で固定 */
         }
 
         /* キャンバスラッパー */
@@ -196,11 +199,10 @@
         <button id="mode-nav-btn">✋ 移動・拡大モード</button>
 
         <div style="border-left: 1px solid #ccc; height: 20px;"></div>
-        <button id="pen-btn" class="active">赤ペン</button>
+        <button id="pen-btn" class="active">黒ペン</button>
         <button id="eraser-btn">消しゴム</button>
         <button class="clear-btn" id="clear-current-btn">この画面を消去</button>
 
-        <!-- タイマー表示セクション -->
         <div style="margin-left: auto; display: flex; gap: 5px; align-items: center;">
             <div class="timer-container" id="timer-display">
                 ⏱ <span id="time-text">50:00</span>
@@ -216,7 +218,7 @@
             <div class="pane-header">
                 <span>【左】問題用紙</span>
             </div>
-            <div class="scrollable-viewport" id="viewport-left">
+            <div class="scrollable-viewport locked" id="viewport-left">
                 <div class="canvas-transform-container" id="container-left">
                     <canvas id="bg-canvas" class="bg-canvas"></canvas>
                     <canvas id="draw-canvas-left" class="draw-canvas"></canvas>
@@ -226,15 +228,15 @@
 
         <!-- 右側：解答・メモエリア -->
         <div class="pane right-pane" id="right-pane">
-            <!-- 右上：答案用紙エリア -->
+            <!-- 右上：答案用紙エリア（問題と連動して背景画像を自動読み込み） -->
             <div class="sub-pane" id="pane-top">
                 <div class="pane-header">
-                    <span>【右上】答案用紙・記述欄</span>
+                    <span>【右上】答案用紙・記述欄（自動連動）</span>
                 </div>
-                <div class="scrollable-viewport" id="viewport-top">
-                    <div class="canvas-transform-container" id="container-top" style="width: 1200px; height: 800px; background: #fffdf0;">
-                        <canvas id="bg-canvas-top" class="bg-canvas" width="1200" height="800" style="display:none;"></canvas>
-                        <canvas id="draw-canvas-top" class="draw-canvas" width="1200" height="800"></canvas>
+                <div class="scrollable-viewport locked" id="viewport-top">
+                    <div class="canvas-transform-container" id="container-top">
+                        <canvas id="bg-canvas-top" class="bg-canvas"></canvas>
+                        <canvas id="draw-canvas-top" class="draw-canvas"></canvas>
                     </div>
                 </div>
             </div>
@@ -247,7 +249,7 @@
                 <div class="pane-header">
                     <span>【右下】メモ・途中計算用紙</span>
                 </div>
-                <div class="scrollable-viewport" id="viewport-bottom">
+                <div class="scrollable-viewport locked" id="viewport-bottom">
                     <div class="canvas-transform-container" id="container-bottom" style="width: 1600px; height: 1200px; background: #fdfdfd;">
                         <canvas id="draw-canvas-bottom" class="draw-canvas" width="1600" height="1200"></canvas>
                     </div>
@@ -262,15 +264,16 @@
         let allFiles = [];
         let groupedPDFs = {};
         let currentPdfName = '';
-        let currentPages = [];
+        let currentPages = [];      // 問題ページのリスト
+        let currentAnsPages = [];   // 対応する答案用紙ページのリスト
         let currentIndex = 0;
         
-        let currentMode = 'draw'; 
-        let currentTool = 'pen';  
+        let currentMode = 'draw';   // 'draw' (書き込み) または 'nav' (移動・拡大)
+        let currentTool = 'pen';    // 'pen' または 'eraser'
         let activePaneId = 'pane-left'; 
 
-        // --- タイマー機能のロジック ---
-        let totalSeconds = 50 * 60; // 初期値：高校入試の1科目想定で50分
+        // タイマー制御
+        let totalSeconds = 50 * 60;
         let timerInterval = null;
         let isTimerRunning = false;
 
@@ -283,12 +286,8 @@
             const mins = Math.floor(totalSeconds / 60);
             const secs = totalSeconds % 60;
             timeText.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-            
-            if (totalSeconds <= 300 && totalSeconds > 0) { // 残り5分以下で警告色
-                timerDisplay.classList.add('warning');
-            } else {
-                timerDisplay.classList.remove('warning');
-            }
+            if (totalSeconds <= 300 && totalSeconds > 0) timerDisplay.classList.add('warning');
+            else timerDisplay.classList.remove('warning');
         };
 
         timerToggleBtn.addEventListener('click', () => {
@@ -326,37 +325,33 @@
             timerToggleBtn.style.color = '#fff';
             timerDisplay.classList.remove('warning');
         });
-
         updateTimerDisplay();
 
-        // --- モード切替 ---
+        // モード切替（書き込み時はビューポートのロックを切り替え）
         const modeDrawBtn = document.getElementById('mode-draw-btn');
         const modeNavBtn = document.getElementById('mode-nav-btn');
+        const viewports = document.querySelectorAll('.scrollable-viewport');
 
-        modeDrawBtn.addEventListener('click', () => {
-            currentMode = 'draw';
-            modeDrawBtn.classList.add('active');
-            modeNavBtn.classList.remove('active');
-        });
-        modeNavBtn.addEventListener('click', () => {
-            currentMode = 'nav';
-            modeNavBtn.classList.add('active');
-            modeDrawBtn.classList.remove('active');
-        });
+        const updateModeUI = () => {
+            if (currentMode === 'draw') {
+                modeDrawBtn.classList.add('active');
+                modeNavBtn.classList.remove('active');
+                viewports.forEach(vp => vp.classList.add('locked'));
+            } else {
+                modeNavBtn.classList.add('active');
+                modeDrawBtn.classList.remove('active');
+                viewports.forEach(vp => vp.classList.remove('locked'));
+            }
+        };
+
+        modeDrawBtn.addEventListener('click', () => { currentMode = 'draw'; updateModeUI(); });
+        modeNavBtn.addEventListener('click', () => { currentMode = 'nav'; updateModeUI(); });
 
         const penBtn = document.getElementById('pen-btn');
         const eraserBtn = document.getElementById('eraser-btn');
 
-        penBtn.addEventListener('click', () => {
-            currentTool = 'pen';
-            penBtn.classList.add('active');
-            eraserBtn.classList.remove('active');
-        });
-        eraserBtn.addEventListener('click', () => {
-            currentTool = 'eraser';
-            eraserBtn.classList.add('active');
-            penBtn.classList.remove('active');
-        });
+        penBtn.addEventListener('click', () => { currentTool = 'pen'; penBtn.classList.add('active'); eraserBtn.classList.remove('active'); });
+        eraserBtn.addEventListener('click', () => { currentTool = 'eraser'; eraserBtn.classList.add('active'); penBtn.classList.remove('active'); });
 
         const setActivePane = (paneId) => {
             activePaneId = paneId;
@@ -401,51 +396,87 @@
             }
         };
 
+        // PDFグループの読み込み（問題と答案用紙の振り分け）
         const loadPdfGroup = (pdfName) => {
             currentPdfName = pdfName;
-            currentPages = groupedPDFs[pdfName];
-            currentPages.sort((a, b) => a.name.localeCompare(b.name));
-            currentIndex = 0;
+            const files = groupedPDFs[pdfName];
             
+            // ファイル名に "ans" や "answer" が含まれるものは答案用紙、それ以外を問題用紙として分類
+            currentPages = files.filter(f => !f.name.toLowerCase().includes('ans') && !f.name.toLowerCase().includes('answer'));
+            currentAnsPages = files.filter(f => f.name.toLowerCase().includes('ans') || f.name.toLowerCase().includes('answer'));
+            
+            // もし専用の答案用紙ファイルがない場合は、問題ページと同じものをフォールバックとして使うか空にする
+            if (currentPages.length === 0) currentPages = files;
+
+            currentPages.sort((a, b) => a.name.localeCompare(b.name));
+            currentAnsPages.sort((a, b) => a.name.localeCompare(b.name));
+            
+            currentIndex = 0;
             document.getElementById('page-count').textContent = currentPages.length;
             document.getElementById('prev-btn').disabled = false;
             document.getElementById('next-btn').disabled = false;
             
-            renderImage(currentIndex);
+            renderPages(currentIndex);
         };
 
         document.getElementById('pdf-select').addEventListener('change', (e) => {
             loadPdfGroup(e.target.value);
         });
 
-        const bgCanvas = document.getElementById('bg-canvas');
-        const bgCtx = bgCanvas.getContext('2d');
+        // 描画関連の要素
+        const bgCanvasLeft = document.getElementById('bg-canvas');
+        const bgCtxLeft = bgCanvasLeft.getContext('2d');
         const drawLeft = document.getElementById('draw-canvas-left');
         const ctxLeft = drawLeft.getContext('2d');
 
-        const renderImage = (index) => {
-            if (index < 0 || index >= currentPages.length) return;
-            const img = new Image();
-            img.onload = () => {
-                bgCanvas.width = img.width;
-                bgCanvas.height = img.height;
-                drawLeft.width = img.width;
-                drawLeft.height = img.height;
-                
-                document.getElementById('container-left').style.width = img.width + 'px';
-                document.getElementById('container-left').style.height = img.height + 'px';
+        const bgCanvasTop = document.getElementById('bg-canvas-top');
+        const bgCtxTop = bgCanvasTop.getContext('2d');
+        const drawTop = document.getElementById('draw-canvas-top');
+        const ctxTop = drawTop.getContext('2d');
 
-                bgCtx.drawImage(img, 0, 0);
+        const drawBottom = document.getElementById('draw-canvas-bottom');
+
+        // 問題ページと対応する答案ページを同時に描画する関数
+        const renderPages = (index) => {
+            if (index < 0 || index >= currentPages.length) return;
+            
+            // 1. 左側（問題）の描画
+            const imgLeft = new Image();
+            imgLeft.onload = () => {
+                bgCanvasLeft.width = imgLeft.width;
+                bgCanvasLeft.height = imgLeft.height;
+                drawLeft.width = imgLeft.width;
+                drawLeft.height = imgLeft.height;
+                document.getElementById('container-left').style.width = imgLeft.width + 'px';
+                document.getElementById('container-left').style.height = imgLeft.height + 'px';
+
+                bgCtxLeft.drawImage(imgLeft, 0, 0);
                 ctxLeft.clearRect(0, 0, drawLeft.width, drawLeft.height);
                 document.getElementById('page-num').textContent = index + 1;
             };
-            img.src = currentPages[index].url;
+            imgLeft.src = currentPages[index].url;
+
+            // 2. 右上（答案用紙）の描画（対応する答案があればそれを使用、なければ問題と同等のサイズの白紙または対応インデックスの画像）
+            const ansFile = currentAnsPages[index] || currentPages[index]; // 対応する答案がなければフォールバック
+            const imgTop = new Image();
+            imgTop.onload = () => {
+                bgCanvasTop.width = imgTop.width;
+                bgCanvasTop.height = imgTop.height;
+                drawTop.width = imgTop.width;
+                drawTop.height = imgTop.height;
+                document.getElementById('container-top').style.width = imgTop.width + 'px';
+                document.getElementById('container-top').style.height = imgTop.height + 'px';
+
+                bgCtxTop.drawImage(imgTop, 0, 0);
+                ctxTop.clearRect(0, 0, drawTop.width, drawTop.height);
+            };
+            imgTop.src = ansFile.url;
         };
 
-        document.getElementById('prev-btn').addEventListener('click', () => { if(currentIndex>0) renderImage(--currentIndex); });
-        document.getElementById('next-btn').addEventListener('click', () => { if(currentIndex<currentPages.length-1) renderImage(++currentIndex); });
+        document.getElementById('prev-btn').addEventListener('click', () => { if(currentIndex>0) renderPages(--currentIndex); });
+        document.getElementById('next-btn').addEventListener('click', () => { if(currentIndex<currentPages.length-1) renderPages(++currentIndex); });
 
-        // --- 自由スクロール ＆ ズーム ＆ 書き込み 統合エンジン ---
+        // --- ワークスペース統合エンジン（書き込みモードと移動モードの完全分離） ---
         const initWorkspace = (paneId, viewportId, containerId, canvasId) => {
             const pane = document.getElementById(paneId);
             const viewport = document.getElementById(viewportId);
@@ -457,15 +488,14 @@
             let pointers = new Map();
             let startDist = 0;
             let startScale = 1;
-
             let isDrawing = false;
             let lastX = 0, lastY = 0;
 
             pane.addEventListener('pointerdown', () => { setActivePane(paneId); });
 
-            // ホイールズーム
+            // ホイールズーム（移動・拡大モード時のみ有効）
             viewport.addEventListener('wheel', (e) => {
-                if (e.ctrlKey) {
+                if (currentMode === 'nav' && e.ctrlKey) {
                     e.preventDefault();
                     setActivePane(paneId);
                     const zoomFactor = 1.1;
@@ -486,18 +516,11 @@
 
             canvas.addEventListener('pointerdown', (e) => {
                 setActivePane(paneId);
+                
+                // 移動・拡大モード時は書き込みを行わない
+                if (currentMode === 'nav') return;
+
                 pointers.set(e.pointerId, e);
-
-                if (pointers.size === 2 || currentMode === 'nav') {
-                    isDrawing = false;
-                    if (pointers.size === 2) {
-                        const pts = Array.from(pointers.values());
-                        startDist = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
-                        startScale = scale;
-                    }
-                    return;
-                }
-
                 if (currentMode === 'draw' && pointers.size === 1) {
                     isDrawing = true;
                     const pos = getCanvasPos(e.clientX, e.clientY);
@@ -507,19 +530,9 @@
             });
 
             canvas.addEventListener('pointermove', (e) => {
+                if (currentMode === 'nav') return; // 移動モード時は描画しない
                 if (!pointers.has(e.pointerId)) return;
                 pointers.set(e.pointerId, e);
-
-                if (pointers.size === 2) {
-                    isDrawing = false;
-                    const pts = Array.from(pointers.values());
-                    const dist = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
-                    if (startDist > 0) {
-                        scale = Math.max(0.2, Math.min(startScale * (dist / startDist), 5));
-                        container.style.transform = `scale(${scale})`;
-                    }
-                    return;
-                }
 
                 if (currentMode === 'draw' && isDrawing && pointers.size === 1) {
                     const pos = getCanvasPos(e.clientX, e.clientY);
@@ -529,7 +542,7 @@
                         ctx.lineWidth = 25;
                     } else {
                         ctx.globalCompositeOperation = 'source-over';
-                        ctx.strokeStyle = '#d9534f';
+                        ctx.strokeStyle = '#000000'; // 黒ペンに変更
                         ctx.lineWidth = 3;
                     }
                     ctx.lineCap = 'round';
@@ -548,7 +561,6 @@
 
             const pointerUp = (e) => {
                 pointers.delete(e.pointerId);
-                if (pointers.size < 2) startDist = 0;
                 if (pointers.size === 0) isDrawing = false;
             };
 
@@ -562,10 +574,11 @@
 
         setActivePane('pane-left');
 
+        // 現在選択中の画面の書き込みクリア
         document.getElementById('clear-current-btn').addEventListener('click', () => {
             let targetCanvas = null;
             if (activePaneId === 'pane-left') targetCanvas = drawLeft;
-            else if (activePaneId === 'pane-top') targetCanvas = document.getElementById('draw-canvas-top');
+            else if (activePaneId === 'pane-top') targetCanvas = drawTop;
             else if (activePaneId === 'pane-bottom') targetCanvas = document.getElementById('draw-canvas-bottom');
 
             if (targetCanvas) {
@@ -574,6 +587,7 @@
             }
         });
 
+        // 上下リサイズ機能
         const splitter = document.getElementById('splitter-h');
         const topPane = document.getElementById('pane-top');
         let isResizing = false;
