@@ -3,353 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>過去問演習・管理システム</title>
+    <title>高校受験 過去問演習・管理システム</title>
     <style>
-        * {
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            margin: 0;
-            padding: 15px;
-            background-color: #f4f6f9;
-            color: #333;
-        }
-        h1 {
-            font-size: 1.4rem;
-            margin: 0 0 10px 0;
-            color: #2c3e50;
-        }
-        .container {
-            max-width: 1500px;
-            margin: 0 auto;
-        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 10px; background-color: #f4f6f9; color: #333; height: 100vh; display: flex; flex-direction: column; }
+        h1 { font-size: 1.2rem; margin: 0 0 10px 0; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; }
         
         /* トップコントロールバー */
-        .top-bar {
-            background: #fff;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 15px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .selector-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        label {
-            font-size: 0.8rem;
-            font-weight: bold;
-            color: #555;
-        }
-        select {
-            padding: 6px 10px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            font-size: 0.95rem;
-            min-width: 120px;
-        }
+        .top-bar { background: #fff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 10px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+        .selector-group { display: flex; flex-direction: column; gap: 4px; }
+        label { font-size: 0.8rem; font-weight: bold; color: #555; }
+        select, input[type="text"] { padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 100px; }
         
         /* タイマー */
-        .timer-panel {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: #eef2f7;
-            padding: 6px 12px;
-            border-radius: 6px;
-            margin-left: 10px;
-        }
-        .timer-display {
-            font-family: monospace;
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #2c3e50;
-            min-width: 80px;
-        }
+        .timer-panel { display: flex; align-items: center; gap: 10px; background: #eef2f7; padding: 4px 10px; border-radius: 6px; margin-left: auto; }
+        .timer-display { font-family: monospace; font-size: 1.2rem; font-weight: bold; color: #2c3e50; min-width: 60px; }
 
-        #status-message {
-            font-size: 0.85rem;
-            font-weight: bold;
-            color: #007bff;
-            margin-left: auto;
-        }
+        #status-message { font-size: 0.85rem; font-weight: bold; color: #007bff; }
 
-        /* ビューアグリッド */
-        .viewer-panel {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-        @media (max-width: 1000px) {
-            .viewer-panel {
-                grid-template-columns: 1fr;
-            }
-        }
-        .card {
-            background: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #eaeaea;
-            padding-bottom: 6px;
-            margin-bottom: 10px;
-        }
-        .card h2 {
-            font-size: 1.05rem;
-            margin: 0;
-            color: #34495e;
-        }
+        /* ワークスペース（左右分割レイアウト） */
+        .workspace { display: flex; gap: 10px; flex-grow: 1; overflow: hidden; }
+        .pane-left { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 10px; }
+        .pane-right { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .pane-right-top, .pane-right-bottom { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 10px; position: relative; }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eaeaea; padding-bottom: 4px; margin-bottom: 8px; }
+        .card-header h2 { font-size: 1rem; margin: 0; color: #34495e; }
 
-        /* 画像コンテナ */
-        .image-container {
-            flex-grow: 1;
-            height: 480px;
-            background: #fafafa;
-            border: 1px dashed #ddd;
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-            cursor: grab;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .image-container:active {
-            cursor: grabbing;
-        }
-        .image-wrapper {
-            position: absolute;
-            transform-origin: center center;
-            transition: transform 0.05s ease-out;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .image-wrapper img {
-            max-width: 100%;
-            max-height: 480px;
-            user-select: none;
-            pointer-events: none;
-        }
-        .controls-overlay {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            display: flex;
-            gap: 4px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 4px;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            z-index: 10;
-        }
-        .controls-overlay button {
-            padding: 3px 8px;
-            font-size: 0.75rem;
-            background-color: #6c757d;
-        }
-
-        /* ページ送り・共通ボタン */
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            margin: 10px 0;
-        }
-        button {
-            padding: 6px 14px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.85rem;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
+        /* 画像＆キャンバスコンテナ */
+        .view-container { flex-grow: 1; background: #fafafa; border: 1px dashed #ddd; border-radius: 4px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; }
+        .transform-wrapper { position: absolute; transform-origin: center center; transition: transform 0.05s ease-out; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+        .transform-wrapper img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+        .drawing-canvas { position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; touch-action: none; }
+        .controls-overlay { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; background: rgba(255, 255, 255, 0.9); padding: 4px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 20; }
+        
+        /* ツールバー */
+        .toolbar { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; margin-bottom: 5px; }
+        
+        /* ボタン類 */
+        button { padding: 4px 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
         .btn-success { background-color: #28a745; }
-        .btn-success:hover { background-color: #218838; }
-        .btn-warning { background-color: #ffc107; color: #333; }
-        .btn-warning:hover { background-color: #e0a800; }
+        .btn-warning { background-color: #ffc107; color: #333; font-weight: bold; }
         .btn-danger { background-color: #dc3545; }
-        .btn-danger:hover { background-color: #c82333; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-icon { padding: 4px 8px; font-size: 0.8rem; }
+        
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 8px; }
 
-        /* 途中計算キャンバス */
-        .scratchpad-section {
-            margin-top: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 8px;
-            background: #fff;
-        }
-        .scratchpad-toolbar {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-        .scratchpad-toolbar label {
-            font-size: 0.75rem;
-        }
-        canvas {
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #ffffff;
-            cursor: crosshair;
-            width: 100%;
-            height: 180px;
-            touch-action: none;
-        }
-
-        /* 記録モーダル */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 450px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .modal-content select, .modal-content input {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            width: 100%;
-        }
+        /* モーダル */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 450px; display: flex; flex-direction: column; gap: 12px; }
+        .modal-content select, .modal-content input { padding: 8px; width: 100%; }
+        
+        #ai-modal-content { max-width: 700px; width: 95%; max-height: 90vh; overflow-y: auto; }
+        #ai-result-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5; background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #ddd; min-height: 100px; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>高校受験 過去問演習・管理システム</h1>
+<div class="container" id="app-container">
+    <h1>
+        <span>高校受験 過去問演習・管理システム</span>
+        <button onclick="toggleFullScreen()" class="btn-secondary" id="fs-btn">🖥️ 全画面表示切替</button>
+    </h1>
 
-    <!-- トップバー -->
     <div class="top-bar">
         <div class="selector-group">
-            <label for="pref-select">都道府県</label>
-            <select id="pref-select" onchange="onPrefChange()" disabled>
-                <option value="">選択してください</option>
-            </select>
+            <label>都道府県</label>
+            <select id="pref-select" onchange="onPrefChange()" disabled><option value="">選択</option></select>
         </div>
         <div class="selector-group">
-            <label for="subject-select">教科</label>
-            <select id="subject-select" onchange="onSubjectChange()" disabled>
-                <option value="">選択してください</option>
-            </select>
+            <label>教科</label>
+            <select id="subject-select" onchange="onSubjectChange()" disabled><option value="">選択</option></select>
         </div>
         <div class="selector-group">
-            <label for="year-select">年度</label>
-            <select id="year-select" onchange="onYearChange()" disabled>
-                <option value="">選択してください</option>
-            </select>
+            <label>年度</label>
+            <select id="year-select" onchange="onYearChange()" disabled><option value="">選択</option></select>
         </div>
+        <div id="status-message">データ読込中...</div>
 
-        <!-- タイマー機能 -->
         <div class="timer-panel">
             <div class="timer-display" id="timer-display">00:00</div>
-            <button id="timer-start-btn" onclick="toggleTimer()">スタート</button>
-            <button onclick="resetTimer()" style="background-color: #6c757d;">リセット</button>
+            <button id="timer-start-btn" onclick="toggleTimer()">開始</button>
+            <button onclick="resetTimer()" class="btn-secondary">リセット</button>
         </div>
-
         <button class="btn-success" onclick="openLogModal()" id="finish-btn" disabled>演習終了・結果保存</button>
-
-        <div id="status-message">データ読込中...</div>
     </div>
 
-    <!-- メインビューア -->
-    <div class="viewer-panel">
-        <!-- 問題用紙 & 途中計算キャンバス -->
-        <div class="card">
+    <div class="workspace">
+        <!-- 左ペイン：問題用紙 -->
+        <div class="pane-left">
             <div class="card-header">
                 <h2>問題用紙</h2>
+                <button onclick="clearCacheAndReload()" class="btn-secondary btn-icon">再読込(キャッシュ更新)</button>
             </div>
-            <div class="image-container" id="problem-container" onwheel="handleZoom(event, 'problem')" onmousedown="startDrag(event, 'problem')">
-                <div class="image-wrapper" id="problem-wrapper">
-                    <p style="color: #888; padding: 20px;">条件を選択してください</p>
+            <div class="view-container" id="problem-container" onwheel="handleZoom(event, 'problem')">
+                <div class="transform-wrapper" id="problem-wrapper">
+                    <p style="color: #888;">条件を選択してください</p>
                 </div>
                 <div class="controls-overlay">
-                    <button onclick="zoomImage('problem', 0.2)">+</button>
-                    <button onclick="zoomImage('problem', -0.2)">-</button>
-                    <button onclick="resetImage('problem')">リセット</button>
+                    <button class="btn-icon" onclick="zoomImage('problem', 0.2)">+</button>
+                    <button class="btn-icon" onclick="zoomImage('problem', -0.2)">-</button>
+                    <button class="btn-icon" onclick="resetImage('problem')">リセット</button>
                 </div>
             </div>
             <div class="pagination">
-                <button id="prob-prev" onclick="changePage('problem', -1)" disabled>前のページ</button>
+                <button id="prob-prev" onclick="changePage('problem', -1)" disabled>前へ</button>
                 <span id="prob-page-info">0 / 0</span>
-                <button id="prob-next" onclick="changePage('problem', 1)" disabled>次のページ</button>
+                <button id="prob-next" onclick="changePage('problem', 1)" disabled>次へ</button>
             </div>
+        </div>
 
-            <!-- 途中計算用キャンバス -->
-            <div class="scratchpad-section">
-                <div class="scratchpad-toolbar">
-                    <label>途中計算エリア:</label>
-                    <button id="draw-mode-btn" onclick="setDrawMode(true)">ペン</button>
-                    <button id="erase-mode-btn" onclick="setDrawMode(false)" style="background-color: #6c757d;">消しゴム</button>
-                    <label for="line-width">太さ:</label>
-                    <select id="line-width" onchange="changeLineWidth(this.value)" style="min-width: 60px; padding: 2px 4px;">
+        <!-- 右ペイン：解答とメモ -->
+        <div class="pane-right">
+            <!-- 右上：解答用紙 -->
+            <div class="pane-right-top">
+                <div class="card-header">
+                    <h2>解答用紙 (答案)</h2>
+                    <button class="btn-warning btn-icon" onclick="gradeWithAI()">✨ AIに自動採点を依頼</button>
+                </div>
+                <div class="toolbar">
+                    <button id="ans-pen-btn" onclick="setDrawMode('answer', true)" class="btn-icon" style="background:#007bff;">ペン</button>
+                    <button id="ans-erase-btn" onclick="setDrawMode('answer', false)" class="btn-icon btn-secondary">消しゴム</button>
+                    <label>太さ:</label>
+                    <select id="ans-width" onchange="changeLineWidth('answer', this.value)">
                         <option value="2">細</option>
                         <option value="4" selected>中</option>
                         <option value="8">太</option>
                     </select>
-                    <button onclick="clearCanvas()" class="btn-danger" style="margin-left: auto;">全消去</button>
+                    <button onclick="clearCanvas('answer')" class="btn-danger btn-icon" style="margin-left:auto;">手書き消去</button>
                 </div>
-                <canvas id="scratchpad"></canvas>
+                
+                <div class="view-container" id="answer-container" onwheel="handleZoom(event, 'answer')">
+                    <div class="transform-wrapper" id="answer-wrapper">
+                        <img id="answer-bg-img" style="display:none;">
+                        <canvas id="answer-canvas" class="drawing-canvas"></canvas>
+                        <p id="answer-placeholder" style="color: #888;">条件を選択してください</p>
+                    </div>
+                    <div class="controls-overlay">
+                        <button class="btn-icon" onclick="zoomImage('answer', 0.2)">+</button>
+                        <button class="btn-icon" onclick="zoomImage('answer', -0.2)">-</button>
+                        <button class="btn-icon" onclick="resetImage('answer')">リセット</button>
+                    </div>
+                </div>
+                <div class="pagination">
+                    <button id="ans-prev" onclick="changePage('answer', -1)" disabled>前へ</button>
+                    <span id="ans-page-info">0 / 0</span>
+                    <button id="ans-next" onclick="changePage('answer', 1)" disabled>次へ</button>
+                </div>
             </div>
-        </div>
 
-        <!-- 解答用紙 (答案) -->
-        <div class="card">
-            <div class="card-header">
-                <h2>解答用紙 (答案)</h2>
-                <button onclick="clearCacheAndReload()" style="background-color: #6c757d; font-size: 0.75rem; padding: 4px 8px;">キャッシュ更新</button>
-            </div>
-            <div class="image-container" id="answer-container" onwheel="handleZoom(event, 'answer')" onmousedown="startDrag(event, 'answer')">
-                <div class="image-wrapper" id="answer-wrapper">
-                    <p style="color: #888; padding: 20px;">条件を選択してください</p>
+            <!-- 右下：途中計算・メモ用紙 -->
+            <div class="pane-right-bottom">
+                <div class="card-header">
+                    <h2>途中計算・メモ用紙</h2>
                 </div>
-                <div class="controls-overlay">
-                    <button onclick="zoomImage('answer', 0.2)">+</button>
-                    <button onclick="zoomImage('answer', -0.2)">-</button>
-                    <button onclick="resetImage('answer')">リセット</button>
+                <div class="toolbar">
+                    <button id="memo-pen-btn" onclick="setDrawMode('memo', true)" class="btn-icon" style="background:#007bff;">ペン</button>
+                    <button id="memo-erase-btn" onclick="setDrawMode('memo', false)" class="btn-icon btn-secondary">消しゴム</button>
+                    <label>太さ:</label>
+                    <select id="memo-width" onchange="changeLineWidth('memo', this.value)">
+                        <option value="2">細</option>
+                        <option value="4" selected>中</option>
+                        <option value="8">太</option>
+                    </select>
+                    <button onclick="clearCanvas('memo')" class="btn-danger btn-icon" style="margin-left:auto;">全消去</button>
                 </div>
-            </div>
-            <div class="pagination">
-                <button id="ans-prev" onclick="changePage('answer', -1)" disabled>前のページ</button>
-                <span id="ans-page-info">0 / 0</span>
-                <button id="ans-next" onclick="changePage('answer', 1)" disabled>次のページ</button>
+                <div class="view-container" style="background:#fff;">
+                    <canvas id="memo-canvas" class="drawing-canvas" style="width:100%; height:100%;"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -359,35 +185,40 @@
 <div class="modal" id="log-modal">
     <div class="modal-content">
         <h3>演習結果の記録（スプレッドシート連携）</h3>
-        <div>
-            <label>解答時間: <span id="modal-time-display" style="font-weight: bold;">00:00</span></label>
-        </div>
+        <div><label>解答時間: <span id="modal-time-display" style="font-weight: bold;">00:00</span></label></div>
         <div>
             <label>正誤判定</label>
             <select id="modal-correct">
-                <option value="正解">正解</option>
-                <option value="不正解">不正解</option>
-                <option value="要復習">要復習</option>
+                <option value="正解">正解</option><option value="不正解">不正解</option><option value="要復習">要復習</option>
             </select>
         </div>
-        <div>
-            <label>単元タグ（例: 関数・平面図形・長文読解）</label>
-            <input type="text" id="modal-unit" placeholder="単元名を入力">
-        </div>
+        <div><label>単元タグ</label><input type="text" id="modal-unit" placeholder="例: 関数・長文読解"></div>
         <div>
             <label>失点理由 / 振り返り</label>
             <select id="modal-reason">
-                <option value="なし（正解）">なし（正解）</option>
-                <option value="計算ミス">計算ミス</option>
-                <option value="知識不足・解法不明">知識不足・解法不明</option>
-                <option value="時間切れ">時間切れ</option>
-                <option value="問題の読み間違い">問題の読み間違い</option>
-                <option value="その他">その他</option>
+                <option value="なし（正解）">なし（正解）</option><option value="計算ミス">計算ミス</option>
+                <option value="知識不足・解法不明">知識不足・解法不明</option><option value="時間切れ">時間切れ</option>
+                <option value="問題の読み間違い">問題の読み間違い</option><option value="その他">その他</option>
             </select>
         </div>
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
-            <button onclick="closeLogModal()" style="background-color: #6c757d;">キャンセル</button>
+            <button onclick="closeLogModal()" class="btn-secondary">キャンセル</button>
             <button class="btn-success" onclick="submitLog()">スプレッドシートに保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- AI採点結果モーダル -->
+<div class="modal" id="ai-modal">
+    <div class="modal-content" id="ai-modal-content">
+        <h3 style="margin-top:0;">🤖 AI自動採点・解説</h3>
+        <div id="ai-loading" style="display:none; text-align:center; padding: 20px;">
+            <div class="loader"></div>
+            <p style="color:#007bff; font-weight:bold; margin-top:15px;">AIが解答を解析・採点中です...（数秒かかります）</p>
+        </div>
+        <div id="ai-result-text">ここにAIの採点結果と解説が表示されます。</div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+            <button onclick="closeAiModal()" class="btn-secondary">閉じる</button>
         </div>
     </div>
 </div>
@@ -395,30 +226,30 @@
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwPKqU_Tg0Jv9k51pLyue3R7aOSWZ1IXRxXWhZ-7JbKlhLrIbajlzjq5EbfVNt5rarmGw/exec";
 
+    // 状態管理
     let allFiles = [];
     let structuredData = {};
     let currentPref = "", currentSubject = "", currentYear = "";
     let currentProbIndex = 0, currentAnsIndex = 0;
-
-    // ビューア操作ステート
-    const viewStates = {
-        problem: { scale: 1, x: 0, y: 0 },
-        answer: { scale: 1, x: 0, y: 0 }
+    const viewStates = { problem: { scale: 1, x: 0, y: 0 }, answer: { scale: 1, x: 0, y: 0 } };
+    const boards = {
+        answer: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4 },
+        memo: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4 }
     };
-    let isDragging = false, dragTarget = null, startX = 0, startY = 0;
-
-    // タイマーステート
     let timerInterval = null, secondsElapsed = 0, isTimerRunning = false;
 
-    // 途中計算キャンバスステート
-    let canvas, ctx, isDrawing = false, isPen = true, lineWidth = 4;
-
     window.onload = () => {
-        initCanvas();
+        initCanvas('answer');
+        initCanvas('memo');
         fetchImagesFromCloud();
     };
 
-    // Googleスプレッドシート（GAS）からファイルデータ取得
+    const toggleFullScreen = () => {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+    };
+
+    // データ取得
     const fetchImagesFromCloud = async () => {
         try {
             document.getElementById('status-message').textContent = 'データ読込中...';
@@ -426,11 +257,9 @@
             if (cachedFiles) {
                 allFiles = JSON.parse(cachedFiles);
                 processLoadedFiles(allFiles);
-                document.getElementById('status-message').textContent = '準備完了 (キャッシュ)';
-                document.getElementById('status-message').style.color = '#28a745';
+                document.getElementById('status-message').textContent = '準備完了(キャッシュ)';
                 return;
             }
-
             const response = await fetch(GAS_URL);
             const data = await response.json();
             if (data && data.length > 0) {
@@ -438,19 +267,14 @@
                 localStorage.setItem('past_exam_files_cache', JSON.stringify(data));
                 processLoadedFiles(allFiles);
                 document.getElementById('status-message').textContent = '準備完了';
-                document.getElementById('status-message').style.color = '#28a745';
-            } else {
-                document.getElementById('status-message').textContent = 'ファイルがありません';
             }
         } catch (e) {
             document.getElementById('status-message').textContent = '通信エラー';
-            console.error(e);
         }
     };
 
     const clearCacheAndReload = () => {
         localStorage.removeItem('past_exam_files_cache');
-        alert('キャッシュをクリアしました。再読み込みします。');
         location.reload();
     };
 
@@ -459,17 +283,10 @@
         files.forEach(file => {
             const name = file.name;
             let pref = "長野県", subject = "英語", year = "2023";
-
             const prefsList = ["長野県", "東京都", "大阪府", "神奈川県", "愛知県", "北海道", "福岡県", "埼玉県", "千葉県", "兵庫県", "静岡県"];
-            for (let p of prefsList) {
-                if (name.includes(p)) { pref = p; break; }
-            }
-
+            for (let p of prefsList) { if (name.includes(p)) { pref = p; break; } }
             const subjectsList = ["英語", "数学", "国語", "理科", "社会"];
-            for (let s of subjectsList) {
-                if (name.includes(s)) { subject = s; break; }
-            }
-
+            for (let s of subjectsList) { if (name.includes(s)) { subject = s; break; } }
             const yearMatch = name.match(/20\d{2}|\d{2}年度/);
             if (yearMatch) year = yearMatch[0];
 
@@ -478,7 +295,6 @@
             if (!structuredData[pref][subject][year]) {
                 structuredData[pref][subject][year] = { pages: [], ansPages: [] };
             }
-
             if (name.toLowerCase().includes('ans') || name.toLowerCase().includes('answer')) {
                 structuredData[pref][subject][year].ansPages.push(file);
             } else {
@@ -489,344 +305,262 @@
     };
 
     const initPrefSelect = () => {
-        const prefSelect = document.getElementById('pref-select');
-        prefSelect.innerHTML = '<option value="">選択してください</option>';
-        Object.keys(structuredData).forEach(pref => {
-            const opt = document.createElement('option');
-            opt.value = pref;
-            opt.textContent = pref;
-            prefSelect.appendChild(opt);
+        const sel = document.getElementById('pref-select');
+        sel.innerHTML = '<option value="">選択</option>';
+        Object.keys(structuredData).forEach(p => {
+            const opt = document.createElement('option'); opt.value = p; opt.textContent = p; sel.appendChild(opt);
         });
-        prefSelect.disabled = false;
+        sel.disabled = false;
     };
 
     const onPrefChange = () => {
         currentPref = document.getElementById('pref-select').value;
-        const subSelect = document.getElementById('subject-select');
-        subSelect.innerHTML = '<option value="">選択してください</option>';
-        subSelect.disabled = true;
-        const yearSelect = document.getElementById('year-select');
-        yearSelect.innerHTML = '<option value="">選択してください</option>';
-        yearSelect.disabled = true;
-        clearViewers();
-
-        if (currentPref && structuredData[currentPref]) {
-            subSelect.disabled = false;
-            Object.keys(structuredData[currentPref]).forEach(subject => {
-                const opt = document.createElement('option');
-                opt.value = subject;
-                opt.textContent = subject;
-                subSelect.appendChild(opt);
+        const sub = document.getElementById('subject-select');
+        sub.innerHTML = '<option value="">選択</option>'; sub.disabled = true;
+        document.getElementById('year-select').innerHTML = '<option value="">選択</option>'; document.getElementById('year-select').disabled = true;
+        
+        if (currentPref) {
+            sub.disabled = false;
+            Object.keys(structuredData[currentPref]).forEach(s => {
+                const opt = document.createElement('option'); opt.value = s; opt.textContent = s; sub.appendChild(opt);
             });
         }
     };
 
     const onSubjectChange = () => {
         currentSubject = document.getElementById('subject-select').value;
-        const yearSelect = document.getElementById('year-select');
-        yearSelect.innerHTML = '<option value="">選択してください</option>';
-        yearSelect.disabled = true;
-        clearViewers();
-
-        if (currentSubject && structuredData[currentPref][currentSubject]) {
-            yearSelect.disabled = false;
-            Object.keys(structuredData[currentPref][currentSubject]).sort().reverse().forEach(year => {
-                const opt = document.createElement('option');
-                opt.value = year;
-                opt.textContent = year;
-                yearSelect.appendChild(opt);
+        const yr = document.getElementById('year-select');
+        yr.innerHTML = '<option value="">選択</option>'; yr.disabled = true;
+        if (currentSubject) {
+            yr.disabled = false;
+            Object.keys(structuredData[currentPref][currentSubject]).sort().reverse().forEach(y => {
+                const opt = document.createElement('option'); opt.value = y; opt.textContent = y; yr.appendChild(opt);
             });
         }
     };
 
     const onYearChange = () => {
         currentYear = document.getElementById('year-select').value;
-        currentProbIndex = 0;
-        currentAnsIndex = 0;
+        currentProbIndex = 0; currentAnsIndex = 0;
         document.getElementById('finish-btn').disabled = !currentYear;
         updateViewers();
     };
 
     const updateViewers = () => {
-        if (!currentPref || !currentSubject || !currentYear) return;
-        const targetData = structuredData[currentPref][currentSubject][currentYear];
-        renderImage('problem', targetData.pages, currentProbIndex);
-        renderImage('answer', targetData.ansPages, currentAnsIndex);
+        if (!currentYear) return;
+        const data = structuredData[currentPref][currentSubject][currentYear];
+        renderImage('problem', data.pages, currentProbIndex);
+        renderImage('answer', data.ansPages, currentAnsIndex);
     };
 
-    // 画像描画（CORSブロック対策・Base64フォールバック付き）
     const renderImage = async (type, pageList, index) => {
+        const isAnswer = type === 'answer';
         const wrapper = document.getElementById(`${type}-wrapper`);
         const info = document.getElementById(`${type}-page-info`);
         const prevBtn = document.getElementById(`${type}-prev`);
         const nextBtn = document.getElementById(`${type}-next`);
 
-        wrapper.innerHTML = '<p style="color: #007bff; padding: 20px;">画像読込中...</p>';
+        if(isAnswer) document.getElementById('answer-placeholder').textContent = '画像読込中...';
+        else wrapper.innerHTML = '<p style="color:#007bff;">画像読込中...</p>';
         resetImage(type);
 
         if (!pageList || pageList.length === 0) {
-            wrapper.innerHTML = '<p style="color: #888; padding: 20px;">画像がありません</p>';
+            if(isAnswer) document.getElementById('answer-placeholder').textContent = '画像がありません';
+            else wrapper.innerHTML = '<p style="color:#888;">画像がありません</p>';
             info.textContent = '0 / 0';
-            prevBtn.disabled = true;
-            nextBtn.disabled = true;
+            prevBtn.disabled = true; nextBtn.disabled = true;
             return;
         }
 
         const file = pageList[index];
         info.textContent = `${index + 1} / ${pageList.length}`;
-        prevBtn.disabled = (index === 0);
-        nextBtn.disabled = (index === pageList.length - 1);
+        prevBtn.disabled = (index === 0); nextBtn.disabled = (index === pageList.length - 1);
 
         try {
             let fileId = file.url;
-            if (fileId.includes('id=')) {
-                fileId = fileId.split('id=')[1].split('&')[0];
-            } else if (fileId.includes('/d/')) {
-                fileId = fileId.split('/d/')[1].split('/')[0];
-            }
-
-            const img = document.createElement('img');
-            img.src = `https://lh3.googleusercontent.com/d/${fileId}`;
+            if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
+            else if (fileId.includes('/d/')) fileId = fileId.split('/d/')[1].split('/')[0];
             
-            img.onload = () => {
-                wrapper.innerHTML = '';
-                wrapper.appendChild(img);
-            };
-
-            img.onerror = async () => {
-                try {
-                    const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
-                    const json = await res.json();
-                    if (json.status === "success") {
-                        wrapper.innerHTML = '';
-                        const apiImg = document.createElement('img');
-                        apiImg.src = json.dataUrl;
-                        wrapper.appendChild(apiImg);
-                    } else {
-                        wrapper.innerHTML = '<p style="color: #dc3545; padding: 20px;">画像の取得に失敗しました</p>';
-                    }
-                } catch(err) {
-                    wrapper.innerHTML = '<p style="color: #dc3545; padding: 20px;">画像読込エラー</p>';
+            const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
+            const json = await res.json();
+            
+            if (json.status === "success") {
+                if (isAnswer) {
+                    const bgImg = document.getElementById('answer-bg-img');
+                    bgImg.onload = () => {
+                        document.getElementById('answer-placeholder').style.display = 'none';
+                        bgImg.style.display = 'block';
+                        const cvs = boards.answer.canvas;
+                        cvs.width = bgImg.naturalWidth; cvs.height = bgImg.naturalHeight;
+                        cvs.style.width = bgImg.width + 'px'; cvs.style.height = bgImg.height + 'px';
+                    };
+                    bgImg.src = json.dataUrl;
+                } else {
+                    wrapper.innerHTML = '';
+                    const apiImg = document.createElement('img');
+                    apiImg.src = json.dataUrl;
+                    wrapper.appendChild(apiImg);
                 }
-            };
-        } catch (e) {
-            wrapper.innerHTML = '<p style="color: #dc3545; padding: 20px;">エラーが発生しました</p>';
+            }
+        } catch(err) {
+            if(isAnswer) document.getElementById('answer-placeholder').textContent = 'エラー';
+            else wrapper.innerHTML = '<p style="color:#dc3545;">エラー</p>';
         }
     };
 
     const changePage = (type, direction) => {
-        const targetData = structuredData[currentPref][currentSubject][currentYear];
+        const data = structuredData[currentPref][currentSubject][currentYear];
         if (type === 'problem') {
             currentProbIndex += direction;
-            renderImage('problem', targetData.pages, currentProbIndex);
+            renderImage('problem', data.pages, currentProbIndex);
         } else {
             currentAnsIndex += direction;
-            renderImage('answer', targetData.ansPages, currentAnsIndex);
+            clearCanvas('answer');
+            renderImage('answer', data.ansPages, currentAnsIndex);
         }
     };
 
-    // --- 拡大・縮小・移動 ---
-    const zoomImage = (type, delta) => {
-        viewStates[type].scale = Math.max(0.5, Math.min(5, viewStates[type].scale + delta));
-        applyTransform(type);
+    // キャンバス
+    const initCanvas = (target) => {
+        const cvs = document.getElementById(`${target}-canvas`);
+        boards[target].canvas = cvs;
+        boards[target].ctx = cvs.getContext('2d');
+        if(target === 'memo') { resizeMemoCanvas(); window.addEventListener('resize', resizeMemoCanvas); }
+        cvs.addEventListener('mousedown', (e) => startDraw(e, target));
+        cvs.addEventListener('mousemove', (e) => draw(e, target));
+        cvs.addEventListener('mouseup', () => stopDraw(target));
+        cvs.addEventListener('mouseleave', () => stopDraw(target));
+        cvs.addEventListener('touchstart', (e) => { if(e.touches.length===1){ e.preventDefault(); startDraw({clientX: e.touches[0].clientX, clientY: e.touches[0].clientY}, target); }}, { passive: false });
+        cvs.addEventListener('touchmove', (e) => { if(e.touches.length===1){ e.preventDefault(); draw({clientX: e.touches[0].clientX, clientY: e.touches[0].clientY}, target); }}, { passive: false });
+        cvs.addEventListener('touchend', () => stopDraw(target));
     };
 
-    const handleZoom = (event, type) => {
-        event.preventDefault();
-        const delta = event.deltaY < 0 ? 0.2 : -0.2;
-        zoomImage(type, delta);
+    const resizeMemoCanvas = () => {
+        const container = boards.memo.canvas.parentElement;
+        boards.memo.canvas.width = container.clientWidth; boards.memo.canvas.height = container.clientHeight;
     };
-
-    const resetImage = (type) => {
-        viewStates[type] = { scale: 1, x: 0, y: 0 };
-        applyTransform(type);
-    };
-
-    const applyTransform = (type) => {
-        const wrapper = document.getElementById(`${type}-wrapper`);
-        const state = viewStates[type];
-        wrapper.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
-    };
-
-    const startDrag = (event, type) => {
-        if (event.button !== 0) return;
-        isDragging = true;
-        dragTarget = type;
-        startX = event.clientX - viewStates[type].x;
-        startY = event.clientY - viewStates[type].y;
-        document.addEventListener('mousemove', onDrag);
-        document.addEventListener('mouseup', stopDrag);
-    };
-
-    const onDrag = (event) => {
-        if (!isDragging || !dragTarget) return;
-        viewStates[dragTarget].x = event.clientX - startX;
-        viewStates[dragTarget].y = event.clientY - startY;
-        applyTransform(dragTarget);
-    };
-
-    const stopDrag = () => {
-        isDragging = false;
-        dragTarget = null;
-        document.removeEventListener('mousemove', onDrag);
-        document.removeEventListener('mouseup', stopDrag);
-    };
-
-    const clearViewers = () => {
-        document.getElementById('problem-wrapper').innerHTML = '<p style="color: #888; padding: 20px;">条件を選択してください</p>';
-        document.getElementById('answer-wrapper').innerHTML = '<p style="color: #888; padding: 20px;">条件を選択してください</p>';
-        document.getElementById('prob-page-info').textContent = '0 / 0';
-        document.getElementById('ans-page-info').textContent = '0 / 0';
-        document.getElementById('prob-prev').disabled = true;
-        document.getElementById('prob-next').disabled = true;
-        document.getElementById('ans-prev').disabled = true;
-        document.getElementById('ans-next').disabled = true;
-    };
-
-    // --- 途中計算手書きキャンバス ---
-    const initCanvas = () => {
-        canvas = document.getElementById('scratchpad');
-        ctx = canvas.getContext('2d');
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseleave', stopDrawing);
-
-        canvas.addEventListener('touchstart', (e) => {
-            const touch = e.touches[0];
-            const mouseEvent = new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY });
-            canvas.dispatchEvent(mouseEvent);
-        }, { passive: false });
-        canvas.addEventListener('touchmove', (e) => {
-            const touch = e.touches[0];
-            const mouseEvent = new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY });
-            canvas.dispatchEvent(mouseEvent);
-        }, { passive: false });
-        canvas.addEventListener('touchend', () => {
-            canvas.dispatchEvent(new MouseEvent('mouseup', {}));
-        });
-    };
-
-    const resizeCanvas = () => {
-        canvas.width = canvas.parentElement.clientWidth;
-        canvas.height = 180;
-    };
-
-    const setDrawMode = (pen) => {
-        isPen = pen;
-        document.getElementById('draw-mode-btn').style.backgroundColor = pen ? '#007bff' : '#6c757d';
-        document.getElementById('erase-mode-btn').style.backgroundColor = pen ? '#6c757d' : '#007bff';
-    };
-
-    const changeLineWidth = (width) => {
-        lineWidth = parseInt(width, 10);
-    };
-
-    const startDrawing = (e) => {
-        isDrawing = true;
-        ctx.beginPath();
+    const getMousePos = (e, canvas) => {
         const rect = canvas.getBoundingClientRect();
-        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) };
     };
-
-    const draw = (e) => {
-        if (!isDrawing) return;
-        const rect = canvas.getBoundingClientRect();
-        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-        ctx.strokeStyle = isPen ? '#2c3e50' : '#ffffff';
-        ctx.lineWidth = isPen ? lineWidth : lineWidth * 4;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.stroke();
+    const startDraw = (e, target) => {
+        const b = boards[target]; b.isDrawing = true; b.ctx.beginPath();
+        const pos = getMousePos(e, b.canvas); b.ctx.moveTo(pos.x, pos.y);
     };
-
-    const stopDrawing = () => {
-        isDrawing = false;
+    const draw = (e, target) => {
+        const b = boards[target]; if (!b.isDrawing) return;
+        const pos = getMousePos(e, b.canvas); b.ctx.lineTo(pos.x, pos.y);
+        b.ctx.globalCompositeOperation = b.isPen ? "source-over" : "destination-out";
+        b.ctx.strokeStyle = '#e74c3c';
+        b.ctx.lineWidth = b.isPen ? b.width : b.width * 5;
+        b.ctx.lineCap = 'round'; b.ctx.lineJoin = 'round';
+        b.ctx.stroke();
     };
-
-    const clearCanvas = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const stopDraw = (target) => { boards[target].isDrawing = false; };
+    const clearCanvas = (target) => { const b = boards[target]; b.ctx.clearRect(0, 0, b.canvas.width, b.canvas.height); };
+    const setDrawMode = (target, isPen) => {
+        boards[target].isPen = isPen;
+        document.getElementById(`${target}-pen-btn`).style.backgroundColor = isPen ? '#007bff' : '#6c757d';
+        document.getElementById(`${target}-erase-btn`).style.backgroundColor = isPen ? '#6c757d' : '#007bff';
     };
+    const changeLineWidth = (target, val) => { boards[target].width = parseInt(val); };
 
-    // --- タイマー機能 ---
+    // ズーム
+    const zoomImage = (type, delta) => { viewStates[type].scale = Math.max(0.5, Math.min(4, viewStates[type].scale + delta)); applyTransform(type); };
+    const handleZoom = (event, type) => { if(event.ctrlKey) { event.preventDefault(); zoomImage(type, event.deltaY < 0 ? 0.15 : -0.15); } };
+    const resetImage = (type) => { viewStates[type] = { scale: 1, x: 0, y: 0 }; applyTransform(type); };
+    const applyTransform = (type) => { document.getElementById(`${type}-wrapper`).style.transform = `scale(${viewStates[type].scale})`; };
+
+    // タイマー
     const toggleTimer = () => {
         const btn = document.getElementById('timer-start-btn');
-        if (isTimerRunning) {
-            clearInterval(timerInterval);
-            isTimerRunning = false;
-            btn.textContent = '再開';
-            btn.style.backgroundColor = '#007bff';
-        } else {
-            isTimerRunning = true;
-            btn.textContent = '一時停止';
-            btn.style.backgroundColor = '#ffc107';
-            timerInterval = setInterval(() => {
-                secondsElapsed++;
-                updateTimerDisplay();
-            }, 1000);
-        }
+        if (isTimerRunning) { clearInterval(timerInterval); isTimerRunning = false; btn.textContent = '再開'; btn.style.backgroundColor = '#007bff'; }
+        else { isTimerRunning = true; btn.textContent = '停止'; btn.style.backgroundColor = '#ffc107'; timerInterval = setInterval(() => { secondsElapsed++; updateTimerDisplay(); }, 1000); }
     };
+    const resetTimer = () => { clearInterval(timerInterval); isTimerRunning = false; secondsElapsed = 0; updateTimerDisplay(); document.getElementById('timer-start-btn').textContent = '開始'; document.getElementById('timer-start-btn').style.backgroundColor = '#007bff'; };
+    const updateTimerDisplay = () => { document.getElementById('timer-display').textContent = `${String(Math.floor(secondsElapsed / 60)).padStart(2, '0')}:${String(secondsElapsed % 60).padStart(2, '0')}`; };
 
-    const resetTimer = () => {
-        clearInterval(timerInterval);
-        isTimerRunning = false;
-        secondsElapsed = 0;
-        updateTimerDisplay();
-        const btn = document.getElementById('timer-start-btn');
-        btn.textContent = 'スタート';
-        btn.style.backgroundColor = '#007bff';
-    };
-
-    const updateTimerDisplay = () => {
-        const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
-        const secs = String(secondsElapsed % 60).padStart(2, '0');
-        document.getElementById('timer-display').textContent = `${mins}:${secs}`;
-    };
-
-    // --- 演習結果・学習ログ送信 ---
+    // ログ送信
     const openLogModal = () => {
         if (isTimerRunning) toggleTimer();
-        const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
-        const secs = String(secondsElapsed % 60).padStart(2, '0');
-        document.getElementById('modal-time-display').textContent = `${mins}分 ${secs}秒 (${secondsElapsed}秒)`;
+        document.getElementById('modal-time-display').textContent = `${String(Math.floor(secondsElapsed / 60)).padStart(2, '0')}分 ${String(secondsElapsed % 60).padStart(2, '0')}秒`;
         document.getElementById('log-modal').style.display = 'flex';
     };
-
-    const closeLogModal = () => {
-        document.getElementById('log-modal').style.display = 'none';
-    };
-
+    const closeLogModal = () => { document.getElementById('log-modal').style.display = 'none'; };
     const submitLog = async () => {
         const payload = {
-            examKey: `${currentPref}_${currentSubject}_${currentYear}`,
-            pageNum: `page_${currentProbIndex + 1}`,
-            timeSec: secondsElapsed,
-            isCorrect: document.getElementById('modal-correct').value,
-            unitTag: document.getElementById('modal-unit').value,
-            reason: document.getElementById('modal-reason').value
+            action: "saveLog",
+            examKey: `${currentPref}_${currentSubject}_${currentYear}`, pageNum: `page_${currentProbIndex + 1}`,
+            timeSec: secondsElapsed, isCorrect: document.getElementById('modal-correct').value,
+            unitTag: document.getElementById('modal-unit').value, reason: document.getElementById('modal-reason').value
         };
+        try {
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+            alert('保存しました！'); closeLogModal(); resetTimer();
+        } catch (e) { alert('送信失敗'); }
+    };
+
+    // AI採点モーダル制御
+    const openAiModal = () => {
+        document.getElementById('ai-modal').style.display = 'flex';
+        document.getElementById('ai-loading').style.display = 'block';
+        document.getElementById('ai-result-text').style.display = 'none';
+        document.getElementById('ai-result-text').innerHTML = '';
+    };
+    const closeAiModal = () => { document.getElementById('ai-modal').style.display = 'none'; };
+
+    // GAS経由でのGemini自動採点
+    const gradeWithAI = async () => {
+        const bgImg = document.getElementById('answer-bg-img');
+        const drawCanvas = boards.answer.canvas;
+        if(!bgImg.src || bgImg.style.display === 'none') {
+            alert("解答用紙が読み込まれていません。"); return;
+        }
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = bgImg.naturalWidth;
+        tempCanvas.height = bgImg.naturalHeight;
+        const tCtx = tempCanvas.getContext('2d');
+        tCtx.drawImage(bgImg, 0, 0);
+        tCtx.drawImage(drawCanvas, 0, 0);
+        
+        const dataUrl = tempCanvas.toDataURL('image/png');
+        const base64Raw = dataUrl.split(',')[1];
+
+        openAiModal();
 
         try {
-            document.getElementById('status-message').textContent = 'ログ送信中...';
-            await fetch(GAS_URL, {
+            const payload = {
+                action: "gradeAI",
+                image: base64Raw
+            };
+
+            const response = await fetch(GAS_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(payload)
             });
-            alert('学習ログをスプレッドシートに保存しました！');
-            document.getElementById('status-message').textContent = 'ログ保存完了';
-            closeLogModal();
-            resetTimer();
-            clearCanvas();
-        } catch (e) {
-            alert('送信に失敗しました。');
-            console.error(e);
+
+            const data = await response.json();
+            
+            if (data.status === "success") {
+                let formattedText = data.text
+                    .replace(/^### (.*$)/gim, '<h4>$1</h4>')
+                    .replace(/^## (.*$)/gim, '<h3 style="color:#007bff; border-bottom:1px solid #ccc; padding-bottom:5px;">$1</h3>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+                document.getElementById('ai-loading').style.display = 'none';
+                document.getElementById('ai-result-text').style.display = 'block';
+                document.getElementById('ai-result-text').innerHTML = formattedText;
+            } else {
+                throw new Error(data.message || "採点処理に失敗しました。");
+            }
+        } catch (error) {
+            console.error(error);
+            document.getElementById('ai-loading').style.display = 'none';
+            document.getElementById('ai-result-text').style.display = 'block';
+            document.getElementById('ai-result-text').innerHTML = `<span style="color:red;">AIとの通信に失敗しました。<br>${error.message}</span>`;
         }
     };
 </script>
-
 </body>
 </html>
