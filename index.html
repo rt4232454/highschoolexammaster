@@ -6,77 +6,79 @@
     <title>高校受験 過去問演習・管理システム</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 10px; background-color: #f4f6f9; color: #333; height: 100vh; display: flex; flex-direction: column; }
-        h1 { font-size: 1.2rem; margin: 0 0 10px 0; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 6px; background-color: #f0f2f5; color: #333; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        .top-bar { background: #fff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 10px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
-        .selector-group { display: flex; flex-direction: column; gap: 4px; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 6px; gap: 10px; flex-wrap: wrap; }
+        .header-title { font-size: 1.05rem; font-weight: bold; color: #2c3e50; display: flex; align-items: center; gap: 8px; }
+        
+        .controls-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .selector-item { display: flex; align-items: center; gap: 4px; }
         label { font-size: 0.8rem; font-weight: bold; color: #555; }
-        select, input[type="text"] { padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 100px; }
+        select, input[type="text"] { padding: 4px 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.85rem; }
         
-        .timer-panel { display: flex; align-items: center; gap: 10px; background: #eef2f7; padding: 4px 10px; border-radius: 6px; margin-left: auto; }
-        .timer-display { font-family: monospace; font-size: 1.2rem; font-weight: bold; color: #2c3e50; min-width: 60px; }
+        .timer-panel { display: flex; align-items: center; gap: 6px; background: #eef2f7; padding: 3px 8px; border-radius: 6px; }
+        .timer-display { font-family: monospace; font-size: 1.15rem; font-weight: bold; color: #2c3e50; min-width: 55px; }
 
-        #status-message { font-size: 0.85rem; font-weight: bold; color: #007bff; }
+        #status-message { font-size: 0.8rem; font-weight: bold; color: #007bff; }
 
-        .workspace { display: flex; gap: 10px; flex-grow: 1; overflow: hidden; }
-        .pane-left { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 10px; }
-        .pane-right { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-        .pane-right-top, .pane-right-bottom { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 10px; position: relative; }
+        .workspace { display: flex; gap: 8px; flex-grow: 1; overflow: hidden; height: calc(100vh - 65px); }
+        .pane-left { flex: 1.1; display: flex; flex-direction: column; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 8px; }
+        .pane-right { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .pane-right-top { flex: 1.3; display: flex; flex-direction: column; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 8px; position: relative; }
+        .pane-right-bottom { flex: 0.7; display: flex; flex-direction: column; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 8px; position: relative; }
         
-        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eaeaea; padding-bottom: 4px; margin-bottom: 8px; }
-        .card-header h2 { font-size: 1rem; margin: 0; color: #34495e; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #eaeaea; padding-bottom: 4px; margin-bottom: 4px; }
+        .card-header h2 { font-size: 0.95rem; margin: 0; color: #34495e; }
 
-        .view-container { flex-grow: 1; background: #fafafa; border: 1px dashed #ddd; border-radius: 4px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; }
-        .transform-wrapper { position: absolute; transform-origin: center center; transition: transform 0.05s ease-out; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
-        .transform-wrapper img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+        .view-container { flex-grow: 1; background: #4a4a4a; border-radius: 4px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; user-select: none; cursor: default; }
+        .view-container.pan-mode { cursor: grab; }
+        .view-container.pan-mode:active { cursor: grabbing; }
+
+        .transform-wrapper { position: absolute; transform-origin: 0 0; display: flex; justify-content: center; align-items: center; }
+        .transform-wrapper img { display: block; pointer-events: none; max-width: none; max-height: none; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        
         .drawing-canvas { position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; touch-action: none; }
-        .controls-overlay { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; background: rgba(255, 255, 255, 0.9); padding: 4px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 20; }
+        .drawing-canvas.disabled { pointer-events: none; cursor: default; }
+
+        .controls-overlay { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 4px; background: rgba(255, 255, 255, 0.9); padding: 3px 6px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.2); z-index: 20; }
         
-        .toolbar { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; margin-bottom: 5px; }
+        .toolbar { display: flex; gap: 6px; align-items: center; font-size: 0.8rem; margin-bottom: 4px; flex-wrap: wrap; }
         
-        button { padding: 4px 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        button { padding: 3px 8px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .btn-mode { font-weight: bold; }
+        .btn-mode.active { background-color: #ff9800 !important; color: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #ff9800; }
         .btn-success { background-color: #28a745; }
         .btn-warning { background-color: #ffc107; color: #333; font-weight: bold; }
         .btn-danger { background-color: #dc3545; }
         .btn-secondary { background-color: #6c757d; }
-        .btn-icon { padding: 4px 8px; font-size: 0.8rem; }
+        .btn-icon { padding: 3px 7px; font-size: 0.8rem; }
         
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 8px; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 4px; font-size: 0.85rem; font-weight: bold; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 450px; display: flex; flex-direction: column; gap: 12px; }
-        .modal-content select, .modal-content input { padding: 8px; width: 100%; }
+        .modal-content { background: white; padding: 18px; border-radius: 8px; width: 90%; max-width: 450px; display: flex; flex-direction: column; gap: 10px; }
+        .modal-content select, .modal-content input { padding: 6px; width: 100%; }
         
-        #ai-modal-content { max-width: 700px; width: 95%; max-height: 90vh; overflow-y: auto; }
-        #ai-result-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5; background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #ddd; min-height: 100px; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        #ai-modal-content { max-width: 750px; width: 95%; max-height: 90vh; overflow-y: auto; }
+        #ai-result-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5; background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #ddd; min-height: 100px; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div class="container" id="app-container">
-    <h1>
-        <span>高校受験 過去問演習・管理システム</span>
-        <button onclick="toggleFullScreen()" class="btn-secondary" id="fs-btn">🖥️ 全画面表示切替</button>
-    </h1>
+<div class="header-bar">
+    <div class="header-title">
+        <span>高校受験 過去問演習・管理</span>
+        <button onclick="toggleFullScreen()" class="btn-secondary btn-icon" id="fs-btn">🖥️ 全画面</button>
+    </div>
 
-    <div class="top-bar">
-        <div class="selector-group">
-            <label>都道府県</label>
-            <select id="pref-select" onchange="onPrefChange()"><option value="">選択</option></select>
-        </div>
-        <div class="selector-group">
-            <label>教科</label>
-            <select id="subject-select" onchange="onSubjectChange()"><option value="">選択</option></select>
-        </div>
-        <div class="selector-group">
-            <label>年度</label>
-            <select id="year-select" onchange="onYearChange()"><option value="">選択</option></select>
-        </div>
+    <div class="controls-row">
+        <div class="selector-item"><label>県</label><select id="pref-select" onchange="onPrefChange()"><option value="">選択</option></select></div>
+        <div class="selector-item"><label>教科</label><select id="subject-select" onchange="onSubjectChange()"><option value="">選択</option></select></div>
+        <div class="selector-item"><label>年度</label><select id="year-select" onchange="onYearChange()"><option value="">選択</option></select></div>
         <div id="status-message">データ読込中...</div>
 
         <div class="timer-panel">
@@ -84,87 +86,90 @@
             <button id="timer-start-btn" onclick="toggleTimer()">開始</button>
             <button onclick="resetTimer()" class="btn-secondary">リセット</button>
         </div>
-        <button class="btn-success" onclick="openLogModal()" id="finish-btn">演習終了・結果保存</button>
+        <button class="btn-success" onclick="openLogModal()" id="finish-btn">演習終了・記録</button>
+    </div>
+</div>
+
+<div class="workspace">
+    <!-- 問題用紙 -->
+    <div class="pane-left">
+        <div class="card-header">
+            <h2>問題用紙</h2>
+            <div>
+                <button onclick="fitView('problem')" class="btn-secondary btn-icon">全体表示</button>
+                <button onclick="clearCacheAndReload()" class="btn-secondary btn-icon">再読込</button>
+            </div>
+        </div>
+        <div class="view-container pan-mode" id="problem-container">
+            <div class="transform-wrapper" id="problem-wrapper">
+                <p id="problem-placeholder" style="color: #ccc;">条件を選択してください</p>
+                <img id="problem-bg-img" style="display:none;" crossorigin="anonymous">
+            </div>
+            <div class="controls-overlay">
+                <button class="btn-icon" onclick="zoomView('problem', 0.2)">＋</button>
+                <button class="btn-icon" onclick="zoomView('problem', -0.2)">－</button>
+                <button class="btn-icon" onclick="fitView('problem')">全体</button>
+            </div>
+        </div>
+        <div class="pagination">
+            <button id="prob-prev" onclick="changePage('problem', -1)" disabled>◀ 前の問題</button>
+            <span id="prob-page-info">0 / 0</span>
+            <button id="prob-next" onclick="changePage('problem', 1)" disabled>次の問題 ▶</button>
+        </div>
     </div>
 
-    <div class="workspace">
-        <div class="pane-left">
+    <!-- 右側：解答用紙 ＆ メモ -->
+    <div class="pane-right">
+        <!-- 解答用紙 -->
+        <div class="pane-right-top">
             <div class="card-header">
-                <h2>問題用紙</h2>
-                <button onclick="clearCacheAndReload()" class="btn-secondary btn-icon">再読込(キャッシュ更新)</button>
+                <h2>解答用紙 (答案)</h2>
+                <button class="btn-warning btn-icon" onclick="gradeWithAI()">✨ AI自動採点</button>
             </div>
-            <div class="view-container" id="problem-container" onwheel="handleZoom(event, 'problem')">
-                <div class="transform-wrapper" id="problem-wrapper">
-                    <p style="color: #888;">条件を選択してください</p>
+            <div class="toolbar">
+                <button id="ans-pan-btn" onclick="setInteractionMode('answer', 'pan')" class="btn-mode btn-icon">🖐️ 移動・拡大</button>
+                <button id="ans-pen-btn" onclick="setInteractionMode('answer', 'pen')" class="btn-mode btn-icon active" style="background:#007bff;">✏️ ペン</button>
+                <button id="ans-erase-btn" onclick="setInteractionMode('answer', 'erase')" class="btn-mode btn-icon btn-secondary">消しゴム</button>
+                <label>太さ:</label>
+                <select id="ans-width" onchange="changeLineWidth('answer', this.value)">
+                    <option value="2">細</option>
+                    <option value="4" selected>中</option>
+                    <option value="8">太</option>
+                </select>
+                <button onclick="clearCanvas('answer')" class="btn-danger btn-icon" style="margin-left:auto;">手書き全消去</button>
+            </div>
+            
+            <div class="view-container" id="answer-container">
+                <div class="transform-wrapper" id="answer-wrapper">
+                    <img id="answer-bg-img" style="display:none;" crossorigin="anonymous">
+                    <canvas id="answer-canvas" class="drawing-canvas"></canvas>
+                    <p id="answer-placeholder" style="color: #ccc;">条件を選択してください</p>
                 </div>
                 <div class="controls-overlay">
-                    <button class="btn-icon" onclick="zoomImage('problem', 0.2)">+</button>
-                    <button class="btn-icon" onclick="zoomImage('problem', -0.2)">-</button>
-                    <button class="btn-icon" onclick="resetImage('problem')">リセット</button>
+                    <button class="btn-icon" onclick="zoomView('answer', 0.2)">＋</button>
+                    <button class="btn-icon" onclick="zoomView('answer', -0.2)">－</button>
+                    <button class="btn-icon" onclick="fitView('answer')">全体</button>
                 </div>
             </div>
             <div class="pagination">
-                <button id="prob-prev" onclick="changePage('problem', -1)" disabled>前へ</button>
-                <span id="prob-page-info">0 / 0</span>
-                <button id="prob-next" onclick="changePage('problem', 1)" disabled>次へ</button>
+                <button id="ans-prev" onclick="changePage('answer', -1)" disabled>◀ 前の頁</button>
+                <span id="ans-page-info">0 / 0</span>
+                <button id="ans-next" onclick="changePage('answer', 1)" disabled>次の頁 ▶</button>
             </div>
         </div>
 
-        <div class="pane-right">
-            <div class="pane-right-top">
-                <div class="card-header">
-                    <h2>解答用紙 (答案)</h2>
-                    <button class="btn-warning btn-icon" onclick="gradeWithAI()">✨ AIに自動採点を依頼</button>
-                </div>
-                <div class="toolbar">
-                    <button id="ans-pen-btn" onclick="setDrawMode('answer', true)" class="btn-icon" style="background:#007bff;">ペン</button>
-                    <button id="ans-erase-btn" onclick="setDrawMode('answer', false)" class="btn-icon btn-secondary">消しゴム</button>
-                    <label>太さ:</label>
-                    <select id="ans-width" onchange="changeLineWidth('answer', this.value)">
-                        <option value="2">細</option>
-                        <option value="4" selected>中</option>
-                        <option value="8">太</option>
-                    </select>
-                    <button onclick="clearCanvas('answer')" class="btn-danger btn-icon" style="margin-left:auto;">手書き消去</button>
-                </div>
-                
-                <div class="view-container" id="answer-container" onwheel="handleZoom(event, 'answer')">
-                    <div class="transform-wrapper" id="answer-wrapper">
-                        <img id="answer-bg-img" style="display:none;" crossorigin="anonymous">
-                        <canvas id="answer-canvas" class="drawing-canvas"></canvas>
-                        <p id="answer-placeholder" style="color: #888;">条件を選択してください</p>
-                    </div>
-                    <div class="controls-overlay">
-                        <button class="btn-icon" onclick="zoomImage('answer', 0.2)">+</button>
-                        <button class="btn-icon" onclick="zoomImage('answer', -0.2)">-</button>
-                        <button class="btn-icon" onclick="resetImage('answer')">リセット</button>
-                    </div>
-                </div>
-                <div class="pagination">
-                    <button id="ans-prev" onclick="changePage('answer', -1)" disabled>前へ</button>
-                    <span id="ans-page-info">0 / 0</span>
-                    <button id="ans-next" onclick="changePage('answer', 1)" disabled>次へ</button>
-                </div>
-            </div>
-
-            <div class="pane-right-bottom">
-                <div class="card-header">
-                    <h2>途中計算・メモ用紙</h2>
-                </div>
-                <div class="toolbar">
+        <!-- メモ・計算用紙 -->
+        <div class="pane-right-bottom">
+            <div class="card-header">
+                <h2>途中計算・メモ用紙</h2>
+                <div>
                     <button id="memo-pen-btn" onclick="setDrawMode('memo', true)" class="btn-icon" style="background:#007bff;">ペン</button>
                     <button id="memo-erase-btn" onclick="setDrawMode('memo', false)" class="btn-icon btn-secondary">消しゴム</button>
-                    <label>太さ:</label>
-                    <select id="memo-width" onchange="changeLineWidth('memo', this.value)">
-                        <option value="2">細</option>
-                        <option value="4" selected>中</option>
-                        <option value="8">太</option>
-                    </select>
-                    <button onclick="clearCanvas('memo')" class="btn-danger btn-icon" style="margin-left:auto;">全消去</button>
+                    <button onclick="clearCanvas('memo')" class="btn-danger btn-icon">全消去</button>
                 </div>
-                <div class="view-container" style="background:#fff;">
-                    <canvas id="memo-canvas" class="drawing-canvas" style="width:100%; height:100%;"></canvas>
-                </div>
+            </div>
+            <div class="view-container" style="background:#fff; cursor:crosshair;">
+                <canvas id="memo-canvas" class="drawing-canvas" style="width:100%; height:100%;"></canvas>
             </div>
         </div>
     </div>
@@ -173,7 +178,7 @@
 <!-- モーダル群 -->
 <div class="modal" id="log-modal">
     <div class="modal-content">
-        <h3>演習結果の記録（スプレッドシート連携）</h3>
+        <h3>演習結果の記録</h3>
         <div><label>解答時間: <span id="modal-time-display" style="font-weight: bold;">00:00</span></label></div>
         <div>
             <label>正誤判定</label>
@@ -190,9 +195,9 @@
                 <option value="問題の読み間違い">問題の読み間違い</option><option value="その他">その他</option>
             </select>
         </div>
-        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px;">
             <button onclick="closeLogModal()" class="btn-secondary">キャンセル</button>
-            <button class="btn-success" onclick="submitLog()">スプレッドシートに保存</button>
+            <button class="btn-success" onclick="submitLog()">保存</button>
         </div>
     </div>
 </div>
@@ -202,7 +207,7 @@
         <h3 style="margin-top:0;">🤖 AI自動採点・解説</h3>
         <div id="ai-loading" style="display:none; text-align:center; padding: 20px;">
             <div class="loader"></div>
-            <p style="color:#007bff; font-weight:bold; margin-top:15px;">AIが解答を解析・採点中です...（数秒かかります）</p>
+            <p style="color:#007bff; font-weight:bold; margin-top:12px;">AIが解答を解析・採点中です...</p>
         </div>
         <div id="ai-result-text">ここにAIの採点結果と解説が表示されます。</div>
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
@@ -218,7 +223,13 @@
     let structuredData = {};
     let currentPref = "", currentSubject = "", currentYear = "";
     let currentProbIndex = 0, currentAnsIndex = 0;
-    const viewStates = { problem: { scale: 1, x: 0, y: 0 }, answer: { scale: 1, x: 0, y: 0 } };
+
+    // ビューア操作用ステート（拡大率・表示位置・ドラッグ状態）
+    const viewStates = {
+        problem: { scale: 1, x: 0, y: 0, isPanning: false, startX: 0, startY: 0, imgW: 0, imgH: 0 },
+        answer: { scale: 1, x: 0, y: 0, isPanning: false, startX: 0, startY: 0, imgW: 0, imgH: 0, mode: 'pen' }
+    };
+
     const boards = {
         answer: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4 },
         memo: { canvas: null, ctx: null, isDrawing: false, isPen: true, width: 4 }
@@ -228,6 +239,8 @@
     window.onload = () => {
         initCanvas('answer');
         initCanvas('memo');
+        initPanZoom('problem');
+        initPanZoom('answer');
         fetchImagesFromCloud();
     };
 
@@ -269,11 +282,9 @@
         files.forEach(file => {
             const fileName = String(file.name || "").trim();
             const fileId = String(file.url || "").trim();
-
             if (!fileName || !fileId) return;
 
             let pref = "長野県", subject = "", year = "";
-
             const prefsList = ["長野県", "東京都", "大阪府", "神奈川県", "愛知県", "北海道", "福岡県", "埼玉県", "千葉県", "兵庫県", "静岡県"];
             for (let p of prefsList) { if (fileName.includes(p)) { pref = p; break; } }
 
@@ -282,7 +293,6 @@
 
             const yearMatch = fileName.match(/20\d{2}/);
             if (yearMatch) year = yearMatch[0];
-
             if (!subject || !year) return;
 
             if (!structuredData[pref]) structuredData[pref] = {};
@@ -292,7 +302,6 @@
             }
 
             const item = { name: fileName, fileId: fileId };
-
             if (fileName.includes('解答用紙') || fileName.includes('正答') || fileName.toLowerCase().includes('ans')) {
                 structuredData[pref][subject][year].ansPages.push(item);
             } else {
@@ -327,7 +336,6 @@
         prefs.forEach(p => {
             const opt = document.createElement('option'); opt.value = p; opt.textContent = p; sel.appendChild(opt);
         });
-        
         currentPref = prefs[0];
         sel.value = currentPref;
         onPrefChange();
@@ -337,7 +345,6 @@
         currentPref = document.getElementById('pref-select').value;
         const sub = document.getElementById('subject-select');
         sub.innerHTML = '';
-        
         if (currentPref && structuredData[currentPref]) {
             const subjects = Object.keys(structuredData[currentPref]);
             subjects.forEach(s => {
@@ -355,7 +362,6 @@
         currentSubject = document.getElementById('subject-select').value;
         const yr = document.getElementById('year-select');
         yr.innerHTML = '';
-        
         if (currentSubject && structuredData[currentPref] && structuredData[currentPref][currentSubject]) {
             const years = Object.keys(structuredData[currentPref][currentSubject]).sort().reverse();
             years.forEach(y => {
@@ -394,22 +400,16 @@
         try {
             const isAnswer = type === 'answer';
             const prefix = isAnswer ? 'ans' : 'prob';
-
-            const wrapper = document.getElementById(`${type}-wrapper`);
             const info = document.getElementById(`${prefix}-page-info`);
             const prevBtn = document.getElementById(`${prefix}-prev`);
             const nextBtn = document.getElementById(`${prefix}-next`);
-
-            resetImage(type);
+            const bgImg = document.getElementById(`${type}-bg-img`);
+            const placeholder = document.getElementById(`${type}-placeholder`);
 
             if (!pageList || pageList.length === 0) {
-                if(isAnswer) {
-                    document.getElementById('answer-placeholder').style.display = 'block';
-                    document.getElementById('answer-placeholder').textContent = '該当する解答用紙がありません';
-                    document.getElementById('answer-bg-img').style.display = 'none';
-                } else {
-                    wrapper.innerHTML = '<p style="color:#888; padding:20px;">該当する問題用紙がありません</p>';
-                }
+                placeholder.style.display = 'block';
+                placeholder.textContent = isAnswer ? '該当する解答用紙がありません' : '該当する問題用紙がありません';
+                bgImg.style.display = 'none';
                 info.textContent = '0 / 0';
                 prevBtn.disabled = true; nextBtn.disabled = true;
                 return;
@@ -423,87 +423,56 @@
             if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
             else if (fileId.includes('/d/')) fileId = fileId.split('/d/')[1].split('/')[0];
 
-            // 高速読み込みURL
-            const directUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
+            placeholder.style.display = 'block';
+            placeholder.textContent = '画像読込中...';
+            bgImg.style.display = 'none';
 
-            if (isAnswer) {
-                const bgImg = document.getElementById('answer-bg-img');
-                const placeholder = document.getElementById('answer-placeholder');
-                
-                placeholder.style.display = 'block';
-                placeholder.innerHTML = '<span style="color:#007bff;">画像読込中...</span>';
-                bgImg.style.display = 'none';
+            bgImg.onload = () => {
+                placeholder.style.display = 'none';
+                bgImg.style.display = 'block';
+                viewStates[type].imgW = bgImg.naturalWidth;
+                viewStates[type].imgH = bgImg.naturalHeight;
 
-                bgImg.onload = () => {
-                    placeholder.style.display = 'none';
-                    bgImg.style.display = 'block';
+                if (isAnswer) {
                     const cvs = boards.answer.canvas;
-                    cvs.width = bgImg.naturalWidth; cvs.height = bgImg.naturalHeight;
-                    cvs.style.width = bgImg.width + 'px'; cvs.style.height = bgImg.height + 'px';
-                };
-                
-                // 万が一Googleからブロックされた場合は安全なGAS経由に自動切り替え
-                bgImg.onerror = async () => {
-                    try {
-                        const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
-                        const json = await res.json();
-                        if (json.status === "success") {
-                            bgImg.src = json.dataUrl;
-                        } else {
-                            placeholder.innerHTML = `<span style="color:red;">画像読込エラー</span>`;
-                        }
-                    } catch (e) {
-                        placeholder.innerHTML = `<span style="color:red;">通信エラー</span>`;
-                    }
-                };
-                
-                bgImg.src = directUrl;
+                    cvs.width = bgImg.naturalWidth;
+                    cvs.height = bgImg.naturalHeight;
+                    cvs.style.width = bgImg.naturalWidth + 'px';
+                    cvs.style.height = bgImg.naturalHeight + 'px';
+                }
+                fitView(type);
+            };
 
-            } else {
-                wrapper.innerHTML = '<p style="color:#007bff;">画像読込中...</p>';
-                const img = document.createElement('img');
-                
-                img.onload = () => {
-                    wrapper.innerHTML = '';
-                    wrapper.appendChild(img);
-                };
-                
-                // 万が一Googleからブロックされた場合は安全なGAS経由に自動切り替え
-                img.onerror = async () => {
-                    try {
-                        const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
-                        const json = await res.json();
-                        if (json.status === "success") {
-                            wrapper.innerHTML = '';
-                            const apiImg = document.createElement('img');
-                            apiImg.src = json.dataUrl;
-                            wrapper.appendChild(apiImg);
-                        } else {
-                            wrapper.innerHTML = `<p style="color:red;">画像読込エラー</p>`;
-                        }
-                    } catch (e) {
-                        wrapper.innerHTML = `<p style="color:red;">通信エラー</p>`;
+            bgImg.onerror = async () => {
+                try {
+                    const res = await fetch(`${GAS_URL}?action=getImage&id=${fileId}`);
+                    const json = await res.json();
+                    if (json.status === "success") {
+                        bgImg.src = json.dataUrl;
+                    } else {
+                        placeholder.innerHTML = `<span style="color:red;">画像読込エラー</span>`;
                     }
-                };
+                } catch (e) {
+                    placeholder.innerHTML = `<span style="color:red;">通信エラー</span>`;
+                }
+            };
 
-                img.src = directUrl;
-            }
+            bgImg.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
         } catch (err) {
             document.getElementById('status-message').textContent = "描画エラー: " + err.message;
         }
     };
 
     const clearViewers = () => {
-        document.getElementById('problem-wrapper').innerHTML = '<p style="color:#888;">条件を選択してください</p>';
-        document.getElementById('answer-placeholder').style.display = 'block';
-        document.getElementById('answer-placeholder').textContent = '条件を選択してください';
-        document.getElementById('answer-bg-img').style.display = 'none';
-        document.getElementById('prob-page-info').textContent = '0 / 0';
-        document.getElementById('ans-page-info').textContent = '0 / 0';
-        document.getElementById('prob-prev').disabled = true;
-        document.getElementById('prob-next').disabled = true;
-        document.getElementById('ans-prev').disabled = true;
-        document.getElementById('ans-next').disabled = true;
+        ['problem', 'answer'].forEach(type => {
+            const prefix = type === 'answer' ? 'ans' : 'prob';
+            document.getElementById(`${type}-placeholder`).style.display = 'block';
+            document.getElementById(`${type}-placeholder`).textContent = '条件を選択してください';
+            document.getElementById(`${type}-bg-img`).style.display = 'none';
+            document.getElementById(`${prefix}-page-info`).textContent = '0 / 0';
+            document.getElementById(`${prefix}-prev`).disabled = true;
+            document.getElementById(`${prefix}-next`).disabled = true;
+        });
     };
 
     const changePage = (type, direction) => {
@@ -518,62 +487,253 @@
         }
     };
 
+    // ===== 拡大・縮小・パン（移動）のロジック =====
+    const applyTransform = (type) => {
+        const state = viewStates[type];
+        const wrapper = document.getElementById(`${type}-wrapper`);
+        wrapper.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+    };
+
+    const fitView = (type) => {
+        const container = document.getElementById(`${type}-container`);
+        const state = viewStates[type];
+        if (!state.imgW || !state.imgH) return;
+
+        const cw = container.clientWidth;
+        const ch = container.clientHeight;
+        const scale = Math.min((cw - 20) / state.imgW, (ch - 20) / state.imgH, 1.2);
+
+        state.scale = scale;
+        state.x = (cw - state.imgW * scale) / 2;
+        state.y = (ch - state.imgH * scale) / 2;
+        applyTransform(type);
+    };
+
+    const zoomView = (type, delta, centerX = null, centerY = null) => {
+        const state = viewStates[type];
+        const container = document.getElementById(`${type}-container`);
+        const prevScale = state.scale;
+        let newScale = Math.max(0.2, Math.min(5, prevScale + delta));
+
+        if (centerX === null || centerY === null) {
+            centerX = container.clientWidth / 2;
+            centerY = container.clientHeight / 2;
+        }
+
+        // カーソル位置を中心にズーム
+        state.x = centerX - (centerX - state.x) * (newScale / prevScale);
+        state.y = centerY - (centerY - state.y) * (newScale / prevScale);
+        state.scale = newScale;
+        applyTransform(type);
+    };
+
+    const initPanZoom = (type) => {
+        const container = document.getElementById(`${type}-container`);
+        const state = viewStates[type];
+
+        // マウスホイールズーム
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const zoomDelta = e.deltaY < 0 ? 0.15 : -0.15;
+            zoomView(type, zoomDelta, e.clientX - rect.left, e.clientY - rect.top);
+        }, { passive: false });
+
+        // ドラッグ（パン）操作
+        const startPan = (clientX, clientY) => {
+            state.isPanning = true;
+            state.startX = clientX - state.x;
+            state.startY = clientY - state.y;
+        };
+        const doPan = (clientX, clientY) => {
+            if (!state.isPanning) return;
+            state.x = clientX - state.startX;
+            state.y = clientY - state.startY;
+            applyTransform(type);
+        };
+        const endPan = () => { state.isPanning = false; };
+
+        container.addEventListener('mousedown', (e) => {
+            if (type === 'answer' && state.mode !== 'pan') return;
+            startPan(e.clientX, e.clientY);
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (state.isPanning) doPan(e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', endPan);
+
+        // タッチ操作（スマホ・タブレット対応）
+        let lastTouchDist = 0;
+        container.addEventListener('touchstart', (e) => {
+            if (type === 'answer' && state.mode !== 'pan') return;
+            if (e.touches.length === 1) {
+                startPan(e.touches[0].clientX, e.touches[0].clientY);
+            } else if (e.touches.length === 2) {
+                state.isPanning = false;
+                lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            }
+        }, { passive: false });
+
+        container.addEventListener('touchmove', (e) => {
+            if (type === 'answer' && state.mode !== 'pan') return;
+            e.preventDefault();
+            if (e.touches.length === 1 && state.isPanning) {
+                doPan(e.touches[0].clientX, e.touches[0].clientY);
+            } else if (e.touches.length === 2) {
+                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                const rect = container.getBoundingClientRect();
+                const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+                const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+                const zoomFactor = (dist - lastTouchDist) * 0.005;
+                zoomView(type, zoomFactor, midX, midY);
+                lastTouchDist = dist;
+            }
+        }, { passive: false });
+
+        container.addEventListener('touchend', endPan);
+    };
+
+    // モード切替（移動 vs ペン vs 消しゴム）
+    const setInteractionMode = (target, mode) => {
+        viewStates[target].mode = mode;
+        const container = document.getElementById(`${target}-container`);
+        const canvas = boards[target].canvas;
+
+        ['pan', 'pen', 'erase'].forEach(m => {
+            const btn = document.getElementById(`ans-${m}-btn`);
+            if (btn) btn.classList.toggle('active', m === mode);
+        });
+
+        if (mode === 'pan') {
+            container.classList.add('pan-mode');
+            canvas.classList.add('disabled');
+        } else {
+            container.classList.remove('pan-mode');
+            canvas.classList.remove('disabled');
+            boards[target].isPen = (mode === 'pen');
+        }
+    };
+
+    // ===== キャンバス描画ロジック =====
     const initCanvas = (target) => {
         const cvs = document.getElementById(`${target}-canvas`);
         boards[target].canvas = cvs;
         boards[target].ctx = cvs.getContext('2d');
-        if(target === 'memo') { resizeMemoCanvas(); window.addEventListener('resize', resizeMemoCanvas); }
-        cvs.addEventListener('mousedown', (e) => startDraw(e, target));
-        cvs.addEventListener('mousemove', (e) => draw(e, target));
-        cvs.addEventListener('mouseup', () => stopDraw(target));
-        cvs.addEventListener('mouseleave', () => stopDraw(target));
-        cvs.addEventListener('touchstart', (e) => { if(e.touches.length===1){ e.preventDefault(); startDraw({clientX: e.touches[0].clientX, clientY: e.touches[0].clientY}, target); }}, { passive: false });
-        cvs.addEventListener('touchmove', (e) => { if(e.touches.length===1){ e.preventDefault(); draw({clientX: e.touches[0].clientX, clientY: e.touches[0].clientY}, target); }}, { passive: false });
-        cvs.addEventListener('touchend', () => stopDraw(target));
+        if (target === 'memo') {
+            resizeMemoCanvas();
+            window.addEventListener('resize', resizeMemoCanvas);
+        }
+
+        const getCanvasPos = (e) => {
+            const rect = cvs.getBoundingClientRect();
+            // 拡大縮小・移動の影響を補正して正確な用紙上の座標を計算
+            const scale = cvs.width / rect.width;
+            return {
+                x: (e.clientX - rect.left) * scale,
+                y: (e.clientY - rect.top) * scale
+            };
+        };
+
+        const start = (e) => {
+            if (target === 'answer' && viewStates.answer.mode === 'pan') return;
+            const b = boards[target];
+            b.isDrawing = true;
+            b.ctx.beginPath();
+            const pos = getCanvasPos(e);
+            b.ctx.moveTo(pos.x, pos.y);
+        };
+
+        const move = (e) => {
+            const b = boards[target];
+            if (!b.isDrawing) return;
+            const pos = getCanvasPos(e);
+            b.ctx.lineTo(pos.x, pos.y);
+            b.ctx.globalCompositeOperation = b.isPen ? "source-over" : "destination-out";
+            b.ctx.strokeStyle = '#e74c3c';
+            b.ctx.lineWidth = b.isPen ? b.width : b.width * 6;
+            b.ctx.lineCap = 'round';
+            b.ctx.lineJoin = 'round';
+            b.ctx.stroke();
+        };
+
+        const stop = () => { boards[target].isDrawing = false; };
+
+        cvs.addEventListener('mousedown', start);
+        cvs.addEventListener('mousemove', move);
+        cvs.addEventListener('mouseup', stop);
+        cvs.addEventListener('mouseleave', stop);
+
+        cvs.addEventListener('touchstart', (e) => {
+            if (target === 'answer' && viewStates.answer.mode === 'pan') return;
+            if (e.touches.length === 1) {
+                e.preventDefault();
+                start({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+            }
+        }, { passive: false });
+
+        cvs.addEventListener('touchmove', (e) => {
+            if (target === 'answer' && viewStates.answer.mode === 'pan') return;
+            if (e.touches.length === 1) {
+                e.preventDefault();
+                move({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+            }
+        }, { passive: false });
+
+        cvs.addEventListener('touchend', stop);
     };
 
     const resizeMemoCanvas = () => {
         const container = boards.memo.canvas.parentElement;
-        boards.memo.canvas.width = container.clientWidth; boards.memo.canvas.height = container.clientHeight;
+        boards.memo.canvas.width = container.clientWidth;
+        boards.memo.canvas.height = container.clientHeight;
     };
-    const getMousePos = (e, canvas) => {
-        const rect = canvas.getBoundingClientRect();
-        return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) };
+
+    const clearCanvas = (target) => {
+        const b = boards[target];
+        b.ctx.clearRect(0, 0, b.canvas.width, b.canvas.height);
     };
-    const startDraw = (e, target) => {
-        const b = boards[target]; b.isDrawing = true; b.ctx.beginPath();
-        const pos = getMousePos(e, b.canvas); b.ctx.moveTo(pos.x, pos.y);
-    };
-    const draw = (e, target) => {
-        const b = boards[target]; if (!b.isDrawing) return;
-        const pos = getMousePos(e, b.canvas); b.ctx.lineTo(pos.x, pos.y);
-        b.ctx.globalCompositeOperation = b.isPen ? "source-over" : "destination-out";
-        b.ctx.strokeStyle = '#e74c3c';
-        b.ctx.lineWidth = b.isPen ? b.width : b.width * 5;
-        b.ctx.lineCap = 'round'; b.ctx.lineJoin = 'round';
-        b.ctx.stroke();
-    };
-    const stopDraw = (target) => { boards[target].isDrawing = false; };
-    const clearCanvas = (target) => { const b = boards[target]; b.ctx.clearRect(0, 0, b.canvas.width, b.canvas.height); };
+
     const setDrawMode = (target, isPen) => {
         boards[target].isPen = isPen;
         document.getElementById(`${target}-pen-btn`).style.backgroundColor = isPen ? '#007bff' : '#6c757d';
         document.getElementById(`${target}-erase-btn`).style.backgroundColor = isPen ? '#6c757d' : '#007bff';
     };
-    const changeLineWidth = (target, val) => { boards[target].width = parseInt(val); };
 
-    const zoomImage = (type, delta) => { viewStates[type].scale = Math.max(0.5, Math.min(4, viewStates[type].scale + delta)); applyTransform(type); };
-    const handleZoom = (event, type) => { if(event.ctrlKey) { event.preventDefault(); zoomImage(type, event.deltaY < 0 ? 0.15 : -0.15); } };
-    const resetImage = (type) => { viewStates[type] = { scale: 1, x: 0, y: 0 }; applyTransform(type); };
-    const applyTransform = (type) => { document.getElementById(`${type}-wrapper`).style.transform = `scale(${viewStates[type].scale})`; };
+    const changeLineWidth = (target, val) => {
+        boards[target].width = parseInt(val);
+    };
 
+    // ===== タイマー ＆ モーダル・記録 =====
     const toggleTimer = () => {
         const btn = document.getElementById('timer-start-btn');
-        if (isTimerRunning) { clearInterval(timerInterval); isTimerRunning = false; btn.textContent = '再開'; btn.style.backgroundColor = '#007bff'; }
-        else { isTimerRunning = true; btn.textContent = '停止'; btn.style.backgroundColor = '#ffc107'; timerInterval = setInterval(() => { secondsElapsed++; updateTimerDisplay(); }, 1000); }
+        if (isTimerRunning) {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            btn.textContent = '再開';
+            btn.style.backgroundColor = '#007bff';
+        } else {
+            isTimerRunning = true;
+            btn.textContent = '停止';
+            btn.style.backgroundColor = '#ffc107';
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                updateTimerDisplay();
+            }, 1000);
+        }
     };
-    const resetTimer = () => { clearInterval(timerInterval); isTimerRunning = false; secondsElapsed = 0; updateTimerDisplay(); document.getElementById('timer-start-btn').textContent = '開始'; document.getElementById('timer-start-btn').style.backgroundColor = '#007bff'; };
-    const updateTimerDisplay = () => { document.getElementById('timer-display').textContent = `${String(Math.floor(secondsElapsed / 60)).padStart(2, '0')}:${String(secondsElapsed % 60).padStart(2, '0')}`; };
+
+    const resetTimer = () => {
+        clearInterval(timerInterval);
+        isTimerRunning = false;
+        secondsElapsed = 0;
+        updateTimerDisplay();
+        document.getElementById('timer-start-btn').textContent = '開始';
+        document.getElementById('timer-start-btn').style.backgroundColor = '#007bff';
+    };
+
+    const updateTimerDisplay = () => {
+        document.getElementById('timer-display').textContent = `${String(Math.floor(secondsElapsed / 60)).padStart(2, '0')}:${String(secondsElapsed % 60).padStart(2, '0')}`;
+    };
 
     const openLogModal = () => {
         if (isTimerRunning) toggleTimer();
@@ -581,17 +741,25 @@
         document.getElementById('log-modal').style.display = 'flex';
     };
     const closeLogModal = () => { document.getElementById('log-modal').style.display = 'none'; };
+
     const submitLog = async () => {
         const payload = {
             action: "saveLog",
-            examKey: `${currentPref}_${currentSubject}_${currentYear}`, pageNum: `page_${currentProbIndex + 1}`,
-            timeSec: secondsElapsed, isCorrect: document.getElementById('modal-correct').value,
-            unitTag: document.getElementById('modal-unit').value, reason: document.getElementById('modal-reason').value
+            examKey: `${currentPref}_${currentSubject}_${currentYear}`,
+            pageNum: `page_${currentProbIndex + 1}`,
+            timeSec: secondsElapsed,
+            isCorrect: document.getElementById('modal-correct').value,
+            unitTag: document.getElementById('modal-unit').value,
+            reason: document.getElementById('modal-reason').value
         };
         try {
             await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
-            alert('保存しました！'); closeLogModal(); resetTimer();
-        } catch (e) { alert('送信失敗'); }
+            alert('保存しました！');
+            closeLogModal();
+            resetTimer();
+        } catch (e) {
+            alert('送信失敗');
+        }
     };
 
     const openAiModal = () => {
@@ -605,8 +773,9 @@
     const gradeWithAI = async () => {
         const bgImg = document.getElementById('answer-bg-img');
         const drawCanvas = boards.answer.canvas;
-        if(!bgImg.src || bgImg.style.display === 'none') {
-            alert("解答用紙が読み込まれていません。"); return;
+        if (!bgImg.src || bgImg.style.display === 'none') {
+            alert("解答用紙が読み込まれていません。");
+            return;
         }
 
         const tempCanvas = document.createElement('canvas');
@@ -622,16 +791,8 @@
         openAiModal();
 
         try {
-            const payload = {
-                action: "gradeAI",
-                image: base64Raw
-            };
-
-            const response = await fetch(GAS_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            });
-
+            const payload = { action: "gradeAI", image: base64Raw };
+            const response = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
             const data = await response.json();
             
             if (data.status === "success") {
