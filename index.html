@@ -5,28 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>過去問演習・管理システム</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             background-color: #f4f6f9;
             color: #333;
         }
         h1 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
+            font-size: 1.4rem;
+            margin: 0 0 10px 0;
             color: #2c3e50;
         }
         .container {
-            max-width: 1400px;
+            max-width: 1500px;
             margin: 0 auto;
         }
-        .selector-panel {
+        
+        /* コントロールヘッダー */
+        .top-bar {
             background: #fff;
-            padding: 15px 20px;
+            padding: 12px 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
@@ -35,55 +40,83 @@
         .selector-group {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 4px;
         }
         label {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: bold;
             color: #555;
         }
         select {
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: 4px;
             border: 1px solid #ccc;
-            font-size: 1rem;
-            min-width: 140px;
+            font-size: 0.95rem;
+            min-width: 120px;
         }
+        
+        /* タイマー */
+        .timer-panel {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #eef2f7;
+            padding: 6px 12px;
+            border-radius: 6px;
+            margin-left: 10px;
+        }
+        .timer-display {
+            font-family: monospace;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #2c3e50;
+            min-width: 80px;
+        }
+
         #status-message {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: bold;
             color: #007bff;
             margin-left: auto;
         }
+
+        /* メインビューア（2カラム） */
         .viewer-panel {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 15px;
         }
-        @media (max-width: 900px) {
+        @media (max-width: 1000px) {
             .viewer-panel {
                 grid-template-columns: 1fr;
             }
         }
         .card {
             background: #fff;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             display: flex;
             flex-direction: column;
         }
-        .card h2 {
-            font-size: 1.1rem;
-            margin-top: 0;
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             border-bottom: 2px solid #eaeaea;
-            padding-bottom: 8px;
+            padding-bottom: 6px;
+            margin-bottom: 10px;
+        }
+        .card h2 {
+            font-size: 1.05rem;
+            margin: 0;
             color: #34495e;
         }
-        /* 画像ビューア（移動・拡大縮小対応） */
+
+        /* 画像コンテナ */
         .image-container {
             flex-grow: 1;
-            height: 550px;
+            height: 480px;
             background: #fafafa;
             border: 1px dashed #ddd;
             border-radius: 4px;
@@ -107,45 +140,44 @@
         }
         .image-wrapper img {
             max-width: 100%;
-            max-height: 550px;
+            max-height: 480px;
             user-select: none;
             pointer-events: none;
         }
         .controls-overlay {
             position: absolute;
-            bottom: 10px;
-            right: 10px;
+            bottom: 8px;
+            right: 8px;
             display: flex;
-            gap: 5px;
-            background: rgba(255, 255, 255, 0.85);
-            padding: 5px;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 4px;
             border-radius: 4px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             z-index: 10;
         }
         .controls-overlay button {
-            padding: 4px 8px;
-            font-size: 0.8rem;
+            padding: 3px 8px;
+            font-size: 0.75rem;
             background-color: #6c757d;
         }
-        .controls-overlay button:hover {
-            background-color: #5a6268;
-        }
+
+        /* ページ送り */
         .pagination {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
-            margin-top: 15px;
+            gap: 12px;
+            margin: 10px 0;
         }
         button {
-            padding: 8px 16px;
+            padding: 6px 14px;
             background-color: #007bff;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
         button:hover {
             background-color: #0056b3;
@@ -154,36 +186,78 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
-        .memo-box {
-            margin-top: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        .memo-box textarea {
-            width: 100%;
-            height: 80px;
+        .btn-success { background-color: #28a745; }
+        .btn-success:hover { background-color: #218838; }
+        .btn-warning { background-color: #ffc107; color: #333; }
+        .btn-warning:hover { background-color: #e0a800; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
+
+        /* 途中計算手書きキャンバス */
+        .scratchpad-section {
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
             padding: 8px;
+            background: #fff;
+        }
+        .scratchpad-toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .scratchpad-toolbar label {
+            font-size: 0.75rem;
+        }
+        canvas {
             border: 1px solid #ccc;
             border-radius: 4px;
-            font-family: inherit;
-            resize: vertical;
+            background-color: #ffffff;
+            cursor: crosshair;
+            width: 100%;
+            height: 180px;
+            touch-action: none;
         }
-        .action-bar {
-            margin-top: 15px;
-            display: flex;
-            justify-content: space-between;
+
+        /* 記録モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
             align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .modal-content select, .modal-content input {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            width: 100%;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>高校受験 過去問演習・管理システム</h1>
+    <h1>過去問演習・管理システム</h1>
 
-    <!-- 3段階セレクターパネル -->
-    <div class="selector-panel">
+    <!-- トップバー -->
+    <div class="top-bar">
         <div class="selector-group">
             <label for="pref-select">都道府県</label>
             <select id="pref-select" onchange="onPrefChange()" disabled>
@@ -202,14 +276,26 @@
                 <option value="">選択してください</option>
             </select>
         </div>
+
+        <!-- タイマー機能 -->
+        <div class="timer-panel">
+            <div class="timer-display" id="timer-display">00:00</div>
+            <button id="timer-start-btn" onclick="toggleTimer()">スタート</button>
+            <button onclick="resetTimer()" style="background-color: #6c757d;">リセット</button>
+        </div>
+
+        <button class="btn-success" onclick="openLogModal()" id="finish-btn" disabled>演習終了・結果保存</button>
+
         <div id="status-message">データ読込中...</div>
     </div>
 
-    <!-- ビューアパネル (問題 & 解答用紙) -->
+    <!-- メインビューア -->
     <div class="viewer-panel">
-        <!-- 問題用紙エリア -->
+        <!-- 問題用紙 & 途中計算キャンバス -->
         <div class="card">
-            <h2>問題用紙</h2>
+            <div class="card-header">
+                <h2>問題用紙</h2>
+            </div>
             <div class="image-container" id="problem-container" onwheel="handleZoom(event, 'problem')" onmousedown="startDrag(event, 'problem')">
                 <div class="image-wrapper" id="problem-wrapper">
                     <p style="color: #888; padding: 20px;">条件を選択してください</p>
@@ -225,16 +311,31 @@
                 <span id="prob-page-info">0 / 0</span>
                 <button id="prob-next" onclick="changePage('problem', 1)" disabled>次のページ</button>
             </div>
-            <!-- 問題用メモ -->
-            <div class="memo-box">
-                <label for="problem-memo">問題メモ・気付いたこと</label>
-                <textarea id="problem-memo" placeholder="ここにメモを入力できます..." oninput="saveMemo('problem')"></textarea>
+
+            <!-- 途中計算用キャンバス -->
+            <div class="scratchpad-section">
+                <div class="scratchpad-toolbar">
+                    <label>途中計算エリア:</label>
+                    <button id="draw-mode-btn" onclick="setDrawMode(true)">ペン</button>
+                    <button id="erase-mode-btn" onclick="setDrawMode(false)" style="background-color: #6c757d;">消しゴム</button>
+                    <label for="line-width">太さ:</label>
+                    <select id="line-width" onchange="changeLineWidth(this.value)" style="min-width: 60px; padding: 2px 4px;">
+                        <option value="2">細</option>
+                        <option value="4" selected>中</option>
+                        <option value="8">太</option>
+                    </select>
+                    <button onclick="clearCanvas()" class="btn-danger" style="margin-left: auto;">全消去</button>
+                </div>
+                <canvas id="scratchpad"></canvas>
             </div>
         </div>
 
-        <!-- 解答用紙エリア -->
+        <!-- 解答用紙 (答案) -->
         <div class="card">
-            <h2>解答用紙 (答案)</h2>
+            <div class="card-header">
+                <h2>解答用紙 (答案)</h2>
+                <button onclick="clearCacheAndReload()" style="background-color: #6c757d; font-size: 0.75rem; padding: 4px 8px;">キャッシュ更新</button>
+            </div>
             <div class="image-container" id="answer-container" onwheel="handleZoom(event, 'answer')" onmousedown="startDrag(event, 'answer')">
                 <div class="image-wrapper" id="answer-wrapper">
                     <p style="color: #888; padding: 20px;">条件を選択してください</p>
@@ -250,14 +351,43 @@
                 <span id="ans-page-info">0 / 0</span>
                 <button id="ans-next" onclick="changePage('answer', 1)" disabled>次のページ</button>
             </div>
-            <!-- 解答用紙用メモ -->
-            <div class="memo-box">
-                <label for="answer-memo">解答メモ・採点メモ</label>
-                <textarea id="answer-memo" placeholder="ここにメモを入力できます..." oninput="saveMemo('answer')"></textarea>
-            </div>
-            <div class="action-bar">
-                <button onclick="clearCacheAndReload()" style="background-color: #6c757d; font-size: 0.8rem;">キャッシュ更新</button>
-            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 学習結果 記録モーダル -->
+<div class="modal" id="log-modal">
+    <div class="modal-content">
+        <h3>演習結果の記録（スプレッドシート連携）</h3>
+        <div>
+            <label>解答時間: <span id="modal-time-display" style="font-weight: bold;">00:00</span></label>
+        </div>
+        <div>
+            <label>正誤判定</label>
+            <select id="modal-correct">
+                <option value="正解">正解</option>
+                <option value="不正解">不正解</option>
+                <option value="要復習">要復習</option>
+            </select>
+        </div>
+        <div>
+            <label>単元タグ（例: 関数・平面図形・長文読解）</label>
+            <input type="text" id="modal-unit" placeholder="単元名を入力">
+        </div>
+        <div>
+            <label>失点理由 / 振り返り</label>
+            <select id="modal-reason">
+                <option value="なし（正解）">なし（正解）</option>
+                <option value="計算ミス">計算ミス</option>
+                <option value="知識不足・解法不明">知識不足・解法不明</option>
+                <option value="時間切れ">時間切れ</option>
+                <option value="問題の読み間違い">問題の読み間違い</option>
+                <option value="その他">その他</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+            <button onclick="closeLogModal()" style="background-color: #6c757d;">キャンセル</button>
+            <button class="btn-success" onclick="submitLog()">スプレッドシートに保存</button>
         </div>
     </div>
 </div>
@@ -267,31 +397,31 @@
 
     let allFiles = [];
     let structuredData = {};
+    let currentPref = "", currentSubject = "", currentYear = "";
+    let currentProbIndex = 0, currentAnsIndex = 0;
 
-    let currentPref = "";
-    let currentSubject = "";
-    let currentYear = "";
-
-    let currentProbIndex = 0;
-    let currentAnsIndex = 0;
-
-    // 画像の拡大・移動用ステート
+    // ビューア操作ステート
     const viewStates = {
         problem: { scale: 1, x: 0, y: 0 },
         answer: { scale: 1, x: 0, y: 0 }
     };
-    let isDragging = false;
-    let dragTarget = null;
-    let startX = 0, startY = 0;
+    let isDragging = false, dragTarget = null, startX = 0, startY = 0;
+
+    // タイマーステート
+    let timerInterval = null, secondsElapsed = 0, isTimerRunning = false;
+
+    // 途中計算キャンバスステート
+    let canvas, ctx, isDrawing = false, isPen = true, lineWidth = 4;
 
     window.onload = () => {
+        initCanvas();
         fetchImagesFromCloud();
     };
 
+    // --- Googleスプレッドシート（GAS）からファイルデータ取得 ---
     const fetchImagesFromCloud = async () => {
         try {
             document.getElementById('status-message').textContent = 'データ読込中...';
-            
             const cachedFiles = localStorage.getItem('past_exam_files_cache');
             if (cachedFiles) {
                 allFiles = JSON.parse(cachedFiles);
@@ -303,11 +433,9 @@
 
             const response = await fetch(GAS_URL);
             const data = await response.json();
-            
             if (data && data.length > 0) {
                 allFiles = data;
                 localStorage.setItem('past_exam_files_cache', JSON.stringify(data));
-                
                 processLoadedFiles(allFiles);
                 document.getElementById('status-message').textContent = '準備完了';
                 document.getElementById('status-message').style.color = '#28a745';
@@ -330,9 +458,7 @@
         structuredData = {};
         files.forEach(file => {
             const name = file.name;
-            let pref = "長野県";
-            let subject = "英語";
-            let year = "2023";
+            let pref = "長野県", subject = "英語", year = "2023";
 
             const prefsList = ["長野県", "東京都", "大阪府", "神奈川県", "愛知県", "北海道", "福岡県", "埼玉県", "千葉県", "兵庫県", "静岡県"];
             for (let p of prefsList) {
@@ -359,14 +485,12 @@
                 structuredData[pref][subject][year].pages.push(file);
             }
         });
-
         initPrefSelect();
     };
 
     const initPrefSelect = () => {
         const prefSelect = document.getElementById('pref-select');
         prefSelect.innerHTML = '<option value="">選択してください</option>';
-        
         Object.keys(structuredData).forEach(pref => {
             const opt = document.createElement('option');
             opt.value = pref;
@@ -381,11 +505,9 @@
         const subSelect = document.getElementById('subject-select');
         subSelect.innerHTML = '<option value="">選択してください</option>';
         subSelect.disabled = true;
-        
         const yearSelect = document.getElementById('year-select');
         yearSelect.innerHTML = '<option value="">選択してください</option>';
         yearSelect.disabled = true;
-
         clearViewers();
 
         if (currentPref && structuredData[currentPref]) {
@@ -404,7 +526,6 @@
         const yearSelect = document.getElementById('year-select');
         yearSelect.innerHTML = '<option value="">選択してください</option>';
         yearSelect.disabled = true;
-
         clearViewers();
 
         if (currentSubject && structuredData[currentPref][currentSubject]) {
@@ -422,14 +543,13 @@
         currentYear = document.getElementById('year-select').value;
         currentProbIndex = 0;
         currentAnsIndex = 0;
-        loadMemos();
+        document.getElementById('finish-btn').disabled = !currentYear;
         updateViewers();
     };
 
     const updateViewers = () => {
         if (!currentPref || !currentSubject || !currentYear) return;
         const targetData = structuredData[currentPref][currentSubject][currentYear];
-
         renderImage('problem', targetData.pages, currentProbIndex);
         renderImage('answer', targetData.ansPages, currentAnsIndex);
     };
@@ -454,13 +574,11 @@
         const file = pageList[index];
         const img = document.createElement('img');
         
-        // GoogleドライブのURLを正しく読み込ませるための処理
         let imageUrl = file.url;
         if (imageUrl && imageUrl.includes('export=download')) {
             imageUrl = imageUrl.replace('export=download', 'export=view');
         }
         img.src = imageUrl;
-        
         wrapper.appendChild(img);
 
         info.textContent = `${index + 1} / ${pageList.length}`;
@@ -479,7 +597,7 @@
         }
     };
 
-    // --- 拡大・縮小・移動機能 ---
+    // --- 拡大・縮小・移動 ---
     const zoomImage = (type, delta) => {
         viewStates[type].scale = Math.max(0.5, Math.min(5, viewStates[type].scale + delta));
         applyTransform(type);
@@ -503,12 +621,11 @@
     };
 
     const startDrag = (event, type) => {
-        if (event.button !== 0) return; // 左クリックのみ
+        if (event.button !== 0) return;
         isDragging = true;
         dragTarget = type;
         startX = event.clientX - viewStates[type].x;
         startY = event.clientY - viewStates[type].y;
-
         document.addEventListener('mousemove', onDrag);
         document.addEventListener('mouseup', stopDrag);
     };
@@ -527,33 +644,6 @@
         document.removeEventListener('mouseup', stopDrag);
     };
 
-    // --- メモ機能（LocalStorage保存） ---
-    const getMemoKey = () => `memo_${currentPref}_${currentSubject}_${currentYear}`;
-
-    const saveMemo = (type) => {
-        if (!currentPref || !currentSubject || !currentYear) return;
-        const probMemo = document.getElementById('problem-memo').value;
-        const ansMemo = document.getElementById('answer-memo').value;
-        
-        const memoData = { problem: probMemo, answer: ansMemo };
-        localStorage.setItem(getMemoKey(), JSON.stringify(memoData));
-    };
-
-    const loadMemos = () => {
-        if (!currentPref || !currentSubject || !currentYear) return;
-        const saved = localStorage.getItem(getMemoKey());
-        if (saved) {
-            try {
-                const memoData = JSON.parse(saved);
-                document.getElementById('problem-memo').value = memoData.problem || '';
-                document.getElementById('answer-memo').value = memoData.answer || '';
-                return;
-            } catch(e) {}
-        }
-        document.getElementById('problem-memo').value = '';
-        document.getElementById('answer-memo').value = '';
-    };
-
     const clearViewers = () => {
         document.getElementById('problem-wrapper').innerHTML = '<p style="color: #888; padding: 20px;">条件を選択してください</p>';
         document.getElementById('answer-wrapper').innerHTML = '<p style="color: #888; padding: 20px;">条件を選択してください</p>';
@@ -563,9 +653,151 @@
         document.getElementById('prob-next').disabled = true;
         document.getElementById('ans-prev').disabled = true;
         document.getElementById('ans-next').disabled = true;
-        document.getElementById('problem-memo').value = '';
-        document.getElementById('answer-memo').value = '';
-    }
+    };
+
+    // --- 途中計算キャンバス ---
+    const initCanvas = () => {
+        canvas = document.getElementById('scratchpad');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+
+        canvas.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY });
+            canvas.dispatchEvent(mouseEvent);
+        }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY });
+            canvas.dispatchEvent(mouseEvent);
+        }, { passive: false });
+        canvas.addEventListener('touchend', () => {
+            canvas.dispatchEvent(new MouseEvent('mouseup', {}));
+        });
+    };
+
+    const resizeCanvas = () => {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = 180;
+    };
+
+    const setDrawMode = (pen) => {
+        isPen = pen;
+        document.getElementById('draw-mode-btn').style.backgroundColor = pen ? '#007bff' : '#6c757d';
+        document.getElementById('erase-mode-btn').style.backgroundColor = pen ? '#6c757d' : '#007bff';
+    };
+
+    const changeLineWidth = (width) => {
+        lineWidth = parseInt(width, 10);
+    };
+
+    const startDrawing = (e) => {
+        isDrawing = true;
+        ctx.beginPath();
+        const rect = canvas.getBoundingClientRect();
+        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    };
+
+    const draw = (e) => {
+        if (!isDrawing) return;
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        ctx.strokeStyle = isPen ? '#2c3e50' : '#ffffff';
+        ctx.lineWidth = isPen ? lineWidth : lineWidth * 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+    };
+
+    const stopDrawing = () => {
+        isDrawing = false;
+    };
+
+    const clearCanvas = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
+    // --- タイマー機能 ---
+    const toggleTimer = () => {
+        const btn = document.getElementById('timer-start-btn');
+        if (isTimerRunning) {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            btn.textContent = '再開';
+            btn.style.backgroundColor = '#007bff';
+        } else {
+            isTimerRunning = true;
+            btn.textContent = '一時停止';
+            btn.style.backgroundColor = '#ffc107';
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+    };
+
+    const resetTimer = () => {
+        clearInterval(timerInterval);
+        isTimerRunning = false;
+        secondsElapsed = 0;
+        updateTimerDisplay();
+        const btn = document.getElementById('timer-start-btn');
+        btn.textContent = 'スタート';
+        btn.style.backgroundColor = '#007bff';
+    };
+
+    const updateTimerDisplay = () => {
+        const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+        const secs = String(secondsElapsed % 60).padStart(2, '0');
+        document.getElementById('timer-display').textContent = `${mins}:${secs}`;
+    };
+
+    // --- 演習結果・弱点分析ログ送信 ---
+    const openLogModal = () => {
+        if (isTimerRunning) toggleTimer();
+        const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+        const secs = String(secondsElapsed % 60).padStart(2, '0');
+        document.getElementById('modal-time-display').textContent = `${mins}分 ${secs}秒 (${secondsElapsed}秒)`;
+        document.getElementById('log-modal').style.display = 'flex';
+    };
+
+    const closeLogModal = () => {
+        document.getElementById('log-modal').style.display = 'none';
+    };
+
+    const submitLog = async () => {
+        const payload = {
+            examKey: `${currentPref}_${currentSubject}_${currentYear}`,
+            pageNum: `page_${currentProbIndex + 1}`,
+            timeSec: secondsElapsed,
+            isCorrect: document.getElementById('modal-correct').value,
+            unitTag: document.getElementById('modal-unit').value,
+            reason: document.getElementById('modal-reason').value
+        };
+
+        try {
+            document.getElementById('status-message').textContent = 'ログ送信中...';
+            await fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            alert('学習ログをスプレッドシートに保存しました！');
+            document.getElementById('status-message').textContent = 'ログ保存完了';
+            closeLogModal();
+            resetTimer();
+            clearCanvas();
+        } catch (e) {
+            alert('送信に失敗しました。');
+            console.error(e);
+        }
+    };
 </script>
 
 </body>
