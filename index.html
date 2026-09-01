@@ -267,19 +267,12 @@
         location.reload();
     };
 
-    // ファイル名とファイルIDの頑健なパース処理
+    // スプレッドシートの実JSONデータ（name:ファイル名, url:ファイルID）に完全準拠したパーサー
     const processLoadedFiles = (files) => {
         structuredData = {};
         files.forEach(file => {
-            let fullStr = (file.name || "") + " " + (file.url || "");
-            
-            // ファイル名 (.png または .jpg) の抽出
-            let nameMatch = fullStr.match(/([^\s\/]+\.(?:png|jpg))/i);
-            let fileName = nameMatch ? nameMatch[1] : (file.name || "");
-
-            // GoogleドライブのファイルID（28文字以上の英数-_文字列）の抽出
-            let idMatch = fullStr.match(/([a-zA-Z0-9_-]{28,35})/);
-            let fileId = idMatch ? idMatch[1] : (file.url || "");
+            const fileName = String(file.name || "").trim();
+            const fileId = String(file.url || "").trim();
 
             if (!fileName || !fileId) return;
 
@@ -311,7 +304,7 @@
             }
         });
 
-        // ページ順ソート
+        // ページ番号ソート
         Object.keys(structuredData).forEach(p => {
             Object.keys(structuredData[p]).forEach(s => {
                 Object.keys(structuredData[p][s]).forEach(y => {
@@ -585,6 +578,7 @@
                 throw new Error(data.message || "採点処理に失敗しました。");
             }
         } catch (error) {
+            console.error(error);
             document.getElementById('ai-loading').style.display = 'none';
             document.getElementById('ai-result-text').style.display = 'block';
             document.getElementById('ai-result-text').innerHTML = `<span style="color:red;">AIとの通信に失敗しました。<br>${error.message}</span>`;
