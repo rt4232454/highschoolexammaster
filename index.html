@@ -88,7 +88,6 @@
     </div>
 
     <div class="workspace">
-        <!-- 左ペイン：問題用紙 -->
         <div class="pane-left">
             <div class="card-header">
                 <h2>問題用紙</h2>
@@ -111,9 +110,7 @@
             </div>
         </div>
 
-        <!-- 右ペイン：解答とメモ -->
         <div class="pane-right">
-            <!-- 右上：解答用紙 -->
             <div class="pane-right-top">
                 <div class="card-header">
                     <h2>解答用紙 (答案)</h2>
@@ -150,7 +147,6 @@
                 </div>
             </div>
 
-            <!-- 右下：途中計算・メモ用紙 -->
             <div class="pane-right-bottom">
                 <div class="card-header">
                     <h2>途中計算・メモ用紙</h2>
@@ -174,7 +170,6 @@
     </div>
 </div>
 
-<!-- 学習結果 記録モーダル -->
 <div class="modal" id="log-modal">
     <div class="modal-content">
         <h3>演習結果の記録（スプレッドシート連携）</h3>
@@ -201,7 +196,6 @@
     </div>
 </div>
 
-<!-- AI採点結果モーダル -->
 <div class="modal" id="ai-modal">
     <div class="modal-content" id="ai-modal-content">
         <h3 style="margin-top:0;">🤖 AI自動採点・解説</h3>
@@ -269,20 +263,38 @@
         location.reload();
     };
 
-    // ドライブ実ファイル名対応の高速パーサー
+    // 結合文字列（ファイル名＋ID）を分離するパーサー
     const processLoadedFiles = (files) => {
         structuredData = {};
         files.forEach(file => {
-            const name = file.name;
+            let rawStr = (file.name || "") + (file.url || "");
+            let fileName = "";
+            let fileId = "";
+
+            if (rawStr.includes('.png')) {
+                const parts = rawStr.split('.png');
+                fileName = parts[0] + '.png';
+                fileId = parts[1] ? parts[1].trim() : (file.url || "");
+            } else if (rawStr.includes('.jpg')) {
+                const parts = rawStr.split('.jpg');
+                fileName = parts[0] + '.jpg';
+                fileId = parts[1] ? parts[1].trim() : (file.url || "");
+            } else {
+                fileName = file.name || "";
+                fileId = file.url || "";
+            }
+
+            if (!fileId && file.url) fileId = file.url;
+
             let pref = "長野県", subject = "", year = "";
 
             const prefsList = ["長野県", "東京都", "大阪府", "神奈川県", "愛知県", "北海道", "福岡県", "埼玉県", "千葉県", "兵庫県", "静岡県"];
-            for (let p of prefsList) { if (name.includes(p)) { pref = p; break; } }
+            for (let p of prefsList) { if (fileName.includes(p)) { pref = p; break; } }
 
-            const subjectsList = ["国語", "数学", "英語", "理科", "社会"];
-            for (let s of subjectsList) { if (name.includes(s)) { subject = s; break; } }
+            const subjectsList = ["社会", "国語", "数学", "英語", "理科"];
+            for (let s of subjectsList) { if (fileName.includes(s)) { subject = s; break; } }
 
-            const yearMatch = name.match(/20\d{2}/);
+            const yearMatch = fileName.match(/20\d{2}/);
             if (yearMatch) year = yearMatch[0];
 
             if (!subject || !year) return;
@@ -293,20 +305,20 @@
                 structuredData[pref][subject][year] = { pages: [], ansPages: [] };
             }
 
-            // 「解答用紙」「正答」「正答・評価基準」「ans」は解答エリア、それ以外は問題エリア
-            if (name.includes('解答用紙') || name.includes('正答') || name.toLowerCase().includes('ans')) {
-                structuredData[pref][subject][year].ansPages.push(file);
+            const item = { name: fileName, fileId: fileId };
+
+            if (fileName.includes('解答用紙') || fileName.includes('正答') || fileName.toLowerCase().includes('ans')) {
+                structuredData[pref][subject][year].ansPages.push(item);
             } else {
-                structuredData[pref][subject][year].pages.push(file);
+                structuredData[pref][subject][year].pages.push(item);
             }
         });
 
-        // ページ番号を自然順ソート（page_01, page_02...）
+        // ページ番号ソート
         Object.keys(structuredData).forEach(p => {
             Object.keys(structuredData[p]).forEach(s => {
                 Object.keys(structuredData[p][s]).forEach(y => {
                     structuredData[p][s][y].pages.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
-                    // 解答用紙は「解答用紙」を優先して先頭に配置
                     structuredData[p][s][y].ansPages.sort((a,b) => {
                         if (a.name.includes('解答用紙') && !b.name.includes('解答用紙')) return -1;
                         if (!a.name.includes('解答用紙') && b.name.includes('解答用紙')) return 1;
@@ -410,11 +422,12 @@
         info.textContent = `${index + 1} / ${pageList.length}`;
         prevBtn.disabled = (index === 0); nextBtn.disabled = (index === pageList.length - 1);
 
-        let fileId = file.url;
+        let fileId = file.fileId;
         if (fileId.includes('id=')) fileId = fileId.split('id=')[1].split('&')[0];
         else if (fileId.includes('/d/')) fileId = fileId.split('/d/')[1].split('/')[0];
 
-        const directUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+        // Googleドライブの画像URL
+        const directUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
 
         if (isAnswer) {
             const bgImg = document.getElementById('answer-bg-img');
