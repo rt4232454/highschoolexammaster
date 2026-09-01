@@ -2,698 +2,419 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>過去問カイゼン学習システム（都道府県・教科・年度 絞り込み版）</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>過去問演習・管理システム</title>
     <style>
-        * { box-sizing: border-box; }
         body {
-            font-family: sans-serif;
-            background-color: #eef2f5;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
             margin: 0;
-            padding: 10px;
+            padding: 20px;
+            background-color: #f4f6f9;
+            color: #333;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .selector-panel {
+            background: #fff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .selector-group {
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
+            gap: 5px;
         }
-        /* 上部コントロールバー */
-        .controls {
-            background: white;
-            padding: 8px 15px;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 8px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-shrink: 0;
-            flex-wrap: wrap;
+        label {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #555;
         }
-        select, button {
-            padding: 6px 10px;
-            font-size: 13px;
-            cursor: pointer;
-            border: 1px solid #ccc;
+        select {
+            padding: 8px 12px;
             border-radius: 4px;
-            background-color: #fff;
-            color: #333;
-            transition: all 0.2s;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            min-width: 140px;
         }
-        select:disabled { background-color: #e9ecef; cursor: not-allowed; }
+        #status-message {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #007bff;
+            margin-left: auto;
+        }
+        .viewer-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .viewer-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            border-bottom: 2px solid #eaeaea;
+            padding-bottom: 8px;
+            color: #34495e;
+        }
+        .image-container {
+            text-align: center;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #fafafa;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            max-height: 700px;
+            object-fit: contain;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
         button {
-            background-color: #6c757d;
+            padding: 8px 16px;
+            background-color: #007bff;
             color: white;
             border: none;
-        }
-        button:hover { background-color: #5a6268; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
-        button.active { background-color: #007bff; font-weight: bold; }
-        .clear-btn { background-color: #dc3545; }
-        .clear-btn:hover { background-color: #c82333; }
-        
-        #status-message {
-            font-weight: bold;
-            color: #d9534f;
-            font-size: 13px;
-        }
-
-        /* タイマー表示スタイル */
-        .timer-container {
-            background: #343a40;
-            color: #fff;
-            padding: 4px 10px;
             border-radius: 4px;
-            font-family: monospace;
-            font-size: 14px;
-            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .action-bar {
+            margin-top: 15px;
             display: flex;
-            align-items: center;
-            gap: 8px;
+            gap: 10px;
+            justify-content: flex-end;
         }
-        .timer-container.warning {
-            background: #dc3545;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
-        }
-
-        /* メインの左右分割レイアウト */
-        .main-container {
-            display: flex;
-            flex: 1;
-            gap: 8px;
-            overflow: hidden;
-        }
-
-        .pane {
-            background: white;
-            border-radius: 6px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
-            border: 2px solid #dee2e6;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        .pane.active-pane {
-            border-color: #007bff;
-            box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
-        }
-
-        .pane-header {
-            background: #f8f9fa;
-            padding: 6px 12px;
-            font-size: 12px;
-            font-weight: bold;
-            color: #495057;
-            border-bottom: 1px solid #dee2e6;
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .left-pane { flex: 1; }
-
-        .right-pane {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sub-pane {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            min-height: 100px;
-            overflow: hidden;
-            border: 2px solid #dee2e6;
-            border-radius: 4px;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        .sub-pane.active-pane {
-            border-color: #007bff;
-            box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
-        }
-
-        .splitter-h {
-            height: 6px;
-            background: #ced4da;
-            cursor: row-resize;
-            flex-shrink: 0;
-            transition: background 0.2s;
-        }
-        .splitter-h:hover { background: #007bff; }
-
-        /* スクロールビューポート */
-        .scrollable-viewport {
-            flex: 1;
-            position: relative;
-            overflow: auto;
-            background: #e9ecef;
-            touch-action: auto; 
-        }
-        .scrollable-viewport.draw-mode {
-            overflow: hidden;
-        }
-
-        /* キャンバスラッパー */
-        .canvas-transform-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            transform-origin: 0 0;
-            background: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        }
-        .bg-canvas { display: block; }
-        .draw-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-        .scrollable-viewport.draw-mode .draw-canvas { touch-action: none; }
-        .scrollable-viewport.nav-mode .draw-canvas { pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <div class="controls">
-        <span id="status-message">データ読込中...</span>
-        
-        <!-- 3段階絞り込みセレクトボックス -->
-        <label>都道府県: <select id="pref-select" disabled><option value="">--</option></select></label>
-        <label>教科: <select id="subject-select" disabled><option value="">--</option></select></label>
-        <label>年度: <select id="year-select" disabled><option value="">--</option></select></label>
+<div class="container">
+    <h1>高校受験 過去問演習・管理システム</h1>
 
-        <div style="border-left: 1px solid #ccc; height: 20px;"></div>
-        <button id="prev-btn" disabled>前のページ</button>
-        <span><span id="page-num">0</span> / <span id="page-count">0</span></span>
-        <button id="next-btn" disabled>次のページ</button>
-
-        <div style="border-left: 1px solid #ccc; height: 20px;"></div>
-        <button id="mode-draw-btn" class="active">✏️ 書き込み</button>
-        <button id="mode-nav-btn">✋ 移動・拡大</button>
-
-        <div style="border-left: 1px solid #ccc; height: 20px;"></div>
-        <button id="pen-btn" class="active">黒ペン</button>
-        <button id="eraser-btn">消しゴム</button>
-        <button class="clear-btn" id="clear-current-btn">画面消去</button>
-
-        <div style="margin-left: auto; display: flex; gap: 5px; align-items: center;">
-            <div class="timer-container" id="timer-display">
-                ⏱ <span id="time-text">50:00</span>
-            </div>
-            <button id="timer-toggle-btn">開始</button>
-            <button id="timer-reset-btn">リセット</button>
+    <!-- 3段階セレクターパネル -->
+    <div class="selector-panel">
+        <div class="selector-group">
+            <label for="pref-select">都道府県</label>
+            <select id="pref-select" onchange="onPrefChange()" disabled>
+                <option value="">選択してください</option>
+            </select>
         </div>
+        <div class="selector-group">
+            <label for="subject-select">教科</label>
+            <select id="subject-select" onchange="onSubjectChange()" disabled>
+                <option value="">選択してください</option>
+            </select>
+        </div>
+        <div class="selector-group">
+            <label for="year-select">年度</label>
+            <select id="year-select" onchange="onYearChange()" disabled>
+                <option value="">選択してください</option>
+            </select>
+        </div>
+        <div id="status-message">データ読込中...</div>
     </div>
 
-    <div class="main-container">
-        <!-- 左側：問題エリア -->
-        <div class="pane left-pane" id="pane-left">
-            <div class="pane-header">
-                <span>【左】問題用紙</span>
+    <!-- ビューアパネル (問題 & 解答用紙) -->
+    <div class="viewer-panel">
+        <!-- 問題用紙エリア -->
+        <div class="card">
+            <h2>問題用紙</h2>
+            <div class="image-container" id="problem-container">
+                <p style="color: #888;">条件を選択してください</p>
             </div>
-            <div class="scrollable-viewport draw-mode" id="viewport-left">
-                <div class="canvas-transform-container" id="container-left">
-                    <canvas id="bg-canvas" class="bg-canvas"></canvas>
-                    <canvas id="draw-canvas-left" class="draw-canvas"></canvas>
-                </div>
+            <div class="pagination">
+                <button id="prob-prev" onclick="changePage('problem', -1)" disabled>前のページ</button>
+                <span id="prob-page-info">0 / 0</span>
+                <button id="prob-next" onclick="changePage('problem', 1)" disabled>次のページ</button>
             </div>
         </div>
 
-        <!-- 右側：解答・メモエリア -->
-        <div class="pane right-pane" id="right-pane">
-            <!-- 右上：答案用紙エリア -->
-            <div class="sub-pane" id="pane-top">
-                <div class="pane-header" id="ans-header">
-                    <span>【右上】答案用紙・記述欄（自動連動）</span>
-                </div>
-                <div class="scrollable-viewport draw-mode" id="viewport-top">
-                    <div class="canvas-transform-container" id="container-top">
-                        <canvas id="bg-canvas-top" class="bg-canvas"></canvas>
-                        <canvas id="draw-canvas-top" class="draw-canvas"></canvas>
-                    </div>
-                </div>
+        <!-- 解答用紙エリア -->
+        <div class="card">
+            <h2>解答用紙 (答案)</h2>
+            <div class="image-container" id="answer-container">
+                <p style="color: #888;">条件を選択してください</p>
             </div>
-
-            <!-- 上下リサイズバー -->
-            <div class="splitter-h" id="splitter-h"></div>
-
-            <!-- 右下：メモ・計算用紙エリア -->
-            <div class="sub-pane" id="pane-bottom">
-                <div class="pane-header">
-                    <span>【右下】メモ・途中計算用紙</span>
-                </div>
-                <div class="scrollable-viewport draw-mode" id="viewport-bottom">
-                    <div class="canvas-transform-container" id="container-bottom" style="width: 1600px; height: 1200px; background: #fdfdfd;">
-                        <canvas id="draw-canvas-bottom" class="draw-canvas" width="1600" height="1200"></canvas>
-                    </div>
-                </div>
+            <div class="pagination">
+                <button id="ans-prev" onclick="changePage('answer', -1)" disabled>前のページ</button>
+                <span id="ans-page-info">0 / 0</span>
+                <button id="ans-next" onclick="changePage('answer', 1)" disabled>次のページ</button>
+            </div>
+            <div class="action-bar">
+                <button onclick="clearCacheAndReload()" style="background-color: #6c757d; font-size: 0.8rem;">キャッシュ更新</button>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPCX87yBaV0esrdLaWL-ImIeuXELKXcbFVKHTMBoZW4SNUz_Etn4PIrNXKH9XKDsk78Q/exec';
+<script>
+    // 取得した新しいGASのウェブアプリURL
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwPKqU_Tg0Jv9k51pLyue3R7aOSWZ1IXRxXWhZ-7JbKlhLrIbajlzjq5EbfVNt5rarmGw/exec";
 
-        let allFiles = [];
-        let structuredData = {}; // { 都道府県: { 教科: { 年度: { pages: [], ansPages: [] } } } }
-        let currentPages = [];
-        let currentAnsPages = [];
-        let currentIndex = 0;
-        
-        let currentMode = 'draw';   
-        let currentTool = 'pen';    
-        let activePaneId = 'pane-left'; 
+    let allFiles = [];
+    let structuredData = {};
 
-        // タイマー制御
-        let totalSeconds = 50 * 60;
-        let timerInterval = null;
-        let isTimerRunning = false;
+    let currentPref = "";
+    let currentSubject = "";
+    let currentYear = "";
 
-        const timeText = document.getElementById('time-text');
-        const timerDisplay = document.getElementById('timer-display');
-        const timerToggleBtn = document.getElementById('timer-toggle-btn');
-        const timerResetBtn = document.getElementById('timer-reset-btn');
+    let currentProbIndex = 0;
+    let currentAnsIndex = 0;
 
-        const updateTimerDisplay = () => {
-            const mins = Math.floor(totalSeconds / 60);
-            const secs = totalSeconds % 60;
-            timeText.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-            if (totalSeconds <= 300 && totalSeconds > 0) timerDisplay.classList.add('warning');
-            else timerDisplay.classList.remove('warning');
-        };
+    // 起動時にデータを取得
+    window.onload = () => {
+        fetchImagesFromCloud();
+    };
 
-        timerToggleBtn.addEventListener('click', () => {
-            if (isTimerRunning) {
-                clearInterval(timerInterval);
-                isTimerRunning = false;
-                timerToggleBtn.textContent = '再開';
-                timerToggleBtn.style.backgroundColor = '#28a745';
-            } else {
-                if (totalSeconds <= 0) totalSeconds = 50 * 60;
-                isTimerRunning = true;
-                timerToggleBtn.textContent = '一時停止';
-                timerToggleBtn.style.backgroundColor = '#ffc107';
-                timerToggleBtn.style.color = '#000';
-                timerInterval = setInterval(() => {
-                    if (totalSeconds > 0) {
-                        totalSeconds--;
-                        updateTimerDisplay();
-                    } else {
-                        clearInterval(timerInterval);
-                        isTimerRunning = false;
-                        alert('時間切れです！お疲れ様でした。');
-                    }
-                }, 1000);
-            }
-        });
-
-        timerResetBtn.addEventListener('click', () => {
-            clearInterval(timerInterval);
-            isTimerRunning = false;
-            totalSeconds = 50 * 60;
-            updateTimerDisplay();
-            timerToggleBtn.textContent = '開始';
-            timerToggleBtn.style.backgroundColor = '#6c757d';
-            timerToggleBtn.style.color = '#fff';
-            timerDisplay.classList.remove('warning');
-        });
-        updateTimerDisplay();
-
-        const modeDrawBtn = document.getElementById('mode-draw-btn');
-        const modeNavBtn = document.getElementById('mode-nav-btn');
-        const viewports = document.querySelectorAll('.scrollable-viewport');
-
-        const updateModeUI = () => {
-            if (currentMode === 'draw') {
-                modeDrawBtn.classList.add('active');
-                modeNavBtn.classList.remove('active');
-                viewports.forEach(vp => { vp.classList.add('draw-mode'); vp.classList.remove('nav-mode'); });
-            } else {
-                modeNavBtn.classList.add('active');
-                modeDrawBtn.classList.remove('active');
-                viewports.forEach(vp => { vp.classList.remove('draw-mode'); vp.classList.add('nav-mode'); });
-            }
-        };
-
-        modeDrawBtn.addEventListener('click', () => { currentMode = 'draw'; updateModeUI(); });
-        modeNavBtn.addEventListener('click', () => { currentMode = 'nav'; updateModeUI(); });
-
-        const penBtn = document.getElementById('pen-btn');
-        const eraserBtn = document.getElementById('eraser-btn');
-
-        penBtn.addEventListener('click', () => { currentTool = 'pen'; penBtn.classList.add('active'); eraserBtn.classList.remove('active'); });
-        eraserBtn.addEventListener('click', () => { currentTool = 'eraser'; eraserBtn.classList.add('active'); penBtn.classList.remove('active'); });
-
-        const setActivePane = (paneId) => {
-            activePaneId = paneId;
-            document.querySelectorAll('.pane, .sub-pane').forEach(el => el.classList.remove('active-pane'));
-            const target = document.getElementById(paneId);
-            if (target) target.classList.add('active-pane');
-        };
-
-        // --- データ取得と構造化（都道府県 ➔ 教科 ➔ 年度） ---
-        const fetchImagesFromCloud = async () => {
-            try {
-                const response = await fetch(GAS_URL);
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    allFiles = data;
-                    structuredData = {};
-
-                    // ファイル名解析: 例 "英語_2023_長野県_問題..." または "長野県_英語_2023_..." などを柔軟にパース
-                    allFiles.forEach(file => {
-                        const name = file.name;
-                        // デフォルト値
-                        let pref = "長野県"; // デフォルト
-                        let subject = "一般";
-                        let year = "2023";
-
-                        // 名前に都道府県が含まれているかチェック
-                        const prefsList = ["長野県", "東京都", "大阪府", "神奈川県", "愛知県", "北海道", "福岡県", "埼玉県", "千葉県", "兵庫県", "静岡県", "茨城県", "広島県", "京都府", "宮城県", "新潟県", "長野"];
-                        for (let p of prefsList) {
-                            if (name.includes(p)) {
-                                pref = p.replace("長野", "長野県");
-                                break;
-                            }
-                        }
-
-                        // 教科の判定
-                        const subjectsList = ["英語", "数学", "国語", "理科", "社会"];
-                        for (let s of subjectsList) {
-                            if (name.includes(s)) {
-                                subject = s;
-                                break;
-                            }
-                        }
-
-                        // 年度の判定（4桁の数字を抽出）
-                        const yearMatch = name.match(/20\d{2}|\d{2}年度/);
-                        if (yearMatch) {
-                            year = yearMatch[0];
-                        }
-
-                        if (!structuredData[pref]) structuredData[pref] = {};
-                        if (!structuredData[pref][subject]) structuredData[pref][subject] = {};
-                        if (!structuredData[pref][subject][year]) {
-                            structuredData[pref][subject][year] = { pages: [], ansPages: [] };
-                        }
-
-                        // ページ登録
-                        if (name.toLowerCase().includes('ans') || name.toLowerCase().includes('answer')) {
-                            structuredData[pref][subject][year].ansPages.push(file);
-                        } else {
-                            structuredData[pref][subject][year].pages.push(file);
-                        }
-                    });
-
-                    initPrefSelect();
-                    document.getElementById('status-message').textContent = '選択して開始';
-                    document.getElementById('status-message').style.color = '#28a745';
-                } else {
-                    document.getElementById('status-message').textContent = '画像がありません';
-                }
-            } catch (e) {
-                document.getElementById('status-message').textContent = '通信エラー';
-            }
-        };
-
-        const prefSelect = document.getElementById('pref-select');
-        const subjectSelect = document.getElementById('subject-select');
-        const yearSelect = document.getElementById('year-select');
-
-        // 1. 都道府県セレクトボックスの初期化
-        const initPrefSelect = () => {
-            prefSelect.innerHTML = '';
-            Object.keys(structuredData.forEach ? Object.keys(structuredData) : Object.keys(structuredData)).forEach(pref => {
-                const opt = document.createElement('option');
-                opt.value = pref;
-                opt.textContent = pref;
-                prefSelect.appendChild(opt);
-            });
-            prefSelect.disabled = false;
-            initSubjectSelect(prefSelect.value);
-        };
-
-        // 2. 教科セレクトボックスの連動更新
-        const initSubjectSelect = (pref) => {
-            subjectSelect.innerHTML = '';
-            if (structuredData[pref]) {
-                Object.keys(structuredData[pref]).forEach(subj => {
-                    const opt = document.createElement('option');
-                    opt.value = subj;
-                    opt.textContent = subj;
-                    subjectSelect.appendChild(opt);
-                });
-                subjectSelect.disabled = false;
-                initYearSelect(pref, subjectSelect.value);
-            } else {
-                subjectSelect.disabled = true;
-                yearSelect.disabled = true;
-            }
-        };
-
-        // 3. 年度セレクトボックスの連動更新
-        const initYearSelect = (pref, subj) => {
-            yearSelect.innerHTML = '';
-            if (structuredData[pref] && structuredData[pref][subj]) {
-                Object.keys(structuredData[pref][subj]).forEach(yr => {
-                    const opt = document.createElement('option');
-                    opt.value = yr;
-                    opt.textContent = yr;
-                    yearSelect.appendChild(opt);
-                });
-                yearSelect.disabled = false;
-                loadSelectedProblemSet();
-            } else {
-                yearSelect.disabled = true;
-            }
-        };
-
-        // イベントリスナーの接続
-        prefSelect.addEventListener('change', () => {
-            initSubjectSelect(prefSelect.value);
-        });
-        subjectSelect.addEventListener('change', () => {
-            initYearSelect(prefSelect.value, subjectSelect.value);
-        });
-        yearSelect.addEventListener('change', () => {
-            loadSelectedProblemSet();
-        });
-
-        // 選択された組み合わせの問題セットをロード
-        const loadSelectedProblemSet = () => {
-            const pref = prefSelect.value;
-            const subj = subjectSelect.value;
-            const yr = yearSelect.value;
-
-            if (structuredData[pref] && structuredData[pref][subj] && structuredData[pref][subj][yr]) {
-                const set = structuredData[pref][subj][yr];
-                currentPages = [...set.pages];
-                currentAnsPages = [...set.ansPages];
-
-                currentPages.sort((a, b) => a.name.localeCompare(b.name));
-                currentAnsPages.sort((a, b) => a.name.localeCompare(b.name));
-
-                currentIndex = 0;
-                document.getElementById('page-count').textContent = currentPages.length;
-                document.getElementById('prev-btn').disabled = currentPages.length === 0;
-                document.getElementById('next-btn').disabled = currentPages.length === 0;
-
-                if (currentPages.length > 0) {
-                    renderPages(currentIndex);
-                }
-            }
-        };
-
-        const bgCanvasLeft = document.getElementById('bg-canvas');
-        const bgCtxLeft = bgCanvasLeft.getContext('2d');
-        const drawLeft = document.getElementById('draw-canvas-left');
-        const ctxLeft = drawLeft.getContext('2d');
-
-        const bgCanvasTop = document.getElementById('bg-canvas-top');
-        const bgCtxTop = bgCanvasTop.getContext('2d');
-        const drawTop = document.getElementById('draw-canvas-top');
-        const ctxTop = drawTop.getContext('2d');
-
-        const renderPages = (index) => {
-            if (index < 0 || index >= currentPages.length) return;
+    // Googleスプレッドシート（GAS）からファイル一覧を取得（ブラウザキャッシュ対応）
+    const fetchImagesFromCloud = async () => {
+        try {
+            document.getElementById('status-message').textContent = 'データ読込中...';
             
-            const imgLeft = new Image();
-            imgLeft.onload = () => {
-                bgCanvasLeft.width = imgLeft.width;
-                bgCanvasLeft.height = imgLeft.height;
-                drawLeft.width = imgLeft.width;
-                drawLeft.height = imgLeft.height;
-                document.getElementById('container-left').style.width = imgLeft.width + 'px';
-                document.getElementById('container-left').style.height = imgLeft.height + 'px';
-
-                bgCtxLeft.drawImage(imgLeft, 0, 0);
-                ctxLeft.clearRect(0, 0, drawLeft.width, drawLeft.height);
-                document.getElementById('page-num').textContent = index + 1;
-            };
-            imgLeft.src = currentPages[index].url;
-
-            const ansFile = currentAnsPages[index];
-            if (ansFile) {
-                const imgTop = new Image();
-                imgTop.onload = () => {
-                    bgCanvasTop.width = imgTop.width;
-                    bgCanvasTop.height = imgTop.height;
-                    drawTop.width = imgTop.width;
-                    drawTop.height = imgTop.height;
-                    document.getElementById('container-top').style.width = imgTop.width + 'px';
-                    document.getElementById('container-top').style.height = imgTop.height + 'px';
-
-                    bgCtxTop.drawImage(imgTop, 0, 0);
-                    ctxTop.clearRect(0, 0, drawTop.width, drawTop.height);
-                    document.getElementById('ans-header').innerHTML = '<span>【右上】答案用紙・記述欄（自動連動）</span>';
-                };
-                imgTop.src = ansFile.url;
-            } else {
-                bgCanvasTop.width = 1200;
-                bgCanvasTop.height = 800;
-                drawTop.width = 1200;
-                drawTop.height = 800;
-                document.getElementById('container-top').style.width = '1200px';
-                document.getElementById('container-top').style.height = '800px';
-                bgCtxTop.fillStyle = '#fffdf0';
-                bgCtxTop.fillRect(0, 0, 1200, 800);
-                bgCtxTop.strokeStyle = '#e0e0d0';
-                bgCtxTop.lineWidth = 1;
-                for(let y=50; y<800; y+=50) {
-                    bgCtxTop.beginPath();
-                    bgCtxTop.moveTo(0, y);
-                    bgCtxTop.lineTo(1200, y);
-                    bgCtxTop.stroke();
-                }
-                ctxTop.clearRect(0, 0, 1200, 800);
-                document.getElementById('ans-header').innerHTML = '<span>【右上】答案用紙（白紙ノート）</span>';
+            // 1. ローカルストレージにキャッシュがあれば優先使用
+            const cachedFiles = localStorage.getItem('past_exam_files_cache');
+            if (cachedFiles) {
+                allFiles = JSON.parse(cachedFiles);
+                processLoadedFiles(allFiles);
+                document.getElementById('status-message').textContent = '準備完了 (キャッシュ)';
+                document.getElementById('status-message').style.color = '#28a745';
+                return;
             }
-        };
 
-        document.getElementById('prev-btn').addEventListener('click', () => { if(currentIndex>0) renderPages(--currentIndex); });
-        document.getElementById('next-btn').addEventListener('click', () => { if(currentIndex<currentPages.length-1) renderPages(++currentIndex); });
-
-        // 描画エンジン
-        const initWorkspace = (paneId, viewportId, containerId, canvasId) => {
-            const pane = document.getElementById(paneId);
-            const canvas = document.getElementById(canvasId);
-            const ctx = canvas.getContext('2d');
-
-            let isDrawing = false;
-            let lastX = 0, lastY = 0;
-
-            pane.addEventListener('pointerdown', () => { setActivePane(paneId); });
-
-            const getCanvasPos = (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                return {
-                    x: (clientX - rect.left) * (canvas.width / rect.width),
-                    y: (clientY - rect.top) * (canvas.height / rect.height)
-                };
-            };
-
-            canvas.addEventListener('pointerdown', (e) => {
-                setActivePane(paneId);
-                if (currentMode === 'nav') return;
-
-                isDrawing = true;
-                const pos = getCanvasPos(e);
-                lastX = pos.x;
-                lastY = pos.y;
+            // 2. なければGASから取得
+            const response = await fetch(GAS_URL);
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                allFiles = data;
+                localStorage.setItem('past_exam_files_cache', JSON.stringify(data));
                 
-                canvas.setPointerCapture(e.pointerId);
-                e.preventDefault();
-            });
+                processLoadedFiles(allFiles);
+                document.getElementById('status-message').textContent = '準備完了';
+                document.getElementById('status-message').style.color = '#28a745';
+            } else {
+                document.getElementById('status-message').textContent = 'ファイルがありません';
+            }
+        } catch (e) {
+            document.getElementById('status-message').textContent = '通信エラー';
+            console.error(e);
+        }
+    };
 
-            canvas.addEventListener('pointermove', (e) => {
-                if (currentMode === 'nav' || !isDrawing) return;
+    // キャッシュを手動クリアして再読み込みする関数
+    const clearCacheAndReload = () => {
+        localStorage.removeItem('past_exam_files_cache');
+        alert('キャッシュをクリアしました。再読み込みします。');
+        location.reload();
+    };
 
-                const pos = getCanvasPos(e);
-                ctx.save();
-                if (currentTool === 'eraser') {
-                    ctx.globalCompositeOperation = 'destination-out';
-                    ctx.lineWidth = 30;
-                } else {
-                    ctx.globalCompositeOperation = 'source-over';
-                    ctx.strokeStyle = '#000000';
-                    ctx.lineWidth = 3;
-                }
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
+    // 読み込んだファイル群を構造化データに変換
+    const processLoadedFiles = (files) => {
+        structuredData = {};
+        files.forEach(file => {
+            const name = file.name;
+            let pref = "長野県";
+            let subject = "英語";
+            let year = "2023";
 
-                ctx.beginPath();
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke();
-                ctx.restore();
+            const prefsList = ["長野県", "東京都", "大阪府", "神奈川県", "愛知県", "北海道", "福岡県", "埼玉県", "千葉県", "兵庫県", "静岡県"];
+            for (let p of prefsList) {
+                if (name.includes(p)) { pref = p; break; }
+            }
 
-                lastX = pos.x;
-                lastY = pos.y;
-                e.preventDefault();
-            });
+            const subjectsList = ["英語", "数学", "国語", "理科", "社会"];
+            for (let s of subjectsList) {
+                if (name.includes(s)) { subject = s; break; }
+            }
 
-            const stopDrawing = (e) => {
-                if (isDrawing) {
-                    isDrawing = false;
-                    try { canvas.releasePointerCapture(e.pointerId); } catch(err) {}
-                }
-            };
+            const yearMatch = name.match(/20\d{2}|\d{2}年度/);
+            if (yearMatch) year = yearMatch[0];
 
-            canvas.addEventListener('pointerup', stopDrawing);
-            canvas.addEventListener('pointercancel', stopDrawing);
-        };
+            if (!structuredData[pref]) structuredData[pref] = {};
+            if (!structuredData[pref][subject]) structuredData[pref][subject] = {};
+            if (!structuredData[pref][subject][year]) {
+                structuredData[pref][subject][year] = { pages: [], ansPages: [] };
+            }
 
-        initWorkspace('pane-left', 'viewport-left', 'container-left', 'draw-canvas-left');
-        initWorkspace('pane-top', 'viewport-top', 'container-top', 'draw-canvas-top');
-        initWorkspace('pane-bottom', 'viewport-bottom', 'container-bottom', 'draw-canvas-bottom');
-
-        setActivePane('pane-left');
-
-        document.getElementById('clear-current-btn').addEventListener('click', () => {
-            let targetCanvas = null;
-            if (activePaneId === 'pane-left') targetCanvas = drawLeft;
-            else if (activePaneId === 'pane-top') targetCanvas = drawTop;
-            else if (activePaneId === 'pane-bottom') targetCanvas = document.getElementById('draw-canvas-bottom');
-
-            if (targetCanvas) {
-                const tCtx = targetCanvas.getContext('2d');
-                tCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+            if (name.toLowerCase().includes('ans') || name.toLowerCase().includes('answer')) {
+                structuredData[pref][subject][year].ansPages.push(file);
+            } else {
+                structuredData[pref][subject][year].pages.push(file);
             }
         });
 
-        const splitter = document.getElementById('splitter-h');
-        const topPane = document.getElementById('pane-top');
-        let isResizing = false;
+        initPrefSelect();
+    };
 
-        splitter.addEventListener('mousedown', () => { isResizing = true; document.body.style.cursor = 'row-resize'; });
-        window.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            const rightRect = document.getElementById('right-pane').getBoundingClientRect();
-            const newH = e.clientY - rightRect.top;
-            if (newH > 50 && newH < rightRect.height - 50) {
-                topPane.style.flex = 'none';
-                topPane.style.height = newH + 'px';
-            }
+    // 都道府県セレクトボックスの初期化
+    const initPrefSelect = () => {
+        const prefSelect = document.getElementById('pref-select');
+        prefSelect.innerHTML = '<option value="">選択してください</option>';
+        
+        Object.keys(structuredData).forEach(pref => {
+            const opt = document.createElement('option');
+            opt.value = pref;
+            opt.textContent = pref;
+            prefSelect.appendChild(opt);
         });
-        window.addEventListener('mouseup', () => { isResizing = false; document.body.style.cursor = 'default'; });
+        prefSelect.disabled = false;
+    };
 
-        window.onload = fetchImagesFromCloud;
-    </script>
+    // 都道府県変更時
+    const onPrefChange = () => {
+        currentPref = document.getElementById('pref-select').value;
+        const subSelect = document.getElementById('subject-select');
+        subSelect.innerHTML = '<option value="">選択してください</option>';
+        subSelect.disabled = true;
+        
+        const yearSelect = document.getElementById('year-select');
+        yearSelect.innerHTML = '<option value="">選択してください</option>';
+        yearSelect.disabled = true;
+
+        clearViewers();
+
+        if (currentPref && structuredData[currentPref]) {
+            subSelect.disabled = false;
+            Object.keys(structuredData[currentPref]).forEach(subject => {
+                const opt = document.createElement('option');
+                opt.value = subject;
+                opt.textContent = subject;
+                subSelect.appendChild(opt);
+            });
+        }
+    };
+
+    // 教科変更時
+    const onSubjectChange = () => {
+        currentSubject = document.getElementById('subject-select').value;
+        const yearSelect = document.getElementById('year-select');
+        yearSelect.innerHTML = '<option value="">選択してください</option>';
+        yearSelect.disabled = true;
+
+        clearViewers();
+
+        if (currentSubject && structuredData[currentPref][currentSubject]) {
+            yearSelect.disabled = false;
+            Object.keys(structuredData[currentPref][currentSubject]).sort().reverse().forEach(year => {
+                const opt = document.createElement('option');
+                opt.value = year;
+                opt.textContent = year;
+                yearSelect.appendChild(opt);
+            });
+        }
+    };
+
+    // 年度変更時（データ表示の確定）
+    const onYearChange = () => {
+        currentYear = document.getElementById('year-select').value;
+        currentProbIndex = 0;
+        currentAnsIndex = 0;
+        updateViewers();
+    };
+
+    // ビューアの描画更新
+    const updateViewers = () => {
+        if (!currentPref || !currentSubject || !currentYear) return;
+        const targetData = structuredData[currentPref][currentSubject][currentYear];
+
+        renderImage('problem', targetData.pages, currentProbIndex);
+        renderImage('answer', targetData.ansPages, currentAnsIndex);
+    };
+
+    // 画像の描画とページネーション状態の更新
+    const renderImage = (type, pageList, index) => {
+        const container = document.getElementById(`${type}-container`);
+        const info = document.getElementById(`${type}-page-info`);
+        const prevBtn = document.getElementById(`${type}-prev`);
+        const nextBtn = document.getElementById(`${type}-next`);
+
+        container.innerHTML = '';
+
+        if (!pageList || pageList.length === 0) {
+            container.innerHTML = '<p style="color: #888;">画像がありません</p>';
+            info.textContent = '0 / 0';
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            return;
+        }
+
+        const file = pageList[index];
+        const img = document.createElement('img');
+        // GoogleドライブのダウンロードURLを直接指定
+        img.src = file.url;
+        container.appendChild(img);
+
+        info.textContent = `${index + 1} / ${pageList.length}`;
+        prevBtn.disabled = (index === 0);
+        nextBtn.disabled = (index === pageList.length - 1);
+    };
+
+    // ページ切り替え
+    const changePage = (type, direction) => {
+        const targetData = structuredData[currentPref][currentSubject][currentYear];
+        if (type === 'problem') {
+            currentProbIndex += direction;
+            renderImage('problem', targetData.pages, currentProbIndex);
+        } else {
+            currentAnsIndex += direction;
+            renderImage('answer', targetData.ansPages, currentAnsIndex);
+        }
+    };
+
+    // ビューアのクリア
+    const clearViewers = () => {
+        document.getElementById('problem-container').innerHTML = '<p style="color: #888;">条件を選択してください</p>';
+        document.getElementById('answer-container').innerHTML = '<p style="color: #888;">条件を選択してください</p>';
+        document.getElementById('prob-page-info').textContent = '0 / 0';
+        document.getElementById('ans-page-info').textContent = '0 / 0';
+        document.getElementById('prob-prev').disabled = true;
+        document.getElementById('prob-next').disabled = true;
+        document.getElementById('ans-prev').disabled = true;
+        document.getElementById('ans-next').disabled = true;
+    }
+</script>
+
 </body>
 </html>
